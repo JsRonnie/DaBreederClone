@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Hero() {
+export default function Hero({ onGetStarted }) {
   return (
     <section
       id="hero"
@@ -24,12 +24,13 @@ export default function Hero() {
             A platform for responsible dog breeding, genetic matching, and health record verification
           </p>
           <div className="mt-6">
-            <a
-              href="#features"
+            <button
+              type="button"
+              onClick={() => onGetStarted && onGetStarted()}
               className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white shadow hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               Get Started
-            </a>
+            </button>
           </div>
         </div>
       </div>
