@@ -27,7 +27,7 @@ function App() {
   const goHome = () => setView('landing')
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Navbar
         onMenuClick={() => setSidebarOpen(true)}
         onSignInClick={() => { setAuthMode('signin'); setAuthOpen(true) }}
@@ -45,25 +45,28 @@ function App() {
         onAuthSuccess={handleAuthSuccess}
       />
 
-      {view === 'landing' && (
-        <>
-          <Hero onGetStarted={goToDogForm} />
-          <Features />
-          <HowItWorks />
-          <Community />
-        </>
-      )}
-      {view === 'dogForm' && (
-        <div className="p-4">
-          <button
-            type="button"
-            onClick={goHome}
-            className="mb-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700"
-          >← Back to Home</button>
-          <DogForm />
-        </div>
-      )}
-    </>
+      <main className="flex-1">
+
+        {view === 'landing' && (
+          <>
+            <Hero onGetStarted={goToDogForm} />
+            <Features />
+            <HowItWorks />
+            <Community />
+          </>
+        )}
+        {view === 'dogForm' && (
+          <div className="p-4 sm:p-6 lg:p-8">
+            <button
+              type="button"
+              onClick={goHome}
+              className="mb-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700"
+            >← Back to Home</button>
+            <DogForm />
+          </div>
+        )}
+      </main>
+    </div>
   )
 }
 

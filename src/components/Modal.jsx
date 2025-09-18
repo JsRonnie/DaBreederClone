@@ -18,7 +18,7 @@ export default function Modal({ open, onClose, children, widthClass = 'max-w-3xl
   return (
     <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
       <div
-        className={`absolute inset-0 bg-black/50 transition-opacity ${open ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 bg-black/40 backdrop-blur-md transition-all duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">

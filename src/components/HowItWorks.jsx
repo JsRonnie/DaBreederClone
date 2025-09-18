@@ -9,22 +9,22 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="py-14 sm:py-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-xl sm:text-2xl font-bold text-slate-900">How DaBreeder Works</h2>
-        <p className="mt-1 text-center text-sm text-slate-600 max-w-2xl mx-auto">
+    <section id="how" className="py-16 sm:py-20 bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">How DaBreeder Works</h2>
+        <p className="mt-4 text-center text-base sm:text-lg md:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
           Getting started is easy. Follow these simple steps to begin your breeding journey with us.
         </p>
 
         {/* Steps */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
           {steps.map((s, i) => (
             <div key={s.title} className="text-center">
-              <div className="mx-auto flex size-10 items-center justify-center rounded-full border border-slate-300 text-blue-600">
+              <div className="mx-auto flex size-12 lg:size-14 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-lg">
                 {i + 1}
               </div>
-              <h3 className="mt-3 font-semibold text-slate-900">{s.title}</h3>
-              <p className="mt-1 text-sm text-slate-600">{s.text}</p>
+              <h3 className="mt-4 font-semibold text-lg text-slate-900">{s.title}</h3>
+              <p className="mt-2 text-base text-slate-600 leading-relaxed">{s.text}</p>
             </div>
           ))}
         </div>
