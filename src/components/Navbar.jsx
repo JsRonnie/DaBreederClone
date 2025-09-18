@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user }) {
+export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user, onDashboardClick }) {
   const [open, setOpen] = useState(false)
   const toggle = () => setOpen(!open)
 
@@ -24,9 +24,9 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
           <span>Breeder</span>
         </a>
 
-        {/* Right: show auth only when logged out */}
+        {/* Right: show auth only when logged out, dashboard when logged in */}
         <div className="flex items-center gap-2">
-          {!user && (
+          {!user ? (
             <>
               <button onClick={onSignInClick} className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">
                 Sign In
@@ -35,6 +35,10 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
                 Sign Up
               </button>
             </>
+          ) : (
+            <button onClick={onDashboardClick} className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">
+              My Dogs
+            </button>
           )}
         </div>
       </nav>

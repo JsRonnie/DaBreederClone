@@ -7,24 +7,39 @@ import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import AuthModal from './components/AuthModal'
 import DogForm from './pages/DogForm'
+import MyDogs from './components/MyDogs'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState('signin') // 'signin' | 'signup'
   const [user, setUser] = useState(null) // { name, role, avatarUrl }
-  const [view, setView] = useState('landing') // 'landing' | 'dogForm'
+  const [view, setView] = useState('landing') // 'landing' | 'dogForm' | 'dashboard'
 
   const handleAuthSuccess = (u) => {
     setUser(u)
+    setView('dashboard') // Redirect to dashboard after login
   }
   const handleLogout = () => {
     setUser(null)
     setSidebarOpen(false)
+    setView('landing') // Return to landing page after logout
   }
 
-  const goToDogForm = () => setView('dogForm')
   const goHome = () => setView('landing')
+  const goToDashboard = () => setView('dashboard')
+  const goToAddDog = () => setView('dogForm') // Add dog functionality
+  
+  const handleGetStarted = () => {
+    if (user) {
+      // If logged in, go to dashboard
+      setView('dashboard')
+    } else {
+      // If not logged in, open signup modal
+      setAuthMode('signup')
+      setAuthOpen(true)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,6 +49,7 @@ function App() {
         onSignUpClick={() => { setAuthMode('signup'); setAuthOpen(true) }}
         user={user}
         onLogout={handleLogout}
+        onDashboardClick={goToDashboard}
       />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} onLogout={handleLogout} />
 
@@ -49,21 +65,24 @@ function App() {
 
         {view === 'landing' && (
           <>
-            <Hero onGetStarted={goToDogForm} />
+            <Hero onGetStarted={handleGetStarted} />
             <Features />
             <HowItWorks />
             <Community />
           </>
         )}
         {view === 'dogForm' && (
-          <div className="p-4 sm:p-6 lg:p-8">
+          <div className="p-6 sm:p-8 lg:p-12">
             <button
               type="button"
-              onClick={goHome}
-              className="mb-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700"
-            >← Back to Home</button>
+              onClick={user ? goToDashboard : goHome}
+              className="mb-6 ml-2 sm:ml-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors duration-200"
+            >← Back to {user ? 'Dashboard' : 'Home'}</button>
             <DogForm />
           </div>
+        )}
+        {view === 'dashboard' && user && (
+          <MyDogs onAddDog={goToAddDog} />
         )}
       </main>
     </div>

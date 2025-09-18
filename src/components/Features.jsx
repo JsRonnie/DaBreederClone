@@ -25,14 +25,6 @@ const items = [
       <span className="text-lg">💬</span>
     ),
   },
-  {
-    title: 'Realtime Breeder Chat',
-    desc:
-      'Connect instantly with breeders through secure chat. Share details, discuss matches, and build trust before moving forward.',
-    icon: (
-      <span className="text-lg">💡</span>
-    ),
-  },
 ]
 
 export default function Features() {
