@@ -1,38 +1,65 @@
+// Size options - Small, Medium, Large, Giant
 export const sizeOptions = [
-	{ value: 'small', label: 'Small' },
-	{ value: 'medium', label: 'Medium' },
-	{ value: 'large', label: 'Large' }
-]
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "giant", label: "Giant" },
+];
 
-export const coatLengthOptions = [
-	'Hairless', 'Short', 'Medium', 'Long', 'Wire', 'Curly'
-].map(v => ({ value: v.toLowerCase(), label: v }))
+// Coat Type options - short, long, wire, hairless
+export const coatTypeOptions = [
+  { value: "short", label: "Short" },
+  { value: "long", label: "Long" },
+  { value: "wire", label: "Wire" },
+  { value: "hairless", label: "Hairless" },
+];
 
-export const coatColorOptions = [
-	'Black', 'White', 'Brown', 'Tan', 'Red', 'Blue', 'Brindle', 'Merle', 'Sable', 'Cream', 'Gold'
-].map(v => ({ value: v.toLowerCase(), label: v }))
+// Color/Markings options
+export const colorOptions = [
+  { value: "black", label: "Black" },
+  { value: "white", label: "White" },
+  { value: "brown", label: "Brown" },
+  { value: "tan", label: "Tan" },
+  { value: "red", label: "Red" },
+  { value: "blue", label: "Blue" },
+  { value: "brindle", label: "Brindle" },
+  { value: "merle", label: "Merle" },
+  { value: "sable", label: "Sable" },
+  { value: "cream", label: "Cream" },
+  { value: "gold", label: "Gold" },
+  { value: "mixed", label: "Mixed/Multiple Colors" },
+];
 
-export const earTypeOptions = [
-	'Prick', 'Floppy', 'Semi-Prick', 'Button', 'Rose'
-].map(v => ({ value: v.toLowerCase().replace(/\s+/g, '-'), label: v }))
+// Activity Level options - low, moderate, high
+export const activityLevelOptions = [
+  { value: "low", label: "Low" },
+  { value: "moderate", label: "Moderate" },
+  { value: "high", label: "High" },
+];
 
-export const tailTypeOptions = [
-	'Curled', 'Docked', 'Sickle', 'Otter', 'Whip', 'Bobtail'
-].map(v => ({ value: v.toLowerCase(), label: v }))
+// Sociability options - friendly, neutral, reserved
+export const sociabilityOptions = [
+  { value: "friendly", label: "Friendly" },
+  { value: "neutral", label: "Neutral" },
+  { value: "reserved", label: "Reserved" },
+];
 
-export const muzzleShapeOptions = [
-	'Short', 'Moderate', 'Long', 'Brachycephalic', 'Dolichocephalic'
-].map(v => ({ value: v.toLowerCase(), label: v }))
+// Trainability options - easy, moderate, stubborn
+export const trainabilityOptions = [
+  { value: "easy", label: "Easy" },
+  { value: "moderate", label: "Moderate" },
+  { value: "stubborn", label: "Stubborn" },
+];
 
-export const buildOptions = [
-	'Lean', 'Athletic', 'Muscular', 'Stocky', 'Compact'
-].map(v => ({ value: v.toLowerCase(), label: v }))
+// Legacy options for backward compatibility (if needed elsewhere)
+export const coatLengthOptions = coatTypeOptions;
+export const coatColorOptions = colorOptions;
 
 export const traitGroups = {
-	coat_length: coatLengthOptions,
-	coat_color: coatColorOptions,
-	ear_type: earTypeOptions,
-	tail_type: tailTypeOptions,
-	muzzle_shape: muzzleShapeOptions,
-	build: buildOptions
-}
+  size: sizeOptions,
+  coat_type: coatTypeOptions,
+  color: colorOptions,
+  activity_level: activityLevelOptions,
+  sociability: sociabilityOptions,
+  trainability: trainabilityOptions,
+};
