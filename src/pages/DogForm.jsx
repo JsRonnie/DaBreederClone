@@ -9,7 +9,7 @@ import '../stepComponents/stepbystepUI.css'
 
 const TOTAL_STEPS = 4
 
-export default function DogForm() {
+export default function DogForm({ onSubmitted }) {
 	const [step, setStep] = useState(1)
 	const form = useFormData()
 
@@ -21,7 +21,7 @@ export default function DogForm() {
 		}
 	}, [])
 
-	const canNext = useMemo(() => {
+		const canNext = useMemo(() => {
 		switch (step) {
 			case 1:
 				return form.data.name.trim() !== '' && form.data.gender !== ''
@@ -29,6 +29,8 @@ export default function DogForm() {
 				return true
 			case 3:
 				return form.data.size !== ''
+			case 4: // documents optional
+				return true
 			default:
 				return true
 		}
@@ -39,17 +41,18 @@ export default function DogForm() {
 	const goTo = (s) => setStep(s)
 
 	const submit = async () => {
-		const id = await form.submit()
-		if (id) {
+			const id = await form.submit()
+			if (id) {
 			// eslint-disable-next-line no-alert
 			alert('Dog registered successfully!')
 			form.reset()
 			setStep(1)
+				onSubmitted?.()
 		}
 	}
 
 	let StepComponent
-	if (step === 1) StepComponent = <Step1DogInfo data={form.data} updateField={form.updateField} />
+	if (step === 1) StepComponent = <Step1DogInfo data={form.data} updateField={form.updateField} updatePhoto={form.updatePhoto} />
 	else if (step === 2) StepComponent = <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
 	else if (step === 3) StepComponent = <Step3Traits data={form.data} updateField={form.updateField} />
 	else StepComponent = <Step4Documents data={form.data} updateDocuments={form.updateDocuments} removeDocument={form.removeDocument} />

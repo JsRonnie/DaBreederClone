@@ -9,7 +9,7 @@ const commonBreeds = [
 	'French Bulldog', 'Maltese', 'Schnauzer', 'Doberman Pinscher', 'Mixed Breed'
 ].sort()
 
-export default function Step1DogInfo({ data, updateField }) {
+export default function Step1DogInfo({ data, updateField, updatePhoto }) {
 	return (
 		<div className="step step-1">
 			<div className="field">
@@ -66,6 +66,34 @@ export default function Step1DogInfo({ data, updateField }) {
 						<option key={breed} value={breed}>{breed}</option>
 					))}
 				</select>
+			</div>
+
+			{/* Main Photo with preview and remove */}
+			<div className="field">
+				<label htmlFor="dog-photo">Dog Photo</label>
+				<input
+					id="dog-photo"
+					type="file"
+					accept="image/*"
+					onChange={(e) => updatePhoto?.(e.target.files?.[0] || null)}
+				/>
+				{data.photo && (
+					<div style={{ marginTop: 8 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+							<img
+								src={URL.createObjectURL(data.photo)}
+								alt="Preview"
+								style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }}
+							/>
+							<div style={{ display: 'flex', flexDirection: 'column' }}>
+								<small style={{ color: '#555' }}>Selected: {data.photo.name}</small>
+								<button type="button" className="text-red-600 hover:text-red-700 underline text-sm" onClick={() => updatePhoto?.(null)}>
+									Remove photo
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	)

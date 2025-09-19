@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 
-export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user, onDashboardClick }) {
+export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user, onDashboardClick, onLogout }) {
   const [open, setOpen] = useState(false)
   const toggle = () => setOpen(!open)
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur bg-white/70 border-b border-slate-200">
+  <header className="sticky top-0 z-50 backdrop-blur bg-white/70 border-b border-slate-200">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         {/* Left: hamburger */}
         <button
@@ -36,9 +36,14 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
               </button>
             </>
           ) : (
-            <button onClick={onDashboardClick} className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">
-              My Dogs
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={onDashboardClick} className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">
+                My Dogs
+              </button>
+              <button onClick={onLogout} className="px-3 py-1.5 rounded-md text-sm font-medium text-white bg-rose-600 hover:bg-rose-700">
+                Logout
+              </button>
+            </div>
           )}
         </div>
       </nav>

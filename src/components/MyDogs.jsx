@@ -1,43 +1,140 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import supabase from '../lib/supabaseClient'
 
-export default function MyDogs({ dogs = [], onAddDog }) {
-  // Sample data for demonstration if no dogs are provided
-  const sampleDogs = [
-    {
-      id: 1,
-      name: "Buddy",
-      breed: "Golden Retriever",
-      age: "3 years",
-      sex: "Male",
-      image: "/heroPup.jpg"
-    },
-    {
-      id: 2,
-      name: "Luna",
-      breed: "German Shepherd",
-      age: "2 years",
-      sex: "Female",
-      image: "/shibaPor.jpg"
-    },
-    {
-      id: 3,
-      name: "Max",
-      breed: "Labrador",
-      age: "4 years",
-      sex: "Male",
-      image: "/heroPup.jpg"
-    },
-    {
-      id: 4,
-      name: "Bella",
-      breed: "Shiba Inu",
-      age: "1 year",
-      sex: "Female",
-      image: "/shibaPor.jpg"
+export default function MyDogs({ dogs = [], onAddDog, userId }) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [mine, setMine] = useState([])
+  const [uid, setUid] = useState(userId || null)
+
+  // Keep internal uid in sync with prop
+  useEffect(() => { setUid(userId || null) }, [userId])
+
+  const displayDogs = useMemo(() => {
+    if (dogs.length > 0) return dogs
+    return mine
+  }, [dogs, mine])
+
+  useEffect(() => {
+    let active = true
+    async function load() {
+      setLoading(true)
+      setError('')
+      try {
+        let effectiveUserId = uid
+        // If no userId provided, try to read it from Supabase auth
+        if (!effectiveUserId) {
+          const { data: u, error: uErr } = await supabase.auth.getUser()
+          if (uErr) throw uErr
+          effectiveUserId = u?.user?.id || null
+          setUid(effectiveUserId)
+        }
+        if (!effectiveUserId) { setMine([]); return }
+        let { data, error: qErr } = await supabase
+          .from('dogs')
+          // Select all columns to avoid errors if some optional columns (like image_url) don't exist yet
+          .select('*')
+          .eq('user_id', effectiveUserId)
+          // Order by id to be robust even if created_at isn't present yet
+          .order('id', { ascending: false })
+        if (qErr) {
+          const msg = (qErr.message || '').toLowerCase()
+          // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
+          if (msg.includes('user_id') && msg.includes('does not exist')) {
+            const fallback = await supabase
+              .from('dogs')
+              .select('*')
+              .order('id', { ascending: false })
+            if (fallback.error) throw fallback.error
+            data = fallback.data
+            setError("Note: 'user_id' column missing. Showing all dogs. Add a user_id uuid column to filter per-user.")
+          } else if (msg.includes('permission denied') || msg.includes('not allowed')) {
+            throw new Error('Permission denied when reading dogs. If Row Level Security is ON, add select policy: user_id = auth.uid().')
+          } else {
+            throw qErr
+          }
+        }
+        if (!active) return
+        setMine(
+          (data || []).map(d => ({
+            id: d.id,
+            name: d.name || 'Unnamed',
+            breed: d.breed || 'Unknown',
+            age: d.age_years ? `${d.age_years} years` : '—',
+            sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
+            image: d.image_url || '/heroPup.jpg',
+          }))
+        )
+      } catch (e) {
+        console.error(e)
+        setError(e.message || 'Failed to load your dogs')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-  ]
+    load()
+    const onFocus = () => load()
+    window.addEventListener('visibilitychange', onFocus)
+    // Safety timeout so UI doesn't appear stuck if something unforeseen happens
+    const t = setTimeout(() => { if (active) setLoading(false) }, 6000)
+    return () => { active = false; window.removeEventListener('visibilitychange', onFocus) }
+  }, [uid])
 
-  const displayDogs = dogs.length > 0 ? dogs : sampleDogs
+  async function addSampleDogs() {
+    try {
+      setError('')
+      setLoading(true)
+      let effectiveUserId = uid
+      if (!effectiveUserId) {
+        const { data: u } = await supabase.auth.getUser()
+        effectiveUserId = u?.user?.id || null
+        setUid(effectiveUserId)
+      }
+      if (!effectiveUserId) throw new Error('Please sign in to add sample dogs.')
+      const sample = [
+        { name: 'Mr.brown', breed: 'Great Dane', gender: 'male', age_years: 8, size: 'large' },
+        { name: 'Mango', breed: 'Mastiff', gender: 'male', age_years: 3, size: 'small' },
+        { name: 'Ronnie', breed: 'Boxer', gender: 'male', age_years: 7, size: 'medium' },
+      ].map(d => ({ ...d, user_id: effectiveUserId }))
+      const { error: insErr } = await supabase.from('dogs').insert(sample)
+      if (insErr) throw insErr
+      const { data, error: qErr } = await supabase
+        .from('dogs')
+        .select('*')
+        .eq('user_id', effectiveUserId)
+        .order('id', { ascending: false })
+      if (qErr) throw qErr
+      setMine(
+        (data || []).map(d => ({
+          id: d.id,
+          name: d.name || 'Unnamed',
+          breed: d.breed || 'Unknown',
+          age: d.age_years ? `${d.age_years} years` : '—',
+          sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
+          image: d.image_url || '/heroPup.jpg',
+        }))
+      )
+    } catch (e) {
+      console.error(e)
+      const m = (e.message || '').toLowerCase()
+      if (m.includes('permission denied')) setError('Permission denied. Check RLS insert policy (user_id = auth.uid()).')
+      else setError(e.message || 'Failed to add sample dogs')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDeleteDog(id) {
+    try {
+      setError('')
+      const { error: delErr } = await supabase.from('dogs').delete().eq('id', id)
+      if (delErr) throw delErr
+      setMine((prev) => prev.filter(d => d.id !== id))
+    } catch (e) {
+      console.error(e)
+      setError(e.message || 'Failed to delete dog')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,7 +153,9 @@ export default function MyDogs({ dogs = [], onAddDog }) {
             New Pet
           </button>
         </div>
-        {displayDogs.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading your dogs…</div>
+        ) : displayDogs.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
               <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,12 +164,32 @@ export default function MyDogs({ dogs = [], onAddDog }) {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No dogs yet</h3>
             <p className="text-gray-500 mb-6">Add your first dog to get started with breeding matches.</p>
+            {userId && (
+              <p className="text-xs text-slate-500 mb-2">(Filtering by your account id ending with …{String(userId).slice(-6)})</p>
+            )}
+            {error && <p className="text-xs text-rose-600">{error}</p>}
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={addSampleDogs}
+                className="text-sm text-blue-600 hover:text-blue-700 underline"
+              >
+                Or add 3 sample dogs
+              </button>
+            </div>
             <button 
               onClick={onAddDog}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200"
             >
               Add Your First Dog
             </button>
+            <div className="mt-3" />
+            {error && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-rose-600">{error}</p>
+                <button type="button" onClick={() => window.location.reload()} className="text-xs text-slate-600 hover:text-slate-900 underline">Retry</button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -106,6 +225,9 @@ export default function MyDogs({ dogs = [], onAddDog }) {
                     </button>
                     <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors duration-200">
                       Find Match
+                    </button>
+                    <button onClick={() => handleDeleteDog(dog.id)} className="px-3 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700 transition-colors duration-200">
+                      Delete
                     </button>
                   </div>
                 </div>

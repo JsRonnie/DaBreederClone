@@ -19,7 +19,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user
 
   return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
+    <div className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
       {/* Scrim */}
       <div
         onClick={onClose}
@@ -44,6 +44,11 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{user.role}</div>
                 <div className="font-medium text-slate-900">{user.name}</div>
+                {user.id && (
+                  <div className="text-[10px] text-slate-500 mt-0.5" title={user.id}>
+                    ID: {String(user.id).slice(0,8)}…
+                  </div>
+                )}
               </div>
             </div>
           ) : (
