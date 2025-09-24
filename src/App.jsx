@@ -4,46 +4,79 @@ import { upsertUserProfile } from './lib/profile'
 import Hero from './components/Hero'
 import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
+import AboutUs from './components/AboutUs'
+import ContactUs from './components/ContactUs'
 import Community from './components/Community'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import AuthModal from './components/AuthModal'
 import DogForm from './pages/DogForm'
+import AboutPage from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
 import MyDogs from './components/MyDogs'
+import Footer from './components/Footer'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState('signin') // 'signin' | 'signup'
   const [user, setUser] = useState(null) // { name, role, avatarUrl }
-  const [view, setView] = useState('landing') // 'landing' | 'dogForm' | 'dashboard'
+  const [view, setView] = useState('landing') // 'landing' | 'dogForm' | 'dashboard' | 'about' | 'contact'
 
   const handleAuthSuccess = (u) => {
     setUser(u)
     setView('dashboard') // Redirect to dashboard after login
   }
+
+  const handleNavigate = (newView) => {
+    setView(newView)
+    setSidebarOpen(false) // Close sidebar when navigating
+  }
   const handleLogout = async () => {
+    console.log('Logout initiated...') // Debug log
+    
+    // Immediately clear user state
+    setUser(null)
+    setSidebarOpen(false)
+    setView('landing')
+    
     try {
-      await supabase.auth.signOut()
-    } catch {
-      // ignore network errors
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Supabase signout error:', error)
+      } else {
+        console.log('Supabase signout successful')
+      }
+    } catch (err) {
+      console.error('Logout error:', err)
     }
-    // Hard reset client state in case signOut didn't propagate yet
+    
+    // Clear local storage
     try {
-      // Clear any local storage tokens used by supabase-js across environments
       const keys = Object.keys(localStorage)
       for (const k of keys) {
         if (/^sb-.*-auth-token$/.test(k) || k.includes('supabase')) {
           localStorage.removeItem(k)
+          console.log('Removed localStorage key:', k)
         }
       }
-    } catch {}
+      // Also clear sessionStorage
+      const sessionKeys = Object.keys(sessionStorage)
+      for (const k of sessionKeys) {
+        if (/^sb-.*-auth-token$/.test(k) || k.includes('supabase')) {
+          sessionStorage.removeItem(k)
+        }
+      }
+    } catch (err) {
+      console.error('Error clearing storage:', err)
+    }
 
-    setUser(null)
-    setSidebarOpen(false)
-    setView('landing') // Return to landing page after logout
-    // Reload to ensure all in-memory state from supabase-js is reset
-    setTimeout(() => window.location.reload(), 50)
+    console.log('Logout completed, reloading page...')
+    // Force reload to ensure clean state
+    setTimeout(() => {
+      window.location.href = window.location.origin
+    }, 100)
   }
 
   const goHome = () => setView('landing')
@@ -118,6 +151,8 @@ function App() {
         user={user}
         onLogout={handleLogout}
         onDashboardClick={goToDashboard}
+        onNavigate={handleNavigate}
+        currentView={view}
       />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} onLogout={handleLogout} />
 
@@ -139,6 +174,8 @@ function App() {
             <Community />
           </>
         )}
+        {view === 'about' && <AboutPage />}
+        {view === 'contact' && <ContactPage />}
         {view === 'dogForm' && (
           <div className="p-6 sm:p-8 lg:p-12">
             <button
@@ -153,6 +190,8 @@ function App() {
           <MyDogs onAddDog={goToAddDog} userId={user.id} />
         )}
       </main>
+      
+      <Footer />
     </div>
   )
 }
