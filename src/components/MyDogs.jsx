@@ -1,14 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import supabase from '../lib/supabaseClient'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [mine, setMine] = useState([])
   const [uid, setUid] = useState(userId || null)
+  const [lastFetch, setLastFetch] = useState(0)
+  const [forceRefresh, setForceRefresh] = useState(0)
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    dogId: null,
+    dogName: ''
+  })
 
   // Keep internal uid in sync with prop
   useEffect(() => { setUid(userId || null) }, [userId])
+
+  // Function to force refresh data (useful after adding a dog)
+  const refreshData = () => {
+    setForceRefresh(prev => prev + 1)
+    setLastFetch(0) // Reset cache
+  }
 
   const displayDogs = useMemo(() => {
     if (dogs.length > 0) return dogs
@@ -17,19 +33,39 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
   useEffect(() => {
     let active = true
+    
     async function load() {
+      console.log('🐕 MyDogs: Starting load...', { uid, lastFetch, mine: mine.length, forceRefresh })
+      
+      // Always load fresh data, reduce caching to 10 seconds instead of 30
+      const now = Date.now()
+      if (now - lastFetch < 10000 && mine.length > 0 && forceRefresh === 0) {
+        console.log('🔄 Using cached data')
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setError('')
       try {
         let effectiveUserId = uid
         // If no userId provided, try to read it from Supabase auth
         if (!effectiveUserId) {
+          console.log('🔍 No uid provided, checking auth...')
           const { data: u, error: uErr } = await supabase.auth.getUser()
           if (uErr) throw uErr
           effectiveUserId = u?.user?.id || null
           setUid(effectiveUserId)
+          console.log('👤 Got user ID from auth:', effectiveUserId)
         }
-        if (!effectiveUserId) { setMine([]); return }
+        if (!effectiveUserId) { 
+          console.log('❌ No user ID available')
+          setMine([])
+          setLastFetch(now)
+          return 
+        }
+        
+        console.log('📊 Querying dogs for user:', effectiveUserId)
         let { data, error: qErr } = await supabase
           .from('dogs')
           // Select all columns to avoid errors if some optional columns (like image_url) don't exist yet
@@ -37,6 +73,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           .eq('user_id', effectiveUserId)
           // Order by id to be robust even if created_at isn't present yet
           .order('id', { ascending: false })
+          
+        console.log('📈 Query result:', { data: data?.length || 0, error: qErr })
         if (qErr) {
           const msg = (qErr.message || '').toLowerCase()
           // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
@@ -55,30 +93,34 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           }
         }
         if (!active) return
-        setMine(
-          (data || []).map(d => ({
-            id: d.id,
-            name: d.name || 'Unnamed',
-            breed: d.breed || 'Unknown',
-            age: d.age_years ? `${d.age_years} years` : '—',
-            sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
-            image: d.image_url || '/heroPup.jpg',
-          }))
-        )
+        const processedDogs = (data || []).map(d => ({
+          id: d.id,
+          name: d.name || 'Unnamed',
+          breed: d.breed || 'Unknown',
+          age: d.age_years ? `${d.age_years} years` : '—',
+          sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
+          image: d.image_url || '/heroPup.jpg',
+        }))
+        
+        console.log('✅ Processed dogs:', processedDogs.length)
+        setMine(processedDogs)
+        setLastFetch(now)
       } catch (e) {
-        console.error(e)
+        console.error('💥 Load error:', e)
         setError(e.message || 'Failed to load your dogs')
       } finally {
         if (active) setLoading(false)
       }
     }
+    
     load()
-    const onFocus = () => load()
-    window.addEventListener('visibilitychange', onFocus)
     // Safety timeout so UI doesn't appear stuck if something unforeseen happens
     const t = setTimeout(() => { if (active) setLoading(false) }, 6000)
-    return () => { active = false; window.removeEventListener('visibilitychange', onFocus) }
-  }, [uid])
+    return () => { 
+      active = false
+      clearTimeout(t)
+    }
+  }, [uid, forceRefresh]) // Add forceRefresh to dependencies
 
   async function addSampleDogs() {
     try {
@@ -124,15 +166,134 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     }
   }
 
-  async function handleDeleteDog(id) {
+  // Function to show confirmation dialog
+  function showDeleteConfirmation(dogId, dogName) {
+    console.log('🗑️ Delete button clicked:', { dogId, dogName })
+    setConfirmDialog({
+      isOpen: true,
+      dogId,
+      dogName
+    })
+    console.log('✅ Confirm dialog state updated')
+  }
+
+  // Function to close confirmation dialog
+  function closeDeleteConfirmation() {
+    console.log('🚪 Closing confirmation dialog')
+    setConfirmDialog({
+      isOpen: false,
+      dogId: null,
+      dogName: ''
+    })
+    console.log('✅ Dialog closed')
+  }
+
+  async function handleDeleteDog() {
+    console.log('🚨 Delete confirmation clicked')
+    console.log('📋 Full dialog state:', JSON.stringify(confirmDialog, null, 2))
+    
+    const { dogId, dogName } = confirmDialog
+    console.log('� Extracted values:', { dogId, dogName, type: typeof dogId })
+    
+    if (!dogId) {
+      console.error('❌ No dogId found in dialog state!')
+      closeDeleteConfirmation()
+      return
+    }
+    
     try {
       setError('')
-      const { error: delErr } = await supabase.from('dogs').delete().eq('id', id)
-      if (delErr) throw delErr
-      setMine((prev) => prev.filter(d => d.id !== id))
+      console.log(`🗑️ Deleting dog with ID: ${dogId}`)
+      
+      // Step 1: Get associated documents before deleting
+      console.log('📄 Fetching dog documents...')
+      const { data: documents, error: docFetchError } = await supabase
+        .from('dog_documents')
+        .select('file_path')
+        .eq('dog_id', dogId)
+      
+      if (docFetchError) {
+        console.warn('⚠️ Could not fetch documents:', docFetchError)
+      }
+      
+      // Step 2: Delete files from storage (photos and documents)
+      console.log('🗂️ Deleting storage files...')
+      
+      // Delete all photos for this dog (they're stored in dogId/ folder)
+      const { data: photoList, error: photoListError } = await supabase.storage
+        .from('dog-photos')
+        .list(`${dogId}`)
+      
+      if (photoList && photoList.length > 0) {
+        const photoPaths = photoList.map(file => `${dogId}/${file.name}`)
+        console.log(`📸 Deleting ${photoPaths.length} photos:`, photoPaths)
+        const { error: photoDelError } = await supabase.storage
+          .from('dog-photos')
+          .remove(photoPaths)
+        if (photoDelError) {
+          console.warn('⚠️ Could not delete some photos:', photoDelError)
+        }
+      }
+      
+      // Delete document files
+      if (documents && documents.length > 0) {
+        const docPaths = documents.map(doc => doc.file_path).filter(Boolean)
+        if (docPaths.length > 0) {
+          console.log(`📋 Deleting ${docPaths.length} documents:`, docPaths)
+          const { error: docDelError } = await supabase.storage
+            .from('dog-documents')
+            .remove(docPaths)
+          if (docDelError) {
+            console.warn('⚠️ Could not delete some documents:', docDelError)
+          }
+        }
+      }
+      
+      // Step 3: Delete document records from database
+      console.log('🗄️ Deleting document records...')
+      const { error: docRecordError } = await supabase
+        .from('dog_documents')
+        .delete()
+        .eq('dog_id', dogId)
+      
+      if (docRecordError) {
+        console.warn('⚠️ Could not delete document records:', docRecordError)
+      }
+      
+      // Step 4: Finally delete the dog record
+      console.log('🐕 Deleting dog record...')
+      const { error: delErr } = await supabase.from('dogs').delete().eq('id', dogId)
+      if (delErr) {
+        console.error('❌ Supabase delete error:', delErr)
+        throw delErr
+      }
+      
+      console.log(`✅ Successfully deleted dog and all associated files: ${dogName}`)
+      
+      // Update local state to remove the deleted dog
+      setMine((prev) => {
+        const filtered = prev.filter(d => d.id !== dogId)
+        console.log(`🔄 Updated local dogs: ${prev.length} → ${filtered.length}`)
+        return filtered
+      })
+      
+      // Force refresh to reload data immediately after deletion
+      setLastFetch(0) // Reset cache timestamp
+      setForceRefresh(prev => prev + 1)
+      
+      // Close the dialog
+      console.log('🚪 Closing dialog...')
+      closeDeleteConfirmation()
+      
+      // Show success message
+      setTimeout(() => {
+        alert(`${dogName}'s profile has been successfully deleted.`)
+      }, 100)
+      
     } catch (e) {
-      console.error(e)
+      console.error('❌ Delete error:', e)
       setError(e.message || 'Failed to delete dog')
+      closeDeleteConfirmation()
     }
   }
 
@@ -215,7 +376,20 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                   <h3 className="text-lg font-bold text-gray-900 mb-2">{dog.name}</h3>
                   <div className="text-sm text-gray-600 space-y-1 mb-4">
                     <p>{dog.breed}</p>
-                    <p>{dog.age} • {dog.sex}</p>
+                    <p className="flex items-center gap-1">
+                      {dog.age} • 
+                      {dog.sex?.toLowerCase() === 'male' && (
+                        <svg className="w-4 h-4 ml-1 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9,9C10.29,9 11.5,9.41 12.47,10.11L17.58,5H13V3H21V11H19V6.41L13.89,11.5C14.59,12.5 15,13.7 15,15A6,6 0 0,1 9,21A6,6 0 0,1 3,15A6,6 0 0,1 9,9M9,11A4,4 0 0,0 5,15A4,4 0 0,0 9,19A4,4 0 0,0 13,15A4,4 0 0,0 9,11Z"/>
+                        </svg>
+                      )}
+                      {dog.sex?.toLowerCase() === 'female' && (
+                        <svg className="w-4 h-4 ml-1 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12,4A6,6 0 0,1 18,10A6,6 0 0,1 12,16A6,6 0 0,1 6,10A6,6 0 0,1 12,4M12,6A4,4 0 0,0 8,10A4,4 0 0,0 12,14A4,4 0 0,0 16,10A4,4 0 0,0 12,6M12,18.5A1,1 0 0,1 11,19.5V22.5A1,1 0 0,1 13,22.5V19.5A1,1 0 0,1 12,18.5M10.5,21H13.5V22H10.5V21Z"/>
+                        </svg>
+                      )}
+                      {dog.sex}
+                    </p>
                   </div>
                   
                   {/* Action Buttons */}
@@ -226,7 +400,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                     <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors duration-200">
                       Find Match
                     </button>
-                    <button onClick={() => handleDeleteDog(dog.id)} className="px-3 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700 transition-colors duration-200">
+                    <button onClick={() => showDeleteConfirmation(dog.id, dog.name)} className="px-3 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700 transition-colors duration-200">
                       Delete
                     </button>
                   </div>
@@ -236,6 +410,20 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           </div>
         )}
       </div>
+      
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeDeleteConfirmation}
+        onConfirm={handleDeleteDog}
+        title="Delete Dog Profile"
+        message={`Are you sure you want to delete ${confirmDialog.dogName}'s profile?
+
+This action cannot be undone and will permanently remove all information, photos, and documents for this dog.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </div>
   )
 }

@@ -109,20 +109,18 @@ export function useFormData() {
 			// Attach user_id (requires authenticated session if RLS policies rely on it)
 			try {
 				const { data: userResult, error: userError } = await supabase.auth.getUser()
-				console.log('🔐 Auth check result:', { userResult, userError })
 				if (userError) {
 					// Not fatal if policies allow anon inserts, just log
+					// eslint-disable-next-line no-console
 					console.warn('Auth getUser error:', userError.message)
 				} else if (userResult?.user) {
 					dogPayload.user_id = userResult.user.id
-					console.log('👤 User authenticated:', userResult.user.id)
 				} else {
 					// If your RLS requires auth, throw to surface a helpful message
 					// Comment out the next line if you allow anon inserts.
-					console.warn('⚠️ No authenticated user found - this may cause RLS policy violations')
+					throw new Error('You must be signed in to add a dog (no authenticated user found).')
 				}
 			} catch (authCheckErr) {
-				console.error('🚨 Auth check failed:', authCheckErr)
 				throw authCheckErr
 			}
 			// Convert numeric fields

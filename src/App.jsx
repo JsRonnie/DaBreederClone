@@ -22,6 +22,7 @@ function App() {
   const [authMode, setAuthMode] = useState('signin') // 'signin' | 'signup'
   const [user, setUser] = useState(null) // { name, role, avatarUrl }
   const [view, setView] = useState('landing') // 'landing' | 'dogForm' | 'dashboard' | 'about' | 'contact'
+  const [dashboardKey, setDashboardKey] = useState(0) // Force refresh key
 
   const handleAuthSuccess = (u) => {
     setUser(u)
@@ -80,7 +81,11 @@ function App() {
   }
 
   const goHome = () => setView('landing')
-  const goToDashboard = () => setView('dashboard')
+  const goToDashboard = () => {
+    console.log('📋 Navigating to dashboard...')
+    setView('dashboard')
+    setDashboardKey(prev => prev + 1) // Force refresh MyDogs component
+  }
   const goToAddDog = () => setView('dogForm') // Add dog functionality
   
   const handleGetStarted = () => {
@@ -113,24 +118,33 @@ function App() {
     }
 
     let mounted = true
-    // Fetch current session at startup
+    let initialLoadDone = false
+    
+    // Optimized: Only fetch session once on startup
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return
+      initialLoadDone = true
       const appUser = toAppUser(data?.session)
       if (appUser) {
         setUser(appUser)
         setView('dashboard')
+        // Only upsert profile on initial load, not every auth change
         await upsertUserProfile(supabase, data.session.user)
       }
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted || !initialLoadDone) return
+      
       const appUser = toAppUser(session)
       if (appUser) {
         setUser(appUser)
         setView('dashboard')
-        await upsertUserProfile(supabase, session.user)
-      } else {
+        // Only upsert on sign in, not on token refresh
+        if (event === 'SIGNED_IN') {
+          await upsertUserProfile(supabase, session.user)
+        }
+      } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setView('landing')
       }
@@ -183,11 +197,15 @@ function App() {
               onClick={user ? goToDashboard : goHome}
               className="mb-6 ml-2 sm:ml-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors duration-200"
             >← Back to {user ? 'Dashboard' : 'Home'}</button>
-            <DogForm onSubmitted={() => setView('dashboard')} />
+            <DogForm onSubmitted={() => {
+              console.log('🐕 Dog submitted, going to dashboard...')
+              setView('dashboard')
+              setDashboardKey(prev => prev + 1) // Force refresh
+            }} />
           </div>
         )}
         {view === 'dashboard' && user && (
-          <MyDogs onAddDog={goToAddDog} userId={user.id} />
+          <MyDogs key={dashboardKey} onAddDog={goToAddDog} userId={user.id} />
         )}
       </main>
       
