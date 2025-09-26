@@ -1,72 +1,117 @@
-import React, { useRef } from 'react'
+import React, { useRef, useMemo, useCallback } from 'react'
 
-export default function Step4Documents({ data, updateDocuments, removeDocument, onSubmit }) {
+const Step4Documents = React.memo(function Step4Documents({ data, updateDocuments, removeDocument }) {
 	const vaccinationRef = useRef(null)
 	const pedigreeRef = useRef(null)
 	const dnaRef = useRef(null)
 	const healthRef = useRef(null)
 
-	const handleFiles = (filesList, category) => {
+	const handleFiles = useCallback((filesList, category) => {
 		const files = Array.from(filesList)
 		updateDocuments(files, category)
-	}
+	}, [updateDocuments])
 
-	const DocumentUploadSection = ({ title, category, inputRef, description }) => {
-		const categoryFiles = data.documents?.filter(f => f.category === category) || []
+	// Memoize document filtering to prevent unnecessary re-renders
+	const documentsByCategory = useMemo(() => {
+		const docs = data.documents || []
+		return {
+			vaccination: docs.filter(f => f.category === 'vaccination'),
+			pedigree: docs.filter(f => f.category === 'pedigree'),
+			dna: docs.filter(f => f.category === 'dna'),
+			health: docs.filter(f => f.category === 'health')
+		}
+	}, [data.documents])
+
+	const DocumentUploadSection = React.memo(({ title, category, inputRef }) => {
+		const categoryFiles = documentsByCategory[category] || []
 		
 		return (
 			<div className="field">
 				<label>{title}</label>
-				<div
-					className="doc-drop"
-					onDragOver={e => {
-						e.preventDefault()
-						e.dataTransfer.dropEffect = 'copy'
-					}}
-					onDrop={e => {
-						e.preventDefault()
-						handleFiles(e.dataTransfer.files, category)
-					}}
-					onClick={() => inputRef.current?.click()}
-				>
-					<p>Click or drag & drop to add {description}</p>
-					{categoryFiles.length > 0 && (
-						<ul className="file-list">
-							{categoryFiles.map((f, index) => (
-								<li key={`${category}-${f.file?.name || f.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-									<span>{f.file?.name || f.name}</span>
-									<button 
-										type="button" 
-										onClick={(e) => { 
-											e.stopPropagation(); 
-											removeDocument(f.file?.name || f.name, category) 
-										}} 
-										style={{ background:'none', border:'none', color:'#c00', cursor:'pointer', fontSize:12 }}
-									>
-										✕
-									</button>
-								</li>
-							))}
-						</ul>
+				<div className="documents-preview">
+					{categoryFiles.length > 0 ? (
+						<div className="documents-list">
+							{categoryFiles.map((f, index) => {
+								const fileName = f.file?.name || f.name || 'Unknown file'
+								return (
+									<div key={`${category}-${fileName}-${index}`} className="document-item">
+										<div className="document-info">
+											<svg className="document-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+												<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+												<polyline points="14,2 14,8 20,8"/>
+												<line x1="16" y1="13" x2="8" y2="13"/>
+												<line x1="16" y1="17" x2="8" y2="17"/>
+												<polyline points="10,9 9,9 8,9"/>
+											</svg>
+											<span className="document-filename">{fileName}</span>
+										</div>
+										<div className="document-buttons">
+											<button 
+												type="button" 
+												className="add-more-btn"
+												onClick={() => inputRef.current?.click()}
+											>
+												Change Files
+											</button>
+											<button 
+												type="button" 
+												className="remove-document-btn" 
+												onClick={() => removeDocument(fileName, category)}
+											>
+												Remove
+											</button>
+										</div>
+									</div>
+								)
+							})}
+						</div>
+					) : (
+						<div className="document-item">
+							<div className="document-info">
+								<svg className="document-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+									<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+									<polyline points="14,2 14,8 20,8"/>
+									<line x1="16" y1="13" x2="8" y2="13"/>
+									<line x1="16" y1="17" x2="8" y2="17"/>
+									<polyline points="10,9 9,9 8,9"/>
+								</svg>
+								<span className="document-filename">No documents uploaded</span>
+							</div>
+							<div className="document-buttons">
+								<button 
+									type="button" 
+									className="add-more-btn"
+									onClick={() => inputRef.current?.click()}
+								>
+									Add Files
+								</button>
+							</div>
+						</div>
 					)}
 					<input
 						ref={inputRef}
 						type="file"
 						multiple
 						accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-						hidden
+						className="hidden-file-input"
 						onChange={e => handleFiles(e.target.files, category)}
 					/>
 				</div>
 			</div>
 		)
-	}
+	})
 
-	// Check if any additional health tests are selected
-	const hasAdditionalHealthTests = data.hip_elbow_tested || data.heart_tested || data.eye_tested || data.genetic_panel || data.thyroid_tested
+	// Memoize health test checks to prevent unnecessary re-calculations
+	const hasAdditionalHealthTests = useMemo(() => 
+		data.hip_elbow_tested || data.heart_tested || data.eye_tested || data.genetic_panel || data.thyroid_tested,
+		[data.hip_elbow_tested, data.heart_tested, data.eye_tested, data.genetic_panel, data.thyroid_tested]
+	)
 
-	// Check if any documents are required
-	const hasAnyDocuments = data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests
+	// Memoize document requirements check
+	const hasAnyDocuments = useMemo(() => 
+		data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests,
+		[data.vaccinated, data.pedigree_certified, data.dna_tested, hasAdditionalHealthTests]
+	)
 
 	return (
 		<div className="step step-4">
@@ -97,7 +142,6 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 							title="Vaccination Records"
 							category="vaccination"
 							inputRef={vaccinationRef}
-							description="vaccination certificates"
 						/>
 					)}
 
@@ -107,7 +151,6 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 							title="Pedigree Certificate"
 							category="pedigree"
 							inputRef={pedigreeRef}
-							description="pedigree documents"
 						/>
 					)}
 
@@ -117,7 +160,6 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 							title="DNA Test Results"
 							category="dna"
 							inputRef={dnaRef}
-							description="DNA test reports"
 						/>
 					)}
 
@@ -127,7 +169,6 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 							title="Other Health Files"
 							category="health"
 							inputRef={healthRef}
-							description="health certificates and test results"
 						/>
 					)}
 
@@ -138,4 +179,25 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 			)}
 		</div>
 	)
-}
+}, (prevProps, nextProps) => {
+	// Custom comparison to prevent unnecessary re-renders
+	const prevData = prevProps.data
+	const nextData = nextProps.data
+	
+	// Check if the relevant data fields have changed
+	return (
+		prevData.vaccinated === nextData.vaccinated &&
+		prevData.pedigree_certified === nextData.pedigree_certified &&
+		prevData.dna_tested === nextData.dna_tested &&
+		prevData.hip_elbow_tested === nextData.hip_elbow_tested &&
+		prevData.heart_tested === nextData.heart_tested &&
+		prevData.eye_tested === nextData.eye_tested &&
+		prevData.genetic_panel === nextData.genetic_panel &&
+		prevData.thyroid_tested === nextData.thyroid_tested &&
+		JSON.stringify(prevData.documents) === JSON.stringify(nextData.documents) &&
+		prevProps.updateDocuments === nextProps.updateDocuments &&
+		prevProps.removeDocument === nextProps.removeDocument
+	)
+})
+
+export default Step4Documents

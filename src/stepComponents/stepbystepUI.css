@@ -765,6 +765,348 @@ body.step-flow-active {
 	}
 }
 
+/* Breed Input Styles */
+.breed-input-container {
+	position: relative;
+	width: 100%;
+}
+
+.breed-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: white;
+	border: 2px solid #e2e8f0;
+	border-top: none;
+	border-radius: 0 0 8px 8px;
+	max-height: 300px;
+	overflow-y: auto;
+	z-index: 100;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.breed-option {
+	width: 100%;
+	padding: 12px 16px;
+	border: none;
+	background: white;
+	text-align: left;
+	font-size: 14px;
+	color: #374151;
+	cursor: pointer;
+	transition: background 0.2s ease;
+	border-bottom: 1px solid #f3f4f6;
+}
+
+.breed-option:hover {
+	background: #f8fafc;
+	color: #1f2937;
+}
+
+.breed-option:last-child {
+	border-bottom: none;
+}
+
+.breed-more-results {
+	padding: 12px 16px;
+	font-size: 12px;
+	color: #6b7280;
+	background: #f9fafb;
+	font-style: italic;
+	border-top: 1px solid #e5e7eb;
+}
+
+.breed-no-results {
+	padding: 16px;
+	text-align: center;
+	color: #6b7280;
+	font-size: 14px;
+}
+
+/* Photo Upload Styles */
+.photo-upload-container {
+	width: 100%;
+}
+
+.photo-upload-area {
+	border: 2px dashed #d1d5db;
+	border-radius: 12px;
+	padding: 32px 24px;
+	text-align: center;
+	background: #fafbfc;
+	transition: all 0.3s ease;
+}
+
+.photo-upload-area:hover {
+	border-color: #3b82f6;
+	background: #f0f9ff;
+}
+
+.upload-placeholder {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+}
+
+.upload-icon {
+	width: 48px;
+	height: 48px;
+	color: #9ca3af;
+	margin-bottom: 8px;
+}
+
+.upload-placeholder h4 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: #374151;
+}
+
+.upload-placeholder p {
+	margin: 0;
+	font-size: 14px;
+	color: #6b7280;
+}
+
+.upload-photo-btn {
+	background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+	color: white;
+	border: none;
+	padding: 12px 24px;
+	border-radius: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.upload-photo-btn:hover {
+	background: linear-gradient(135deg, #2563eb, #1e40af);
+	transform: translateY(-1px);
+	box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.photo-preview {
+	display: flex;
+	gap: 16px;
+	align-items: flex-start;
+	padding: 16px;
+	background: #f8fafc;
+	border: 2px solid #e2e8f0;
+	border-radius: 12px;
+}
+
+.preview-image {
+	width: 120px;
+	height: 120px;
+	object-fit: cover;
+	border-radius: 8px;
+	border: 2px solid #e5e7eb;
+	flex-shrink: 0;
+}
+
+.photo-actions {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.photo-filename {
+	font-size: 14px;
+	color: #374151;
+	font-weight: 500;
+	word-break: break-all;
+}
+
+.photo-buttons {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.change-photo-btn {
+	background: #3b82f6;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.3s ease;
+}
+
+.change-photo-btn:hover {
+	background: #2563eb;
+}
+
+.remove-photo-btn {
+	background: #ef4444;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.3s ease;
+}
+
+.remove-photo-btn:hover {
+	background: #dc2626;
+}
+
+.hidden-file-input {
+	display: none;
+}
+
+/* Mobile Responsive for New Components */
+@media (max-width: 640px) {
+	.breed-dropdown {
+		max-height: 200px;
+	}
+
+	.photo-preview {
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+	}
+
+	.preview-image {
+		width: 100px;
+		height: 100px;
+	}
+
+	.photo-buttons {
+		justify-content: center;
+	}
+
+	.upload-placeholder {
+		padding: 24px 16px;
+	}
+
+	.upload-icon {
+		width: 40px;
+		height: 40px;
+	}
+
+	.upload-placeholder h4 {
+		font-size: 16px;
+	}
+}
+
+/* Document Upload Styles (mirroring photo upload) */
+.documents-preview {
+	background: #f8fafc;
+	border: 2px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 16px;
+}
+
+.documents-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.document-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px;
+	background: white;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	gap: 16px;
+}
+
+.document-info {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: 1;
+	min-width: 0;
+}
+
+.document-icon {
+	width: 24px;
+	height: 24px;
+	color: #6b7280;
+	flex-shrink: 0;
+}
+
+.photo-thumbnail {
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	object-fit: cover;
+	border: 1px solid #e5e7eb;
+	flex-shrink: 0;
+}
+
+.document-filename {
+	font-size: 14px;
+	color: #374151;
+	font-weight: 500;
+	word-break: break-all;
+}
+
+.document-buttons {
+	display: flex;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.add-more-btn {
+	background: #10b981;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.3s ease;
+}
+
+.add-more-btn:hover {
+	background: #059669;
+}
+
+.remove-document-btn {
+	background: #ef4444;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.3s ease;
+}
+
+.remove-document-btn:hover {
+	background: #dc2626;
+}
+
+/* Mobile Responsive for Document Upload */
+@media (max-width: 640px) {
+	.document-item {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.document-buttons {
+		width: 100%;
+		justify-content: center;
+	}
+}
+
 /* Utility */
 .hidden {
 	display: none !important;
