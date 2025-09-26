@@ -43,6 +43,7 @@ export function useFormData() {
 	}, [])
 
 	const updateDocuments = useCallback((files, category = 'misc') => {
+		console.log('📎 Adding documents:', { files: Array.from(files || []).map(f => f.name), category })
 		const newItems = Array.from(files || []).map(f => ({ file: f, category }))
 		setData(d => {
 			// merge & de-dupe by (name, category)
@@ -52,6 +53,7 @@ export function useFormData() {
 				const idx = merged.findIndex(x => (x.file?.name || x.name) === item.file.name && (x.category || 'misc') === item.category)
 				if (idx === -1) merged.push(item)
 			}
+			console.log('📋 Updated documents:', merged.map(x => ({ name: x.file?.name || x.name, category: x.category })))
 			return { ...d, documents: merged }
 		})
 	}, [])
@@ -61,12 +63,14 @@ export function useFormData() {
 	}, [])
 
 	const removeDocument = useCallback((fileName, category = 'misc') => {
-		setData(d => ({
-			...d,
-			documents: (Array.isArray(d.documents) ? d.documents : []).filter(x =>
+		console.log('🗑️ Removing document:', { fileName, category })
+		setData(d => {
+			const filtered = (Array.isArray(d.documents) ? d.documents : []).filter(x =>
 				((x.file?.name || x.name) !== fileName) || ((x.category || 'misc') !== category)
 			)
-		}))
+			console.log('📋 Documents after removal:', filtered.map(x => ({ name: x.file?.name || x.name, category: x.category })))
+			return { ...d, documents: filtered }
+		})
 	}, [])
 
 	const reset = useCallback(() => {
@@ -82,6 +86,13 @@ export function useFormData() {
 		setSuccess(false)
 
 		try {
+			console.log('🚀 Starting form submission...')
+			console.log('📋 Form data:', { 
+				...data, 
+				documents: data.documents?.map(d => ({ name: d.file?.name || d.name, category: d.category })),
+				photo: data.photo ? { name: data.photo.name, size: data.photo.size } : null
+			})
+			
 			const src = { ...data }
 			// Remove client-only fields early
 			delete src.documents

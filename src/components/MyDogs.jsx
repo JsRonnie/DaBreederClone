@@ -95,10 +95,11 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         if (!active) return
         const processedDogs = (data || []).map(d => ({
           id: d.id,
-          name: d.name || 'Unnamed',
-          breed: d.breed || 'Unknown',
-          age: d.age_years ? `${d.age_years} years` : '—',
-          sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
+          name: (typeof d.name === 'string') ? d.name : (d.name ? String(d.name) : 'Unnamed'),
+          breed: (typeof d.breed === 'string') ? d.breed : (d.breed ? String(d.breed) : 'Unknown'),
+          age: (d.age_years && typeof d.age_years === 'number') ? `${d.age_years} years` : 
+               (d.age_years && !isNaN(Number(d.age_years))) ? `${Number(d.age_years)} years` : '—',
+          sex: d.gender && typeof d.gender === 'string' ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
           image: d.image_url || '/heroPup.jpg',
         }))
         
@@ -149,10 +150,11 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       setMine(
         (data || []).map(d => ({
           id: d.id,
-          name: d.name || 'Unnamed',
-          breed: d.breed || 'Unknown',
-          age: d.age_years ? `${d.age_years} years` : '—',
-          sex: d.gender ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
+          name: (typeof d.name === 'string') ? d.name : (d.name ? String(d.name) : 'Unnamed'),
+          breed: (typeof d.breed === 'string') ? d.breed : (d.breed ? String(d.breed) : 'Unknown'),
+          age: (d.age_years && typeof d.age_years === 'number') ? `${d.age_years} years` : 
+               (d.age_years && !isNaN(Number(d.age_years))) ? `${Number(d.age_years)} years` : '—',
+          sex: d.gender && typeof d.gender === 'string' ? (d.gender[0].toUpperCase() + d.gender.slice(1)) : '—',
           image: d.image_url || '/heroPup.jpg',
         }))
       )

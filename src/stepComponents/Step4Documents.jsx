@@ -32,14 +32,14 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 					<p>Click or drag & drop to add {description}</p>
 					{categoryFiles.length > 0 && (
 						<ul className="file-list">
-							{categoryFiles.map(f => (
-								<li key={f.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-									<span>{f.name}</span>
+							{categoryFiles.map((f, index) => (
+								<li key={`${category}-${f.file?.name || f.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+									<span>{f.file?.name || f.name}</span>
 									<button 
 										type="button" 
 										onClick={(e) => { 
 											e.stopPropagation(); 
-											removeDocument(f.name, category) 
+											removeDocument(f.file?.name || f.name, category) 
 										}} 
 										style={{ background:'none', border:'none', color:'#c00', cursor:'pointer', fontSize:12 }}
 									>
@@ -136,16 +136,6 @@ export default function Step4Documents({ data, updateDocuments, removeDocument, 
 					</small>
 				</>
 			)}
-
-			{/* Submit Button */}
-			<div className="submit-section">
-				<button 
-					type="button" 
-					className="submit-btn"
-					onClick={onSubmit}
-				>
-				</button>
-			</div>
 		</div>
 	)
 }

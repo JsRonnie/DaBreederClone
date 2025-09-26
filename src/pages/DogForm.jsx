@@ -55,7 +55,7 @@ export default function DogForm({ onSubmitted }) {
 	if (step === 1) StepComponent = <Step1DogInfo data={form.data} updateField={form.updateField} updatePhoto={form.updatePhoto} />
 	else if (step === 2) StepComponent = <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
 	else if (step === 3) StepComponent = <Step3Traits data={form.data} updateField={form.updateField} />
-	else StepComponent = <Step4Documents data={form.data} updateDocuments={form.updateDocuments} removeDocument={form.removeDocument} />
+	else StepComponent = <Step4Documents data={form.data} updateDocuments={form.updateDocuments} removeDocument={form.removeDocument} onSubmit={submit} />
 
 	return (
 		<div className="step-flow-root">
