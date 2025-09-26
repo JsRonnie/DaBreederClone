@@ -25,10 +25,10 @@ export default function DogForm({ onSubmitted }) {
 		switch (step) {
 			case 1:
 				return form.data.name.trim() !== '' && form.data.gender !== ''
-			case 2:
-				return true
-			case 3:
+			case 2: // Traits & Physical Characteristics
 				return form.data.size !== ''
+			case 3: // Health & Verification (no required fields)
+				return true
 			case 4: // documents optional
 				return true
 			default:
@@ -43,7 +43,6 @@ export default function DogForm({ onSubmitted }) {
 	const submit = async () => {
 			const id = await form.submit()
 			if (id) {
-			// eslint-disable-next-line no-alert
 			alert('Dog registered successfully!')
 			form.reset()
 			setStep(1)
@@ -53,8 +52,8 @@ export default function DogForm({ onSubmitted }) {
 
 	let StepComponent
 	if (step === 1) StepComponent = <Step1DogInfo data={form.data} updateField={form.updateField} updatePhoto={form.updatePhoto} />
-	else if (step === 2) StepComponent = <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
-	else if (step === 3) StepComponent = <Step3Traits data={form.data} updateField={form.updateField} />
+	else if (step === 2) StepComponent = <Step3Traits data={form.data} updateField={form.updateField} />
+	else if (step === 3) StepComponent = <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
 	else StepComponent = <Step4Documents data={form.data} updateDocuments={form.updateDocuments} removeDocument={form.removeDocument} onSubmit={submit} />
 
 	return (

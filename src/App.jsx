@@ -27,6 +27,8 @@ function App() {
   const handleAuthSuccess = (u) => {
     setUser(u)
     setView('dashboard') // Redirect to dashboard after login
+    setSidebarOpen(false) // Close sidebar when user logs in
+    setAuthOpen(false) // Close auth modal after successful login
   }
 
   const handleNavigate = (newView) => {
@@ -39,6 +41,7 @@ function App() {
     // Immediately clear user state
     setUser(null)
     setSidebarOpen(false)
+  setAuthOpen(false)
     setView('landing')
     
     try {
@@ -128,6 +131,7 @@ function App() {
       if (appUser) {
         setUser(appUser)
         setView('dashboard')
+        setSidebarOpen(false) // Close sidebar when user is detected on page load
         // Only upsert profile on initial load, not every auth change
         await upsertUserProfile(supabase, data.session.user)
       }
@@ -140,6 +144,7 @@ function App() {
       if (appUser) {
         setUser(appUser)
         setView('dashboard')
+        setSidebarOpen(false) // Close sidebar when user is automatically logged in
         // Only upsert on sign in, not on token refresh
         if (event === 'SIGNED_IN') {
           await upsertUserProfile(supabase, session.user)
@@ -147,6 +152,7 @@ function App() {
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setView('landing')
+        setSidebarOpen(false) // Close sidebar when user logs out
       }
     })
 
@@ -155,6 +161,14 @@ function App() {
       sub.subscription.unsubscribe()
     }
   }, [])
+
+  // Redirect logged-in users away from landing page
+  useEffect(() => {
+    if (user && view === 'landing') {
+      console.log('🔒 Redirecting logged-in user from landing to dashboard')
+      setView('dashboard')
+    }
+  }, [user, view])
 
   return (
     <div className="min-h-screen flex flex-col">

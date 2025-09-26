@@ -23,9 +23,14 @@ export default function AuthModal({ open, mode = 'signin', onClose, onSwitch, on
   }, [])
 
   useEffect(() => {
-    // Clear messages when switching modes or reopening
+    // Clear messages and reset loading when switching modes or (re)opening
     setErrorMsg('')
     setInfoMsg('')
+    setLoading(false)
+    // When modal closes, clear sensitive fields like password
+    if (!open) {
+      setPassword('')
+    }
   }, [mode, open])
 
   function toAppUser(session) {
@@ -50,7 +55,7 @@ export default function AuthModal({ open, mode = 'signin', onClose, onSwitch, on
       }
 
       // Sanitize inputs for common copy/paste issues
-      const emailClean = email.trim().replace(/^[\"']|[\"']$/g, '').toLowerCase()
+  const emailClean = email.trim().replace(/^["']|["']$/g, '').toLowerCase()
       if (password.length < 6) {
         throw new Error('Password must be at least 6 characters.')
       }

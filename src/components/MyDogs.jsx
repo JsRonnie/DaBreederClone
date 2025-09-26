@@ -21,10 +21,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
   useEffect(() => { setUid(userId || null) }, [userId])
 
   // Function to force refresh data (useful after adding a dog)
-  const refreshData = () => {
-    setForceRefresh(prev => prev + 1)
-    setLastFetch(0) // Reset cache
-  }
+  // Removed unused refreshData function to fix compile error
 
   const displayDogs = useMemo(() => {
     if (dogs.length > 0) return dogs
@@ -121,7 +118,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       active = false
       clearTimeout(t)
     }
-  }, [uid, forceRefresh]) // Add forceRefresh to dependencies
+  }, [uid, forceRefresh, lastFetch, mine.length]) // Add missing dependencies to useEffect
 
   async function addSampleDogs() {
     try {
@@ -222,7 +219,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       console.log('🗂️ Deleting storage files...')
       
       // Delete all photos for this dog (they're stored in dogId/ folder)
-      const { data: photoList, error: photoListError } = await supabase.storage
+      const { data: photoList, error: PHOTO_LIST_ERROR } = await supabase.storage
         .from('dog-photos')
         .list(`${dogId}`)
       

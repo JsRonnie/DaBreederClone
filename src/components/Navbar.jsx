@@ -20,9 +20,9 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
           </button>
         </div>
 
-        {/* Center: DaBreeder Logo for all users */}
+        {/* Center: DaBreeder Logo - navigate based on login status */}
         <div className="flex items-center justify-center flex-1">
-          <button onClick={() => onNavigate('landing')} className="font-bold text-2xl text-slate-800 hover:opacity-80 transition-opacity">
+          <button onClick={() => user ? onDashboardClick() : onNavigate('landing')} className="font-bold text-2xl text-slate-800 hover:opacity-80 transition-opacity">
             <span className="text-blue-600">Da</span>
             <span>Breeder</span>
           </button>

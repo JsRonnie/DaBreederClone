@@ -1,30 +1,19 @@
-import React, { useRef, useMemo, useCallback } from 'react'
+import React, { useRef } from 'react'
 
-const Step4Documents = React.memo(function Step4Documents({ data, updateDocuments, removeDocument }) {
+export default function Step4Documents({ data, updateDocuments, removeDocument }) {
 	const vaccinationRef = useRef(null)
 	const pedigreeRef = useRef(null)
 	const dnaRef = useRef(null)
 	const healthRef = useRef(null)
 
-	const handleFiles = useCallback((filesList, category) => {
+	const handleFiles = (filesList, category) => {
 		const files = Array.from(filesList)
 		updateDocuments(files, category)
-	}, [updateDocuments])
+	}
 
-	// Memoize document filtering to prevent unnecessary re-renders
-	const documentsByCategory = useMemo(() => {
-		const docs = data.documents || []
-		return {
-			vaccination: docs.filter(f => f.category === 'vaccination'),
-			pedigree: docs.filter(f => f.category === 'pedigree'),
-			dna: docs.filter(f => f.category === 'dna'),
-			health: docs.filter(f => f.category === 'health')
-		}
-	}, [data.documents])
+	const DocumentUploadSection = ({ title, category, inputRef }) => {
+		const categoryFiles = data.documents?.filter(f => f.category === category) || []
 
-	const DocumentUploadSection = React.memo(({ title, category, inputRef }) => {
-		const categoryFiles = documentsByCategory[category] || []
-		
 		return (
 			<div className="field">
 				<label>{title}</label>
@@ -94,24 +83,18 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 						multiple
 						accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
 						className="hidden-file-input"
-						onChange={e => handleFiles(e.target.files, category)}
+						onChange={e => { handleFiles(e.target.files, category); e.target.value = '' }}
 					/>
 				</div>
 			</div>
 		)
-	})
+	}
 
-	// Memoize health test checks to prevent unnecessary re-calculations
-	const hasAdditionalHealthTests = useMemo(() => 
-		data.hip_elbow_tested || data.heart_tested || data.eye_tested || data.genetic_panel || data.thyroid_tested,
-		[data.hip_elbow_tested, data.heart_tested, data.eye_tested, data.genetic_panel, data.thyroid_tested]
-	)
+	// Check if any additional health tests are selected
+	const hasAdditionalHealthTests = data.hip_elbow_tested || data.heart_tested || data.eye_tested || data.genetic_panel || data.thyroid_tested
 
-	// Memoize document requirements check
-	const hasAnyDocuments = useMemo(() => 
-		data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests,
-		[data.vaccinated, data.pedigree_certified, data.dna_tested, hasAdditionalHealthTests]
-	)
+	// Check if any documents are required
+	const hasAnyDocuments = data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests
 
 	return (
 		<div className="step step-4">
@@ -142,6 +125,7 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 							title="Vaccination Records"
 							category="vaccination"
 							inputRef={vaccinationRef}
+							description="vaccination certificates"
 						/>
 					)}
 
@@ -151,6 +135,7 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 							title="Pedigree Certificate"
 							category="pedigree"
 							inputRef={pedigreeRef}
+							description="pedigree documents"
 						/>
 					)}
 
@@ -160,6 +145,7 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 							title="DNA Test Results"
 							category="dna"
 							inputRef={dnaRef}
+							description="DNA test reports"
 						/>
 					)}
 
@@ -169,6 +155,7 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 							title="Other Health Files"
 							category="health"
 							inputRef={healthRef}
+							description="health certificates and test results"
 						/>
 					)}
 
@@ -179,25 +166,4 @@ const Step4Documents = React.memo(function Step4Documents({ data, updateDocument
 			)}
 		</div>
 	)
-}, (prevProps, nextProps) => {
-	// Custom comparison to prevent unnecessary re-renders
-	const prevData = prevProps.data
-	const nextData = nextProps.data
-	
-	// Check if the relevant data fields have changed
-	return (
-		prevData.vaccinated === nextData.vaccinated &&
-		prevData.pedigree_certified === nextData.pedigree_certified &&
-		prevData.dna_tested === nextData.dna_tested &&
-		prevData.hip_elbow_tested === nextData.hip_elbow_tested &&
-		prevData.heart_tested === nextData.heart_tested &&
-		prevData.eye_tested === nextData.eye_tested &&
-		prevData.genetic_panel === nextData.genetic_panel &&
-		prevData.thyroid_tested === nextData.thyroid_tested &&
-		JSON.stringify(prevData.documents) === JSON.stringify(nextData.documents) &&
-		prevProps.updateDocuments === nextProps.updateDocuments &&
-		prevProps.removeDocument === nextProps.removeDocument
-	)
-})
-
-export default Step4Documents
+}

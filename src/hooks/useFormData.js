@@ -174,7 +174,7 @@ export function useFormData() {
 						const msg = (updError.message || '').toLowerCase()
 						// If the DB doesn't yet have image_url, don't block the submission
 						if (msg.includes('image_url') && msg.includes('does not exist')) {
-							// eslint-disable-next-line no-console
+						
 							console.warn("dogs.image_url column missing; skipping storing of image URL. You can add it later and images will still be uploaded to Storage.")
 						} else {
 							throw updError
@@ -234,7 +234,6 @@ export function useFormData() {
 			return dogId
 		} catch (e) {
 			setError(e instanceof Error ? e : new Error(String(e)))
-			// eslint-disable-next-line no-console
 			console.error(e)
 			return null
 		} finally {
