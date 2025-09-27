@@ -31,17 +31,18 @@ export default function ConfirmDialog({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4 text-center">
-        {/* Backdrop with blur effect - more transparent to see background */}
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-[2px] transition-opacity duration-300 ease-out"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-        
+    <div className="fixed inset-0 z-[90]">
+      {/* Backdrop: light darken with blur to keep context visible */}
+      <div 
+        className="absolute inset-0 bg-black/20 backdrop-blur-md transition-opacity duration-200"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Centered modal */}
+      <div className="relative z-[91] flex min-h-full items-center justify-center p-4 text-center">
         {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-2xl bg-white px-4 pb-4 pt-5 text-left shadow-2xl transition-all duration-300 ease-out sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+        <div className="relative transform overflow-hidden rounded-2xl bg-white px-4 pb-4 pt-5 text-left shadow-2xl transition-all duration-200 sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
           {/* Close button */}
           <button
             type="button"

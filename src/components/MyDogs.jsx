@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import supabase from '../lib/supabaseClient'
 import ConfirmDialog from './ConfirmDialog'
+import DogProfileSheet from './DogProfileSheet'
 
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true)
@@ -9,6 +10,9 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [uid, setUid] = useState(userId || null)
   const [lastFetch, setLastFetch] = useState(0)
   const [forceRefresh, setForceRefresh] = useState(0)
+  const [focusedTick, setFocusedTick] = useState(0)
+  // View Profile sheet state
+  const [profileSheet, setProfileSheet] = useState({ open: false, dogId: null })
   
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -34,9 +38,9 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     async function load() {
       console.log('🐕 MyDogs: Starting load...', { uid, lastFetch, mine: mine.length, forceRefresh })
       
-      // Always load fresh data, reduce caching to 10 seconds instead of 30
+      // Always load fresh data, reduce caching and also refetch on focus
       const now = Date.now()
-      if (now - lastFetch < 10000 && mine.length > 0 && forceRefresh === 0) {
+      if (now - lastFetch < 5000 && mine.length > 0 && forceRefresh === 0) {
         console.log('🔄 Using cached data')
         setLoading(false)
         return
@@ -118,7 +122,14 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       active = false
       clearTimeout(t)
     }
-  }, [uid, forceRefresh, lastFetch, mine.length]) // Add missing dependencies to useEffect
+  }, [uid, forceRefresh, lastFetch, mine.length, focusedTick]) // include focus ticks
+
+  // Refetch when window gains focus
+  useEffect(() => {
+    const onFocus = () => setFocusedTick(t => t + 1)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
 
   async function addSampleDogs() {
     try {
@@ -185,6 +196,14 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       dogName: ''
     })
     console.log('✅ Dialog closed')
+  }
+
+  // Handlers for View Profile sheet
+  function openProfileSheet(dogId) {
+    setProfileSheet({ open: true, dogId })
+  }
+  function closeProfileSheet() {
+    setProfileSheet({ open: false, dogId: null })
   }
 
   async function handleDeleteDog() {
@@ -289,6 +308,9 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         alert(`${dogName}'s profile has been successfully deleted.`)
       }, 100)
       
+      // Nudge a refetch shortly after to ensure UI stays in sync
+      setTimeout(() => setForceRefresh(v => v + 1), 300)
+      
     } catch (e) {
       console.error('❌ Delete error:', e)
       setError(e.message || 'Failed to delete dog')
@@ -350,9 +372,12 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                 <button type="button" onClick={() => window.location.reload()} className="text-xs text-slate-600 hover:text-slate-900 underline">Retry</button>
               </div>
             )}
+            <div className="mt-4">
+              <button type="button" onClick={() => setForceRefresh(v => v + 1)} className="text-xs text-slate-600 hover:text-slate-900 underline">Refresh list</button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {displayDogs.map((dog) => (
               <div 
                 key={dog.id} 
@@ -393,7 +418,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                   
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <button className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <button onClick={() => openProfileSheet(dog.id)} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors duration-200">
                       View Profile
                     </button>
                     <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors duration-200">
@@ -422,6 +447,13 @@ This action cannot be undone and will permanently remove all information, photos
         confirmText="Delete"
         cancelText="Cancel"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
+
+      {/* Dog Profile Slide-over */}
+      <DogProfileSheet
+        open={profileSheet.open}
+        dogId={profileSheet.dogId}
+        onClose={closeProfileSheet}
       />
     </div>
   )
