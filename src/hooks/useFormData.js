@@ -107,6 +107,10 @@ export function useFormData() {
     setSuccess(false);
   }, []);
 
+  const setFormData = useCallback((newData) => {
+    setData((prevData) => ({ ...prevData, ...newData }));
+  }, []);
+
   const submit = useCallback(async () => {
     setSubmitting(true);
     setError(null);
@@ -313,6 +317,119 @@ export function useFormData() {
     }
   }, [data]);
 
+  const updateDog = useCallback(
+    async (dogId) => {
+      setSubmitting(true);
+      setError(null);
+      setSuccess(false);
+
+      try {
+        console.log("🔄 Starting dog profile update...");
+
+        const src = { ...data };
+        // Remove client-only fields
+        delete src.documents;
+        delete src.photo;
+
+        // Map UI age -> age_years if provided
+        if (
+          (src.age_years === "" || src.age_years === undefined) &&
+          src.age !== undefined &&
+          src.age !== ""
+        ) {
+          src.age_years = src.age;
+        }
+        delete src.age;
+
+        // Whitelist dog table columns
+        const allowedDogColumns = new Set([
+          "name",
+          "gender",
+          "breed",
+          "age_years",
+          "size",
+          "weight_kg",
+          "pedigree_certified",
+          "dna_tested",
+          "vaccinated",
+          "hip_elbow_tested",
+          "heart_tested",
+          "eye_tested",
+          "genetic_panel",
+          "thyroid_tested",
+          "coat_type",
+          "color",
+          "activity_level",
+          "sociability",
+          "trainability",
+          "ear_type",
+          "tail_type",
+          "muzzle_shape",
+          "build",
+          "coat_length",
+          "coat_color",
+        ]);
+        const dogPayload = Object.fromEntries(
+          Object.entries(src).filter(([k]) => allowedDogColumns.has(k))
+        );
+
+        // Convert numeric fields
+        if (dogPayload.weight_kg !== "" && dogPayload.weight_kg !== undefined)
+          dogPayload.weight_kg = Number(dogPayload.weight_kg);
+        if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined)
+          dogPayload.age_years = Number(dogPayload.age_years);
+
+        // Update the dog record
+        const { error: updateError } = await supabase
+          .from("dogs")
+          .update(dogPayload)
+          .eq("id", dogId);
+
+        if (updateError) throw updateError;
+
+        // Upload new photo if provided
+        if (data.photo) {
+          const photoPath = `${dogId}/profile-${Date.now()}-${data.photo.name}`;
+          const { error: uploadPhotoError } = await supabase.storage
+            .from("dog-photos")
+            .upload(photoPath, data.photo, { upsert: false });
+
+          if (uploadPhotoError) {
+            throw new Error(
+              `Photo upload failed for ${data.photo.name}: ${uploadPhotoError.message}`
+            );
+          }
+
+          // Get public URL and update dogs.image_url
+          const { data: pub } = supabase.storage
+            .from("dog-photos")
+            .getPublicUrl(photoPath);
+          const imageUrl = pub?.publicUrl || null;
+
+          if (imageUrl) {
+            const { error: updError } = await supabase
+              .from("dogs")
+              .update({ image_url: imageUrl })
+              .eq("id", dogId);
+            if (updError) {
+              console.warn("Failed to update image_url:", updError);
+            }
+          }
+        }
+
+        setSuccess(true);
+        return true;
+      } catch (e) {
+        setError(e instanceof Error ? e : new Error(String(e)));
+        console.error("Update error:", e);
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [data]
+  );
+
   return {
     data,
     submitting,
@@ -323,8 +440,10 @@ export function useFormData() {
     updateDocuments,
     updatePhoto,
     submit,
+    updateDog,
     reset,
     removeDocument,
+    setFormData,
   };
 }
 
