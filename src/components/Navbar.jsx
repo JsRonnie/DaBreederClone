@@ -73,7 +73,7 @@ export default function Navbar({
       {open && (
         <div className="border-t border-slate-200 bg-white shadow-lg">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3 text-sm text-slate-600 grid gap-2">
-            {user && (
+            {user ? (
               <>
                 <Link
                   to="/my-dogs"
@@ -88,6 +88,30 @@ export default function Navbar({
                   className="text-left hover:text-slate-900 transition-colors"
                 >
                   Find Match
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
+                >
+                  Home
+                </Link>
+                <Link
+                  to="/about"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
+                >
+                  About
+                </Link>
+                <Link
+                  to="/contact"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
+                >
+                  Contact
                 </Link>
               </>
             )}
