@@ -37,9 +37,11 @@ export function useFormData() {
     if (e instanceof Error) return e;
     if (e && typeof e === "object") {
       // Prefer a message property if present
-      if (typeof e.message === "string" && e.message.length > 0) return new Error(e.message);
+      if (typeof e.message === "string" && e.message.length > 0)
+        return new Error(e.message);
       // Some Supabase errors include 'error' or 'msg' or other fields useful to show
-      if (typeof e.error === "string" && e.error.length > 0) return new Error(e.error);
+      if (typeof e.error === "string" && e.error.length > 0)
+        return new Error(e.error);
       try {
         return new Error(JSON.stringify(e));
       } catch (_) {
@@ -52,7 +54,9 @@ export function useFormData() {
   // Helper to extract a missing column name from Supabase schema-cache errors
   const extractMissingColumn = (msg) => {
     if (!msg || typeof msg !== "string") return null;
-    const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" does not exist/i);
+    const m =
+      msg.match(/Could not find the '([^']+)' column/i) ||
+      msg.match(/column "([^"]+)" does not exist/i);
     return m ? m[1] : null;
   };
 
@@ -219,8 +223,18 @@ export function useFormData() {
       // Convert numeric fields
       if (dogPayload.weight_kg !== "" && dogPayload.weight_kg !== undefined)
         dogPayload.weight_kg = Number(dogPayload.weight_kg);
-      if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined)
+      if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined) {
         dogPayload.age_years = Number(dogPayload.age_years);
+        // Validate age limit (25 years maximum)
+        if (dogPayload.age_years > 25) {
+          throw new Error(
+            "Age cannot exceed 25 years. Please enter a valid age."
+          );
+        }
+        if (dogPayload.age_years < 0) {
+          throw new Error("Age cannot be negative. Please enter a valid age.");
+        }
+      }
 
       // Try inserting; if Supabase complains about a missing column in the schema cache,
       // iteratively strip the reported missing column and retry a few times. This handles
@@ -230,13 +244,23 @@ export function useFormData() {
       let insertError = null;
       const maxAttempts = 5;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const resp = await supabase.from("dogs").insert(payload).select("id").single();
+        const resp = await supabase
+          .from("dogs")
+          .insert(payload)
+          .select("id")
+          .single();
         inserted = resp.data;
         insertError = resp.error;
         if (!insertError) break;
-        const missing = extractMissingColumn(insertError.message || insertError.error || "");
+        const missing = extractMissingColumn(
+          insertError.message || insertError.error || ""
+        );
         if (!missing || !payload.hasOwnProperty(missing)) break;
-        console.warn(`Detected missing column '${missing}' during insert (attempt ${attempt + 1}); removing and retrying.`);
+        console.warn(
+          `Detected missing column '${missing}' during insert (attempt ${
+            attempt + 1
+          }); removing and retrying.`
+        );
         delete payload[missing];
       }
 
@@ -309,7 +333,7 @@ export function useFormData() {
           const category = item?.category || null;
           const path = `${dogId}/${Date.now()}-${file.name}`;
           const { error: uploadError } = await supabase.storage
-            .from("dog-documents")
+            .from("documents")
             .upload(path, file, { upsert: false });
           if (uploadError) {
             // Improve messaging for bucket not found vs permission
@@ -318,7 +342,7 @@ export function useFormData() {
               uploadError.message.toLowerCase().includes("not found")
             ) {
               throw new Error(
-                "Upload failed: Bucket 'dog-documents' not found. Verify name EXACTLY and that you are pointing to the correct project (check VITE_SUPABASE_URL)."
+                "Upload failed: Bucket 'documents' not found. Verify name EXACTLY and that you are pointing to the correct project (check VITE_SUPABASE_URL)."
               );
             }
             throw new Error(
@@ -332,7 +356,7 @@ export function useFormData() {
               dog_id: dogId,
               user_id: dogPayload.user_id, // pass same user id for RLS
               file_name: file.name,
-              storage_path: path,
+              file_path: path,
               file_size_bytes: file.size,
               content_type: file.type,
               category: category,
@@ -408,8 +432,20 @@ export function useFormData() {
         // Convert numeric fields
         if (dogPayload.weight_kg !== "" && dogPayload.weight_kg !== undefined)
           dogPayload.weight_kg = Number(dogPayload.weight_kg);
-        if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined)
+        if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined) {
           dogPayload.age_years = Number(dogPayload.age_years);
+          // Validate age limit (25 years maximum)
+          if (dogPayload.age_years > 25) {
+            throw new Error(
+              "Age cannot exceed 25 years. Please enter a valid age."
+            );
+          }
+          if (dogPayload.age_years < 0) {
+            throw new Error(
+              "Age cannot be negative. Please enter a valid age."
+            );
+          }
+        }
 
         // Update the dog record
         // Try updating; iteratively strip missing columns reported by the schema cache and retry
@@ -417,12 +453,21 @@ export function useFormData() {
         let updateError = null;
         const maxAttempts = 5;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const resp = await supabase.from("dogs").update(payload).eq("id", dogId);
+          const resp = await supabase
+            .from("dogs")
+            .update(payload)
+            .eq("id", dogId);
           updateError = resp.error;
           if (!updateError) break;
-          const missing = extractMissingColumn(updateError.message || updateError.error || "");
+          const missing = extractMissingColumn(
+            updateError.message || updateError.error || ""
+          );
           if (!missing || !payload.hasOwnProperty(missing)) break;
-          console.warn(`Detected missing column '${missing}' during update (attempt ${attempt + 1}); removing and retrying.`);
+          console.warn(
+            `Detected missing column '${missing}' during update (attempt ${
+              attempt + 1
+            }); removing and retrying.`
+          );
           delete payload[missing];
         }
 
@@ -430,6 +475,24 @@ export function useFormData() {
 
         // Upload new photo if provided
         if (data.photo) {
+          console.log("📸 Uploading new photo:", data.photo.name);
+
+          // First, try to delete old photos for this dog to avoid clutter
+          try {
+            const { data: oldPhotos, error: listError } = await supabase.storage
+              .from("dog-photos")
+              .list(`${dogId}`);
+
+            if (!listError && oldPhotos && oldPhotos.length > 0) {
+              const oldPaths = oldPhotos.map((file) => `${dogId}/${file.name}`);
+              console.log("🗑️ Cleaning up old photos:", oldPaths);
+              await supabase.storage.from("dog-photos").remove(oldPaths);
+            }
+          } catch (cleanupError) {
+            console.warn("⚠️ Could not clean up old photos:", cleanupError);
+            // Continue with upload even if cleanup fails
+          }
+
           const photoPath = `${dogId}/profile-${Date.now()}-${data.photo.name}`;
           const { error: uploadPhotoError } = await supabase.storage
             .from("dog-photos")
@@ -454,7 +517,54 @@ export function useFormData() {
               .eq("id", dogId);
             if (updError) {
               console.warn("Failed to update image_url:", updError);
+            } else {
+              console.log("✅ Photo updated successfully:", imageUrl);
             }
+          }
+        }
+
+        // Upload new documents if provided
+        if (Array.isArray(data.documents) && data.documents.length > 0) {
+          console.log("📁 Uploading documents:", data.documents.length);
+
+          // Get user ID for RLS
+          const { data: user } = await supabase.auth.getUser();
+          const userId = user?.user?.id;
+
+          if (!userId) {
+            throw new Error("User not authenticated for document upload");
+          }
+
+          for (const item of data.documents) {
+            const file = item?.file || item; // backward compatible if array had File objects
+            if (!file?.name) continue;
+            const category = item?.category || null;
+            const path = `${dogId}/${Date.now()}-${file.name}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("documents")
+              .upload(path, file, { upsert: false });
+
+            if (uploadError) {
+              throw new Error(
+                `Upload failed for ${file.name}: ${uploadError.message}`
+              );
+            }
+
+            const { error: docInsertError } = await supabase
+              .from("dog_documents")
+              .insert({
+                dog_id: dogId,
+                user_id: userId,
+                file_name: file.name,
+                file_path: path,
+                file_size_bytes: file.size,
+                content_type: file.type,
+                category: category,
+              });
+
+            if (docInsertError) throw docInsertError;
+            console.log(`✅ Document uploaded: ${file.name}`);
           }
         }
 

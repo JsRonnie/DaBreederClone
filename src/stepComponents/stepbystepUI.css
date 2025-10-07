@@ -16,6 +16,377 @@
 	font-family: 'Inter', system-ui, Arial, sans-serif;
 }
 
+/* Modern Form Styles */
+.modern-form-container {
+	max-width: 800px;
+	margin: 0 auto;
+}
+
+.modern-form-card {
+	background: white;
+	border: 1px solid #e5e7eb;
+	border-radius: 16px;
+	padding: 2rem;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	transition: all 0.2s ease;
+}
+
+.modern-progress-wrapper {
+	margin-bottom: 2rem;
+	padding-bottom: 1.5rem;
+	border-bottom: 1px solid #f3f4f6;
+}
+
+.modern-progress-header {
+	margin-bottom: 1.5rem;
+}
+
+.modern-step-title {
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: #1f2937;
+	margin-bottom: 0.75rem;
+}
+
+.modern-progress-bar {
+	width: 100%;
+	height: 4px;
+	background: #f3f4f6;
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.modern-progress-fill {
+	height: 100%;
+	background: #3b82f6;
+	border-radius: 2px;
+	transition: width 0.3s ease;
+}
+
+
+
+.modern-step-content {
+	margin-bottom: 2rem;
+}
+
+.step-section-header {
+	margin-bottom: 2rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid #f3f4f6;
+}
+
+.step-section-title {
+	font-size: 1.125rem;
+	font-weight: 600;
+	color: #1f2937;
+	margin-bottom: 0.5rem;
+}
+
+.step-section-description {
+	font-size: 0.875rem;
+	color: #6b7280;
+	margin: 0;
+}
+
+.modern-nav-bar {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid #f3f4f6;
+}
+
+.modern-error-message {
+	margin-top: 1rem;
+	padding: 1rem;
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	border-radius: 8px;
+	color: #dc2626;
+	font-size: 0.875rem;
+}
+
+/* Modern Button Styles */
+.modern-btn-primary {
+	background: #3b82f6;
+	color: white;
+	border: none;
+	padding: 0.75rem 1.5rem;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.modern-btn-primary:hover:not(.disabled) {
+	background: #2563eb;
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.modern-btn-secondary {
+	background: #f8fafc;
+	color: #64748b;
+	border: 1px solid #e2e8f0;
+	padding: 0.75rem 1.5rem;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.modern-btn-secondary:hover:not(.disabled) {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+	transform: translateY(-1px);
+}
+
+.modern-btn-back {
+	background: #f8fafc;
+	color: #475569;
+	border: 1px solid #e2e8f0;
+	padding: 0.75rem 1.5rem;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.modern-btn-back:hover {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+	color: #334155;
+	transform: translateY(-1px);
+}
+
+.modern-btn-primary.disabled,
+.modern-btn-secondary.disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.modern-btn-primary.disabled:hover,
+.modern-btn-secondary.disabled:hover {
+	transform: none;
+	box-shadow: none;
+}
+
+/* Modern Form Field Styling */
+.step .field {
+	margin-bottom: 1.5rem;
+}
+
+.step .field label {
+	display: block;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #374151;
+	margin-bottom: 0.5rem;
+}
+
+.step .text-input,
+.step .select-input {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: 1px solid #d1d5db;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	transition: all 0.2s ease;
+	background: white;
+}
+
+.step .text-input:focus,
+.step .select-input:focus {
+	outline: none;
+	border-color: #3b82f6;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.step .text-input::placeholder {
+	color: #9ca3af;
+}
+
+/* Breed Dropdown Styling */
+.breed-input-container {
+	position: relative;
+}
+
+.breed-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: white;
+	border: 1px solid #d1d5db;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	max-height: 200px;
+	overflow-y: auto;
+	z-index: 10;
+}
+
+.breed-option {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: none;
+	background: white;
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+	font-size: 0.875rem;
+}
+
+.breed-option:hover {
+	background: #f3f4f6;
+}
+
+.breed-more-results,
+.breed-no-results {
+	padding: 0.75rem 1rem;
+	font-size: 0.8rem;
+	color: #6b7280;
+	font-style: italic;
+}
+
+/* Photo Upload Styling */
+.photo-upload-container {
+	border: 2px dashed #d1d5db;
+	border-radius: 8px;
+	padding: 2rem;
+	text-align: center;
+	transition: all 0.2s ease;
+}
+
+.photo-upload-container:hover {
+	border-color: #3b82f6;
+	background: #f8fafc;
+}
+
+.photo-thumbnail {
+	width: 80px;
+	height: 80px;
+	object-fit: cover;
+	border-radius: 8px;
+	margin-right: 1rem;
+}
+
+.documents-preview {
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	padding: 1rem;
+	background: #f9fafb;
+}
+
+.document-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.5rem;
+}
+
+.document-info {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.document-buttons {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.add-more-btn,
+.remove-document-btn {
+	padding: 0.5rem 1rem;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 500;
+	border: none;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.add-more-btn {
+	background: #3b82f6;
+	color: white;
+}
+
+.add-more-btn:hover {
+	background: #2563eb;
+}
+
+.remove-document-btn {
+	background: #ef4444;
+	color: white;
+}
+
+.remove-document-btn:hover {
+	background: #dc2626;
+}
+
+/* Button States */
+.view-profile-btn.disabled,
+.contact-btn.disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+.view-profile-btn.disabled:hover,
+.contact-btn.disabled:hover {
+	transform: none;
+	box-shadow: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+	.modern-form-card {
+		padding: 1.5rem;
+		margin: 0 1rem;
+	}
+
+	.modern-nav-bar {
+		flex-direction: column;
+	}
+
+	.modern-progress-steps {
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		justify-content: center;
+	}
+
+	.modern-step-circle {
+		width: 35px;
+		height: 35px;
+		font-size: 0.8rem;
+	}
+
+	.document-item {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.75rem;
+	}
+
+	.document-buttons {
+		width: 100%;
+		justify-content: flex-end;
+	}
+}
+
 body.step-flow-active {
 	background: var(--color-bg);
 }

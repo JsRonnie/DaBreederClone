@@ -1,6 +1,7 @@
 import DogForm from "./DogForm";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import "./FindMatchPage.css";
 
 export default function AddDogPage() {
   const { user } = useAuth();
@@ -12,24 +13,33 @@ export default function AddDogPage() {
   }
 
   const handleSubmitted = () => {
-    console.log("🐕 Dog submitted, going to dashboard...");
-    navigate("/dashboard");
+    console.log("🐕 Dog submitted, going to my dogs...");
+    navigate("/my-dogs");
   };
 
   const goBack = () => {
-    navigate("/dashboard");
+    navigate("/my-dogs");
   };
 
   return (
-    <div className="p-6 sm:p-8 lg:p-12">
-      <button
-        type="button"
-        onClick={goBack}
-        className="mb-6 ml-2 sm:ml-4 inline-flex items-center gap-2 rounded-md bg-slate-200 hover:bg-slate-300 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors duration-200"
-      >
-        ← Back to Dashboard
-      </button>
-      <DogForm onSubmitted={handleSubmitted} />
+    <div className="find-match-container">
+      {/* Header Section */}
+      <div className="header-section">
+        <h1 className="page-title">Add New Dog</h1>
+        <p className="page-description">
+          Register your dog's profile to connect with other breeders
+        </p>
+      </div>
+
+      {/* Main Content */}
+      <div className="content-section">
+        <div style={{ marginBottom: "2rem" }}>
+          <button type="button" onClick={goBack} className="modern-btn-back">
+            ← Back to My Dogs
+          </button>
+        </div>
+        <DogForm onSubmitted={handleSubmitted} />
+      </div>
     </div>
   );
 }

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import ConfirmDialog from "./ConfirmDialog";
+import "./DogCard.css";
+import "../pages/FindMatchPage.css";
 
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
               ? d.gender[0].toUpperCase() + d.gender.slice(1)
               : "—",
           image: d.image_url || "/heroPup.jpg",
+          hidden: d.hidden || false,
         }));
 
         console.log("✅ Processed dogs:", processedDogs.length);
@@ -326,7 +329,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         if (docPaths.length > 0) {
           console.log(`📋 Deleting ${docPaths.length} documents:`, docPaths);
           const { error: docDelError } = await supabase.storage
-            .from("dog-documents")
+            .from("documents")
             .remove(docPaths);
           if (docDelError) {
             console.warn("⚠️ Could not delete some documents:", docDelError);
@@ -391,42 +394,76 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     }
   }
 
+  // Function to toggle hidden status of a dog
+  async function handleToggleHidden(dogId, dogName, currentHiddenStatus) {
+    try {
+      setError("");
+      console.log(`👁️ Toggling hidden status for ${dogName} (ID: ${dogId})`);
+
+      const newHiddenStatus = !currentHiddenStatus;
+
+      // Update the database
+      const { error: updateError } = await supabase
+        .from("dogs")
+        .update({ hidden: newHiddenStatus })
+        .eq("id", dogId);
+
+      if (updateError) {
+        console.error("❌ Supabase update error:", updateError);
+        throw updateError;
+      }
+
+      console.log(
+        `✅ Successfully ${
+          newHiddenStatus ? "hidden" : "shown"
+        } ${dogName}'s profile`
+      );
+
+      // Update local state
+      setMine((prev) => {
+        const updated = prev.map((d) =>
+          d.id === dogId ? { ...d, hidden: newHiddenStatus } : d
+        );
+        console.log(`🔄 Updated local dog status for ${dogName}`);
+        return updated;
+      });
+
+      // Show success message
+      setTimeout(() => {
+        alert(
+          `${dogName}'s profile has been ${
+            newHiddenStatus ? "hidden" : "shown"
+          }.`
+        );
+      }, 100);
+    } catch (e) {
+      console.error("❌ Toggle hidden error:", e);
+      setError(e.message || "Failed to update dog visibility");
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="find-match-container">
+      {/* Header Section */}
+      <div className="header-section">
+        <h1 className="page-title">My Dogs</h1>
+        <p className="page-description">
+          Manage your dog profiles and find perfect breeding matches
+        </p>
+      </div>
+
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with title and add button */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Dogs</h1>
-          <button
-            onClick={onAddDog}
-            className="bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2 shadow-sm"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-            New Pet
-          </button>
-        </div>
+      <div className="content-section">
         {loading ? (
-          <div className="text-center py-12 text-gray-500">
-            Loading your dogs…
+          <div className="loading-state-modern">
+            <div className="loading-spinner-modern"></div>
+            <p>Loading your dogs...</p>
           </div>
         ) : displayDogs.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+          <div className="empty-state-modern">
+            <div className="empty-state-icon">
               <svg
-                className="w-12 h-12 text-gray-400"
+                className="w-8 h-8 text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -435,126 +472,123 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No dogs yet
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Add your first dog to get started with breeding matches.
+            <h3 className="empty-state-title">No dogs yet</h3>
+            <p className="empty-state-description">
+              Add your first dog to get started with breeding matches and
+              connect with other dog owners.
             </p>
+
             {userId && (
-              <p className="text-xs text-slate-500 mb-2">
-                (Filtering by your account id ending with …
-                {String(userId).slice(-6)})
+              <p className="text-xs text-slate-500 mb-4">
+                Filtering by your account (ID: ...{String(userId).slice(-6)})
               </p>
             )}
-            {error && <p className="text-xs text-rose-600">{error}</p>}
-            <div className="mt-3">
+
+            <div className="space-y-4">
               <button
-                type="button"
-                onClick={addSampleDogs}
-                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                onClick={onAddDog}
+                className="dog-card-btn dog-card-btn-primary px-8 py-3 text-base"
               >
-                Or add 3 sample dogs
+                Add Your First Dog
               </button>
-            </div>
-            <button
-              onClick={onAddDog}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200"
-            >
-              Add Your First Dog
-            </button>
-            <div className="mt-3" />
-            {error && (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm text-rose-600">{error}</p>
+
+              <div>
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
-                  className="text-xs text-slate-600 hover:text-slate-900 underline"
+                  onClick={addSampleDogs}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
                 >
-                  Retry
+                  Or add 3 sample dogs for testing
                 </button>
               </div>
-            )}
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => setForceRefresh((v) => v + 1)}
-                className="text-xs text-slate-600 hover:text-slate-900 underline"
-              >
-                Refresh list
-              </button>
             </div>
+
+            {error && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600 mb-2">{error}</p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="text-xs text-red-700 hover:text-red-900 underline"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForceRefresh((v) => v + 1)}
+                    className="text-xs text-red-700 hover:text-red-900 underline"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="matches-grid">
             {displayDogs.map((dog) => (
               <div
                 key={dog.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-105"
+                className={`match-card ${dog.hidden ? "hidden-dog" : ""}`}
               >
-                {/* Dog Photo */}
-                <div className="h-48 bg-gray-200 overflow-hidden">
+                {dog.hidden && <div className="match-rank">Hidden</div>}
+
+                <div className="card-image-wrapper">
                   <img
                     src={dog.image}
                     alt={dog.name}
-                    className="w-full h-full object-cover"
+                    className="match-image"
                     onError={(e) => {
-                      e.target.src =
-                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgMTAwTDEzMCA3MEwxNzAgMTEwTDE3MCAyMDBIMzBMMzAgMTEwTDcwIDcwTDEwMCAxMDBaIiBmaWxsPSIjRTVFN0VCIi8+CjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiNEMUQ1REIiLz4KPHN2Zz4K";
+                      e.target.src = "/heroPup.jpg";
                     }}
                   />
                 </div>
 
-                {/* Dog Info */}
-                <div className="p-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    {dog.name}
-                  </h3>
-                  <div className="text-sm text-gray-600 space-y-1 mb-4">
-                    <p>{dog.breed}</p>
-                    <p className="flex items-center gap-1">
-                      {dog.age} •
-                      {dog.sex?.toLowerCase() === "male" && (
-                        <svg
-                          className="w-4 h-4 ml-1 text-blue-500"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M9,9C10.29,9 11.5,9.41 12.47,10.11L17.58,5H13V3H21V11H19V6.41L13.89,11.5C14.59,12.5 15,13.7 15,15A6,6 0 0,1 9,21A6,6 0 0,1 3,15A6,6 0 0,1 9,9M9,11A4,4 0 0,0 5,15A4,4 0 0,0 9,19A4,4 0 0,0 13,15A4,4 0 0,0 9,11Z" />
-                        </svg>
-                      )}
-                      {dog.sex?.toLowerCase() === "female" && (
-                        <svg
-                          className="w-4 h-4 ml-1 text-pink-500"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M12,4A6,6 0 0,1 18,10A6,6 0 0,1 12,16A6,6 0 0,1 6,10A6,6 0 0,1 12,4M12,6A4,4 0 0,0 8,10A4,4 0 0,0 12,14A4,4 0 0,0 16,10A4,4 0 0,0 12,6M12,18.5A1,1 0 0,1 11,19.5V22.5A1,1 0 0,1 13,22.5V19.5A1,1 0 0,1 12,18.5M10.5,21H13.5V22H10.5V21Z" />
-                        </svg>
-                      )}
-                      {dog.sex}
-                    </p>
+                <div className="card-content">
+                  <h3 className="match-name">{dog.name}</h3>
+                  <div className="match-details">
+                    <div className="detail-item">
+                      <span className="detail-label">Breed</span>
+                      <span className="detail-value capitalize">
+                        {dog.breed}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Age</span>
+                      <span className="detail-value">{dog.age}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Gender</span>
+                      <span className="detail-value capitalize">{dog.sex}</span>
+                    </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <Link
-                      to={`/dog/${dog.id}`}
-                      className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors duration-200 text-center"
-                    >
+                  <div className="card-actions">
+                    <Link to={`/dog/${dog.id}`} className="view-profile-btn">
                       View Profile
                     </Link>
-                    <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors duration-200">
-                      Find Match
+
+                    <button
+                      onClick={() =>
+                        handleToggleHidden(dog.id, dog.name, dog.hidden)
+                      }
+                      className={
+                        dog.hidden ? "view-profile-btn" : "contact-btn"
+                      }
+                    >
+                      {dog.hidden ? "Show" : "Hide"}
                     </button>
+                  </div>
+
+                  <div className="delete-button-container">
                     <button
                       onClick={() => showDeleteConfirmation(dog.id, dog.name)}
-                      className="px-3 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700 transition-colors duration-200"
+                      className="delete-btn"
                     >
                       Delete
                     </button>

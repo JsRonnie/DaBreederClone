@@ -100,15 +100,16 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
           </div>
           <nav className="grid gap-1">
             <NavItem
-              label="Home"
-              icon={<HomeIcon />}
-              to="/"
+              label="My Dogs"
+              icon={<PawIcon />}
+              to="/dashboard"
+              disabled={!loggedIn}
               onClick={onClose}
             />
             <NavItem
-              label="Dashboard"
-              icon={<UserIcon />}
-              to="/dashboard"
+              label="Find Match"
+              icon={<HeartIcon />}
+              to="/find-match"
               disabled={!loggedIn}
               onClick={onClose}
             />
@@ -117,18 +118,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               icon={<ChatIcon />}
               to="/add-dog"
               disabled={!loggedIn}
-              onClick={onClose}
-            />
-            <NavItem
-              label="About"
-              icon={<DocIcon />}
-              to="/about"
-              onClick={onClose}
-            />
-            <NavItem
-              label="Contact"
-              icon={<DocIcon />}
-              to="/contact"
               onClick={onClose}
             />
           </nav>
@@ -140,12 +129,22 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
           <div className="mt-3 text-[10px] uppercase tracking-wider text-slate-500 mb-2">
             Settings
           </div>
-          <div className="flex items-center">
-            <NavItem label="Settings" icon={<CogIcon />} disabled={!loggedIn} />
-            <span className="-ml-8 mr-4 text-slate-500">
-              <ChevronDownIcon />
-            </span>
-          </div>
+          <nav className="grid gap-1">
+            <NavItem
+              label="Edit Profile"
+              icon={<EditProfileIcon />}
+              to="/edit-profile"
+              disabled={!loggedIn}
+              onClick={onClose}
+            />
+            <NavItem
+              label="Change Password"
+              icon={<PasswordIcon />}
+              to="/change-password"
+              disabled={!loggedIn}
+              onClick={onClose}
+            />
+          </nav>
         </div>
 
         {/* Bottom */}
@@ -170,24 +169,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 }
 
 // Icons (inline SVGs to avoid extra deps)
-function HomeIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m3 9 9-6 9 6v10.5A1.5 1.5 0 0 1 19.5 21h-15A1.5 1.5 0 0 1 3 19.5V9Z"
-      />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 21V12h6v9" />
-    </svg>
-  );
-}
 function UserIcon() {
   return (
     <svg
@@ -219,24 +200,7 @@ function ChatIcon() {
     </svg>
   );
 }
-function DocIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M7 3.75h6.75L19.5 9.5V20.25A2.25 2.25 0 0 1 17.25 22.5H7A2.25 2.25 0 0 1 4.75 20.25V6A2.25 2.25 0 0 1 7 3.75Z"
-      />
-      <path strokeLinecap="round" d="M13.5 3.75V9h5.5" />
-    </svg>
-  );
-}
+
 function CogIcon() {
   return (
     <svg
@@ -306,6 +270,79 @@ function LogoutIcon() {
         strokeLinejoin="round"
         d="M12 8.25 15.75 12 12 15.75M15.75 12h-9"
       />
+    </svg>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="size-5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
+      />
+    </svg>
+  );
+}
+
+function EditProfileIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="size-5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+      />
+    </svg>
+  );
+}
+
+function PasswordIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="size-5"
+    >
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7 11V7a5 5 0 0 1 10 0v4"
+      />
+    </svg>
+  );
+}
+
+function PawIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="size-5"
+    >
+      <ellipse cx="9" cy="7" rx="1.5" ry="2" />
+      <ellipse cx="15" cy="7" rx="1.5" ry="2" />
+      <ellipse cx="6" cy="11" rx="1.5" ry="2" />
+      <ellipse cx="18" cy="11" rx="1.5" ry="2" />
+      <ellipse cx="12" cy="16" rx="3" ry="2.5" />
     </svg>
   );
 }

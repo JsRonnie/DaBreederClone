@@ -6,23 +6,93 @@ import Step1DogInfo from "../stepComponents/Step1DogInfo";
 import Step2Health from "../stepComponents/Step2Health";
 import Step3Traits from "../stepComponents/Step3Traits";
 import DocumentManager from "../components/DocumentManager";
+import supabase from "../lib/supabaseClient";
 
 export default function DogEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
     dog,
+    photoUrl,
     loading: profileLoading,
     error: profileError,
   } = useDogProfile(id);
   const form = useFormData();
   const [initializing, setInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [initialDocuments, setInitialDocuments] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
-  // Initialize form with existing dog data
+  // Check authorization
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error) throw error;
+        setCurrentUser(user);
+
+        // If we have both user and dog data, check ownership
+        if (user && dog && user.id !== dog.user_id) {
+          console.log("❌ User not authorized to edit this dog");
+          navigate("/dashboard");
+          return;
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        navigate("/dashboard");
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+
+    if (dog) {
+      checkAuth();
+    }
+  }, [dog, navigate]);
+
+  // Function to determine which document categories are required based on checked boxes
+  const getRequiredCategories = (data) => {
+    const required = [];
+    if (data.vaccinated) required.push("vaccination");
+    if (data.pedigree_certified) required.push("pedigree");
+    if (data.dna_tested) required.push("dna");
+    if (
+      data.hip_elbow_tested ||
+      data.heart_tested ||
+      data.eye_tested ||
+      data.genetic_panel ||
+      data.thyroid_tested
+    )
+      required.push("health");
+    return required;
+  };
+
+  // Initialize form with existing dog data and store initial documents
   useEffect(() => {
     if (dog && initializing) {
       console.log("🔄 Initializing form with dog data:", dog);
+
+      // Fetch initial documents
+      const fetchInitialDocuments = async () => {
+        try {
+          const { data: docs, error } = await supabase
+            .from("dog_documents")
+            .select("*")
+            .eq("dog_id", id);
+
+          if (!error && docs) {
+            setInitialDocuments(docs);
+          }
+        } catch (error) {
+          console.warn("Could not fetch initial documents:", error);
+        }
+      };
+
+      fetchInitialDocuments();
 
       // Use setFormData to populate all fields at once
       form.setFormData({
@@ -33,7 +103,7 @@ export default function DogEditPage() {
         size: dog.size || "",
         weight_kg: dog.weight_kg || "",
         color: dog.color || "",
-  coat_type: dog.coat_type || "",
+        coat_type: dog.coat_type || "",
         activity_level: dog.activity_level || "",
         sociability: dog.sociability || "",
         trainability: dog.trainability || "",
@@ -51,7 +121,63 @@ export default function DogEditPage() {
 
       setInitializing(false);
     }
-  }, [dog, initializing, form]);
+  }, [dog, initializing, form, id, setInitialDocuments]);
+
+  // Cleanup unsaved documents on component unmount (if user navigates away)
+  useEffect(() => {
+    return () => {
+      // Only cleanup if we haven't saved (saving flag will be false if navigated away)
+      if (!saving && initialDocuments.length > 0) {
+        const cleanupUnsavedDocuments = async () => {
+          try {
+            const { data: currentDocs, error } = await supabase
+              .from("dog_documents")
+              .select("*")
+              .eq("dog_id", id);
+
+            if (!error && currentDocs) {
+              const initialDocIds = new Set(
+                initialDocuments.map((doc) => doc.id)
+              );
+              const newDocs = currentDocs.filter(
+                (doc) => !initialDocIds.has(doc.id)
+              );
+
+              if (newDocs.length > 0) {
+                console.log(
+                  "🗑️ Cleanup on unmount - removing unsaved documents:",
+                  newDocs.length
+                );
+
+                for (const doc of newDocs) {
+                  try {
+                    await supabase.storage
+                      .from("documents")
+                      .remove([doc.file_path]);
+
+                    await supabase
+                      .from("dog_documents")
+                      .delete()
+                      .eq("id", doc.id);
+                  } catch (deleteError) {
+                    console.warn(
+                      "Failed to cleanup document on unmount:",
+                      doc.file_name,
+                      deleteError
+                    );
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.warn("Error during unmount cleanup:", error);
+          }
+        };
+
+        cleanupUnsavedDocuments();
+      }
+    };
+  }, [id, initialDocuments, saving]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -64,10 +190,61 @@ export default function DogEditPage() {
         throw new Error("Name and gender are required fields");
       }
 
+      // Validate required documents
+      const requiredCategories = getRequiredCategories(form.data);
+      if (requiredCategories.length > 0) {
+        // Check if documents exist for required categories (both existing and new)
+        const { data: existingDocs, error: docsError } = await supabase
+          .from("dog_documents")
+          .select("category")
+          .eq("dog_id", id);
+
+        if (docsError) {
+          console.warn("Could not check existing documents:", docsError);
+        }
+
+        // Combine existing documents and new documents from form
+        const existingCategories = new Set(
+          existingDocs?.map((doc) => doc.category) || []
+        );
+        const newDocumentCategories = new Set(
+          form.data.documents?.map((doc) => doc.category) || []
+        );
+        const allCategories = new Set([
+          ...existingCategories,
+          ...newDocumentCategories,
+        ]);
+
+        const missingCategories = requiredCategories.filter(
+          (cat) => !allCategories.has(cat)
+        );
+
+        if (missingCategories.length > 0) {
+          const categoryNames = {
+            vaccination: "Vaccination Records",
+            pedigree: "Pedigree Certificates",
+            dna: "DNA Test Results",
+            health: "Health Certificates",
+          };
+          const missingNames = missingCategories
+            .map((cat) => categoryNames[cat])
+            .join(", ");
+          throw new Error(`Please upload documents for: ${missingNames}`);
+        }
+      }
+
       // Use the form's update method instead of submit (to update existing dog)
       const success = await form.updateDog(id);
       if (success) {
         console.log("✅ Dog profile updated successfully");
+        // Update initial documents to current state to prevent cleanup
+        const { data: updatedDocs } = await supabase
+          .from("dog_documents")
+          .select("*")
+          .eq("dog_id", id);
+        if (updatedDocs) {
+          setInitialDocuments(updatedDocs);
+        }
         navigate(`/dog/${id}`);
       } else {
         console.error("❌ Failed to update dog profile");
@@ -79,8 +256,45 @@ export default function DogEditPage() {
     }
   };
 
-  const handleCancel = () => {
-    navigate(`/dog/${id}`);
+  const handleCancel = async () => {
+    try {
+      // Fetch current documents
+      const { data: currentDocs, error } = await supabase
+        .from("dog_documents")
+        .select("*")
+        .eq("dog_id", id);
+
+      if (!error && currentDocs) {
+        // Find documents that were added during this session
+        const initialDocIds = new Set(initialDocuments.map((doc) => doc.id));
+        const newDocs = currentDocs.filter((doc) => !initialDocIds.has(doc.id));
+
+        if (newDocs.length > 0) {
+          console.log("🗑️ Cleaning up unsaved documents:", newDocs.length);
+
+          // Delete new documents from storage and database
+          for (const doc of newDocs) {
+            try {
+              // Delete from storage
+              await supabase.storage.from("documents").remove([doc.file_path]);
+
+              // Delete from database
+              await supabase.from("dog_documents").delete().eq("id", doc.id);
+            } catch (deleteError) {
+              console.warn(
+                "Failed to cleanup document:",
+                doc.file_name,
+                deleteError
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Error during cleanup:", error);
+    } finally {
+      navigate(`/dog/${id}`);
+    }
   };
 
   if (profileLoading || initializing) {
@@ -165,43 +379,6 @@ export default function DogEditPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  {saving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      <span>Save Changes</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -223,6 +400,7 @@ export default function DogEditPage() {
                 data={form.data}
                 updateField={form.updateField}
                 updatePhoto={form.updatePhoto}
+                currentPhotoUrl={photoUrl}
               />
             </div>
           </div>
@@ -257,27 +435,54 @@ export default function DogEditPage() {
                 data={form.data}
                 updateCheckbox={form.updateCheckbox}
               />
-            </div>
-          </div>
 
-          {/* Documents & Files */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Documents & Files
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Manage vaccination records, pedigree certificates, DNA test
-                results, and health documents
-              </p>
-            </div>
-            <div className="px-6 py-6">
-              <DocumentManager
-                dogId={id}
-                onDocumentAdded={() => {
-                  console.log("Document added, refreshing...");
-                }}
-              />
+              {/* Conditional Documents Section */}
+              {(form.data.vaccinated ||
+                form.data.pedigree_certified ||
+                form.data.dna_tested ||
+                form.data.hip_elbow_tested ||
+                form.data.heart_tested ||
+                form.data.eye_tested ||
+                form.data.genetic_panel ||
+                form.data.thyroid_tested) && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Required Documents
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Please upload the following documents for the
+                      certifications you've checked:
+                    </p>
+                    <div className="mt-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex">
+                        <svg
+                          className="w-4 h-4 mr-2 mt-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span>
+                          Documents are required for checked certifications
+                          before saving.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <DocumentManager
+                    dogId={id}
+                    requiredCategories={getRequiredCategories(form.data)}
+                    data={form.data}
+                    updateDocuments={form.updateDocuments}
+                    removeDocument={form.removeDocument}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,13 +1,27 @@
-import React from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
-import useDogDocuments from "../hooks/useDogDocuments";
+import supabase from "../lib/supabaseClient";
 
 export default function DogProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { dog, photoUrl, loading, error } = useDogProfile(id);
-  const { documents, loading: docsLoading } = useDogDocuments(id);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
+
+  // Check if current user owns this dog
+  const isOwner = currentUser && dog && currentUser.id === dog.user_id;
 
   if (loading) {
     return (
@@ -47,10 +61,23 @@ export default function DogProfilePage() {
             removed.
           </p>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => {
+              if (location.state?.fromFindMatch) {
+                navigate("/find-match", {
+                  state: {
+                    selectedDog: location.state.selectedDog,
+                    potentialMatches: location.state.potentialMatches,
+                  },
+                });
+              } else {
+                navigate("/dashboard");
+              }
+            }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Back to Dashboard
+            {location.state?.fromFindMatch
+              ? "Back to Find Match"
+              : "Back to Dashboard"}
           </button>
         </div>
       </div>
@@ -66,7 +93,18 @@ export default function DogProfilePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => {
+                    if (location.state?.fromFindMatch) {
+                      navigate("/find-match", {
+                        state: {
+                          selectedDog: location.state.selectedDog,
+                          potentialMatches: location.state.potentialMatches,
+                        },
+                      });
+                    } else {
+                      navigate("/dashboard");
+                    }
+                  }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg
@@ -93,25 +131,27 @@ export default function DogProfilePage() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => navigate(`/dog/${id}/edit`)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                {isOwner && (
+                  <button
+                    onClick={() => navigate(`/dog/${id}/edit`)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  <span>Edit Profile</span>
-                </button>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    <span>Edit Profile</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -218,11 +258,11 @@ export default function DogProfilePage() {
 
         {/* Content Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Traits & Physical Characteristics */}
+          {/* Dog Characteristics */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Traits & Physical Characteristics
+                Dog Characteristics
               </h2>
             </div>
             <div className="px-6 py-6">
@@ -243,24 +283,6 @@ export default function DogProfilePage() {
                   <dt className="text-sm text-gray-500">Trainability</dt>
                   <dd className="text-sm text-gray-900 font-medium">
                     {dog.trainability || "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Ear Type</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.ear_type || "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Tail Type</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.tail_type || "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Build</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.build || "—"}
                   </dd>
                 </div>
               </div>
@@ -388,76 +410,6 @@ export default function DogProfilePage() {
             </div>
           </div>
         </div>
-
-        {/* Documents Section */}
-        {!docsLoading && documents && documents.length > 0 && (
-          <div className="mt-8 bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Documents</h2>
-            </div>
-            <div className="px-6 py-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {["vaccination", "pedigree", "dna", "health"].map(
-                  (category) => {
-                    const categoryDocs = documents.filter(
-                      (doc) => doc.category === category
-                    );
-                    const categoryNames = {
-                      vaccination: "Vaccination",
-                      pedigree: "Pedigree",
-                      dna: "DNA Tests",
-                      health: "Health Records",
-                    };
-
-                    if (categoryDocs.length === 0) return null;
-
-                    return (
-                      <div key={category} className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">
-                          {categoryNames[category]}
-                        </h4>
-                        {categoryDocs.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center p-2 bg-gray-50 rounded border"
-                          >
-                            <svg
-                              className="w-4 h-4 text-gray-400 mr-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            <span className="text-xs text-gray-600 truncate">
-                              {doc.file_name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-                <p className="text-sm text-gray-500 mb-2">
-                  Need to update documents?
-                </p>
-                <button
-                  onClick={() => navigate(`/dog/${id}/edit`)}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  Edit Profile →
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

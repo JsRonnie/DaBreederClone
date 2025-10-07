@@ -1,16 +1,13 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Navbar({
   onMenuClick,
   onSignInClick,
   onSignUpClick,
   user,
-  onDashboardClick,
-  onLogout,
 }) {
   const [open, setOpen] = useState(false);
-  const location = useLocation();
   const toggle = () => setOpen(!open);
 
   return (
@@ -66,27 +63,7 @@ export default function Navbar({
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <button
-                onClick={onDashboardClick}
-                className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                My Dogs
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log("Logout button clicked");
-                  if (onLogout) {
-                    onLogout();
-                  } else {
-                    console.error("onLogout function not provided");
-                  }
-                }}
-                type="button"
-                className="px-3 py-1.5 rounded-md text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
-              >
-                Logout
-              </button>
+              {/* User indicator - could add user avatar or name here */}
             </div>
           )}
         </div>
@@ -96,55 +73,22 @@ export default function Navbar({
       {open && (
         <div className="border-t border-slate-200 bg-white shadow-lg">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3 text-sm text-slate-600 grid gap-2">
-            <Link
-              to="/"
-              onClick={() => setOpen(false)}
-              className={`text-left hover:text-slate-900 transition-colors ${
-                location.pathname === "/" ? "text-blue-600 font-medium" : ""
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/about"
-              onClick={() => setOpen(false)}
-              className={`text-left hover:text-slate-900 transition-colors ${
-                location.pathname === "/about"
-                  ? "text-blue-600 font-medium"
-                  : ""
-              }`}
-            >
-              About Us
-            </Link>
-            <Link
-              to="/contact"
-              onClick={() => setOpen(false)}
-              className={`text-left hover:text-slate-900 transition-colors ${
-                location.pathname === "/contact"
-                  ? "text-blue-600 font-medium"
-                  : ""
-              }`}
-            >
-              Contact Us
-            </Link>
             {user && (
               <>
                 <Link
-                  to="/dashboard"
+                  to="/my-dogs"
                   onClick={() => setOpen(false)}
                   className="text-left hover:text-slate-900 transition-colors"
                 >
                   My Dogs
                 </Link>
-                <button
-                  onClick={() => {
-                    onLogout();
-                    setOpen(false);
-                  }}
-                  className="text-left text-rose-600 hover:text-rose-700 transition-colors font-medium"
+                <Link
+                  to="/find-match"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
                 >
-                  Logout
-                </button>
+                  Find Match
+                </Link>
               </>
             )}
           </div>

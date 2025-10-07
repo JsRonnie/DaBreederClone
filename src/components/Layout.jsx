@@ -42,8 +42,6 @@ export default function Layout() {
     setSidebarOpen(false);
   };
 
-  const goToDashboard = () => navigate("/dashboard");
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
@@ -57,8 +55,6 @@ export default function Layout() {
           setAuthOpen(true);
         }}
         user={user}
-        onLogout={handleLogout}
-        onDashboardClick={goToDashboard}
         onNavigate={handleNavigate}
       />
 

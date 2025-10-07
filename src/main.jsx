@@ -11,6 +11,10 @@ import DashboardPage from "./pages/DashboardPage";
 import AddDogPage from "./pages/AddDogPage";
 import DogProfilePage from "./pages/DogProfilePage";
 import DogEditPage from "./pages/DogEditPage";
+import FindMatchPage from "./pages/FindMatchPage";
+import EditProfilePage from "./pages/EditProfilePage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
+import MyDogsPage from "./pages/MyDogsPage";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -22,9 +26,13 @@ createRoot(document.getElementById("root")).render(
             <Route path="about" element={<AboutPage />} />
             <Route path="contact" element={<ContactPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="my-dogs" element={<MyDogsPage />} />
             <Route path="add-dog" element={<AddDogPage />} />
             <Route path="dog/:id" element={<DogProfilePage />} />
             <Route path="dog/:id/edit" element={<DogEditPage />} />
+            <Route path="find-match" element={<FindMatchPage />} />
+            <Route path="edit-profile" element={<EditProfilePage />} />
+            <Route path="change-password" element={<ChangePasswordPage />} />
           </Route>
         </Routes>
       </Router>
