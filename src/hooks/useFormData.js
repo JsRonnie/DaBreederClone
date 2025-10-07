@@ -13,7 +13,7 @@ const initialData = {
   weight_kg: "",
   age_years: "",
   coat_length: "",
-  coat_color: "",
+  // coat_color removed: not present in DB schema for some projects
   coat_type: "",
   color: "",
   activity_level: "",
@@ -22,7 +22,6 @@ const initialData = {
   ear_type: "",
   tail_type: "",
   muzzle_shape: "",
-  build: "",
   photo: null, // File object for main dog photo
   documents: [], // Array of { file: File, category: string }
 };
@@ -32,6 +31,30 @@ export function useFormData() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  // Helper to normalize various thrown error shapes (Supabase may throw plain objects)
+  const normalizeError = (e) => {
+    if (e instanceof Error) return e;
+    if (e && typeof e === "object") {
+      // Prefer a message property if present
+      if (typeof e.message === "string" && e.message.length > 0) return new Error(e.message);
+      // Some Supabase errors include 'error' or 'msg' or other fields useful to show
+      if (typeof e.error === "string" && e.error.length > 0) return new Error(e.error);
+      try {
+        return new Error(JSON.stringify(e));
+      } catch (_) {
+        return new Error(String(e));
+      }
+    }
+    return new Error(String(e));
+  };
+
+  // Helper to extract a missing column name from Supabase schema-cache errors
+  const extractMissingColumn = (msg) => {
+    if (!msg || typeof msg !== "string") return null;
+    const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" does not exist/i);
+    return m ? m[1] : null;
+  };
 
   const updateField = useCallback((field, value) => {
     setData((d) => ({ ...d, [field]: value }));
@@ -199,11 +222,23 @@ export function useFormData() {
       if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined)
         dogPayload.age_years = Number(dogPayload.age_years);
 
-      const { data: inserted, error: insertError } = await supabase
-        .from("dogs")
-        .insert(dogPayload)
-        .select("id")
-        .single();
+      // Try inserting; if Supabase complains about a missing column in the schema cache,
+      // iteratively strip the reported missing column and retry a few times. This handles
+      // cases where the client sends multiple obsolete columns.
+      let payload = { ...dogPayload };
+      let inserted = null;
+      let insertError = null;
+      const maxAttempts = 5;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const resp = await supabase.from("dogs").insert(payload).select("id").single();
+        inserted = resp.data;
+        insertError = resp.error;
+        if (!insertError) break;
+        const missing = extractMissingColumn(insertError.message || insertError.error || "");
+        if (!missing || !payload.hasOwnProperty(missing)) break;
+        console.warn(`Detected missing column '${missing}' during insert (attempt ${attempt + 1}); removing and retrying.`);
+        delete payload[missing];
+      }
 
       if (insertError) throw insertError;
 
@@ -309,7 +344,7 @@ export function useFormData() {
       setSuccess(true);
       return dogId;
     } catch (e) {
-      setError(e instanceof Error ? e : new Error(String(e)));
+      setError(normalizeError(e));
       console.error(e);
       return null;
     } finally {
@@ -365,9 +400,6 @@ export function useFormData() {
           "ear_type",
           "tail_type",
           "muzzle_shape",
-          "build",
-          "coat_length",
-          "coat_color",
         ]);
         const dogPayload = Object.fromEntries(
           Object.entries(src).filter(([k]) => allowedDogColumns.has(k))
@@ -380,10 +412,19 @@ export function useFormData() {
           dogPayload.age_years = Number(dogPayload.age_years);
 
         // Update the dog record
-        const { error: updateError } = await supabase
-          .from("dogs")
-          .update(dogPayload)
-          .eq("id", dogId);
+        // Try updating; iteratively strip missing columns reported by the schema cache and retry
+        let payload = { ...dogPayload };
+        let updateError = null;
+        const maxAttempts = 5;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const resp = await supabase.from("dogs").update(payload).eq("id", dogId);
+          updateError = resp.error;
+          if (!updateError) break;
+          const missing = extractMissingColumn(updateError.message || updateError.error || "");
+          if (!missing || !payload.hasOwnProperty(missing)) break;
+          console.warn(`Detected missing column '${missing}' during update (attempt ${attempt + 1}); removing and retrying.`);
+          delete payload[missing];
+        }
 
         if (updateError) throw updateError;
 
@@ -420,7 +461,7 @@ export function useFormData() {
         setSuccess(true);
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e : new Error(String(e)));
+        setError(normalizeError(e));
         console.error("Update error:", e);
         return false;
       } finally {
