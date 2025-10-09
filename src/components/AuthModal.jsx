@@ -20,6 +20,7 @@ export default function AuthModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
@@ -35,6 +36,7 @@ export default function AuthModal({
     setErrorMsg("");
     setInfoMsg("");
     setLoading(false);
+    setAgreedToTerms(false);
     // When modal closes, clear sensitive fields like password
     if (!open) {
       setPassword("");
@@ -64,6 +66,10 @@ export default function AuthModal({
     try {
       if (!email || !password) {
         throw new Error("Please enter email and password.");
+      }
+
+      if (isSignUp && !agreedToTerms) {
+        throw new Error("Please agree to the terms and policy to continue.");
       }
 
       // Sanitize inputs for common copy/paste issues
@@ -99,7 +105,8 @@ export default function AuthModal({
         if (appUser) {
           await upsertUserProfile(supabase, data.session.user);
           onAuthSuccess?.(appUser);
-          onClose?.();
+          // Close modal after successful sign up
+          setTimeout(() => onClose?.(), 100);
         }
       } else {
         // Sign in
@@ -115,7 +122,8 @@ export default function AuthModal({
         if (appUser) {
           await upsertUserProfile(supabase, data.session.user);
           onAuthSuccess?.(appUser);
-          onClose?.();
+          // Close modal after successful login
+          setTimeout(() => onClose?.(), 100);
         }
       }
     } catch (e) {
@@ -159,14 +167,16 @@ export default function AuthModal({
           {/* Left: form */}
           <div className="bg-slate-50 p-6 sm:p-10 flex items-center justify-center">
             <div className="w-full max-w-md text-center">
-              <h2 className="text-2xl font-semibold text-slate-900">
-                {isSignUp ? "Get Started Now" : "Welcome back!"}
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                {isSignUp
-                  ? "Join our community of responsible dog breeders"
-                  : "Enter your credentials to access your account"}
-              </p>
+              <div className="transition-all duration-300 ease-in-out transform">
+                <h2 className="text-2xl font-semibold text-slate-900 transition-all duration-300">
+                  {isSignUp ? "Get Started Now" : "Welcome back!"}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600 transition-all duration-300">
+                  {isSignUp
+                    ? "Join our community of responsible dog breeders"
+                    : "Enter your credentials to access your account"}
+                </p>
+              </div>
 
               <form
                 className="mt-8 grid gap-4 text-left"
@@ -217,7 +227,7 @@ export default function AuthModal({
                   </div>
                   <div className="relative mt-1">
                     <input
-                      className="w-full rounded-md border border-slate-300 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-slate-400"
                       placeholder="Password"
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -276,7 +286,12 @@ export default function AuthModal({
 
                 {isSignUp && (
                   <label className="mt-1 flex items-center gap-2 text-xs text-slate-600">
-                    <input type="checkbox" className="size-4 accent-blue-600" />
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-blue-600"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    />
                     I agree to the{" "}
                     <a href="#" className="underline">
                       terms & policy
@@ -309,7 +324,7 @@ export default function AuthModal({
                       ? "Signing up…"
                       : "Logging in…"
                     : isSignUp
-                    ? "Signup"
+                    ? "Sign Up"
                     : "Login"}
                 </button>
 
