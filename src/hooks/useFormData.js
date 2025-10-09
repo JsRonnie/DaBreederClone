@@ -9,6 +9,11 @@ const initialData = {
   pedigree_certified: false,
   dna_tested: false,
   vaccinated: false,
+  hip_elbow_tested: false,
+  heart_tested: false,
+  eye_tested: false,
+  genetic_panel: false,
+  thyroid_tested: false,
   size: "",
   weight_kg: "",
   age_years: "",
@@ -81,26 +86,54 @@ export function useFormData() {
       file: f,
       category,
     }));
+
+    // Define single-file categories
+    const singleFileCategories = ["pedigree", "dna", "vaccination"];
+    const isSingleFileCategory = singleFileCategories.includes(category);
+    console.log(
+      `📋 Category '${category}' is ${
+        isSingleFileCategory ? "single-file" : "multi-file"
+      } category`
+    );
+
     setData((d) => {
-      // merge & de-dupe by (name, category)
       const existing = Array.isArray(d.documents) ? d.documents : [];
-      const merged = [...existing];
-      for (const item of newItems) {
-        const idx = merged.findIndex(
-          (x) =>
-            (x.file?.name || x.name) === item.file.name &&
-            (x.category || "misc") === item.category
+
+      if (isSingleFileCategory) {
+        // For single-file categories, replace all files in that category
+        console.log(`🔄 Replacing single file for category: ${category}`);
+        const filtered = existing.filter(
+          (x) => (x.category || "misc") !== category
         );
-        if (idx === -1) merged.push(item);
+        const merged = [...filtered, ...newItems];
+        console.log(
+          "📋 Updated documents (single-file replacement):",
+          merged.map((x) => ({
+            name: x.file?.name || x.name,
+            category: x.category,
+          }))
+        );
+        return { ...d, documents: merged };
+      } else {
+        // For multi-file categories, merge & de-dupe by (name, category)
+        const merged = [...existing];
+        for (const item of newItems) {
+          const idx = merged.findIndex(
+            (x) =>
+              (x.file?.name || x.name) === item.file.name &&
+              (x.category || "misc") === item.category
+          );
+          if (idx === -1) merged.push(item);
+        }
+        console.log(
+          "📋 Updated documents (multi-file merge):",
+          merged.map((x) => ({
+            name: x.file?.name || x.name,
+            category: x.category,
+          }))
+        );
+        return { ...d, documents: merged };
       }
-      console.log(
-        "📋 Updated documents:",
-        merged.map((x) => ({
-          name: x.file?.name || x.name,
-          category: x.category,
-        }))
-      );
-      return { ...d, documents: merged };
     });
   }, []);
 
@@ -111,13 +144,28 @@ export function useFormData() {
   const removeDocument = useCallback((fileName, category = "misc") => {
     console.log("🗑️ Removing document:", { fileName, category });
     setData((d) => {
+      const beforeCount = (Array.isArray(d.documents) ? d.documents : [])
+        .length;
       const filtered = (Array.isArray(d.documents) ? d.documents : []).filter(
-        (x) =>
-          (x.file?.name || x.name) !== fileName ||
-          (x.category || "misc") !== category
+        (x) => {
+          const docFileName = x.file?.name || x.name;
+          const docCategory = x.category || "misc";
+          // Keep documents that DON'T match both fileName AND category
+          const shouldKeep = !(
+            docFileName === fileName && docCategory === category
+          );
+          if (!shouldKeep) {
+            console.log(
+              `🗑️ Removing document: ${docFileName} (${docCategory})`
+            );
+          }
+          return shouldKeep;
+        }
       );
+      const afterCount = filtered.length;
+      console.log(`📋 Documents count: ${beforeCount} → ${afterCount}`);
       console.log(
-        "📋 Documents after removal:",
+        "📋 Remaining documents:",
         filtered.map((x) => ({
           name: x.file?.name || x.name,
           category: x.category,
@@ -255,7 +303,8 @@ export function useFormData() {
         const missing = extractMissingColumn(
           insertError.message || insertError.error || ""
         );
-        if (!missing || !payload.hasOwnProperty(missing)) break;
+        if (!missing || !Object.prototype.hasOwnProperty.call(payload, missing))
+          break;
         console.warn(
           `Detected missing column '${missing}' during insert (attempt ${
             attempt + 1
@@ -331,18 +380,26 @@ export function useFormData() {
           const file = item?.file || item; // backward compatible if array had File objects
           if (!file?.name) continue;
           const category = item?.category || null;
-          const path = `${dogId}/${Date.now()}-${file.name}`;
+
+          // Determine file type for better organization
+          const isImage =
+            file.type?.startsWith("image/") ||
+            /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name);
+          const subfolder = isImage ? "images" : "documents";
+          const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_"); // Sanitize filename
+          const path = `${dogId}/${subfolder}/${Date.now()}-${sanitizedFileName}`;
           const { error: uploadError } = await supabase.storage
-            .from("documents")
+            .from("dog-photos")
             .upload(path, file, { upsert: false });
           if (uploadError) {
+            console.error("📤 Upload error for", file.name, ":", uploadError);
             // Improve messaging for bucket not found vs permission
             if (
               uploadError.message?.toLowerCase().includes("bucket") &&
               uploadError.message.toLowerCase().includes("not found")
             ) {
               throw new Error(
-                "Upload failed: Bucket 'documents' not found. Verify name EXACTLY and that you are pointing to the correct project (check VITE_SUPABASE_URL)."
+                "Upload failed: Bucket 'dog-photos' not found. Create it in Supabase Storage (make it public) or update the bucket name."
               );
             }
             throw new Error(
@@ -356,12 +413,17 @@ export function useFormData() {
               dog_id: dogId,
               user_id: dogPayload.user_id, // pass same user id for RLS
               file_name: file.name,
-              file_path: path,
+              storage_path: path,
               file_size_bytes: file.size,
               content_type: file.type,
               category: category,
             });
           if (docInsertError) throw docInsertError;
+          console.log(
+            `✅ Document uploaded successfully: ${file.name} (${
+              isImage ? "image" : "document"
+            })`
+          );
         }
       }
 
@@ -377,13 +439,21 @@ export function useFormData() {
   }, [data]);
 
   const updateDog = useCallback(
-    async (dogId) => {
+    async (dogId, initialDocuments = []) => {
       setSubmitting(true);
       setError(null);
       setSuccess(false);
 
       try {
         console.log("🔄 Starting dog profile update...");
+        console.log(
+          "📋 Initial documents:",
+          initialDocuments?.map((d) => ({
+            name: d.file_name,
+            category: d.category,
+            id: d.id,
+          }))
+        );
 
         const src = { ...data };
         // Remove client-only fields
@@ -462,7 +532,11 @@ export function useFormData() {
           const missing = extractMissingColumn(
             updateError.message || updateError.error || ""
           );
-          if (!missing || !payload.hasOwnProperty(missing)) break;
+          if (
+            !missing ||
+            !Object.prototype.hasOwnProperty.call(payload, missing)
+          )
+            break;
           console.warn(
             `Detected missing column '${missing}' during update (attempt ${
               attempt + 1
@@ -523,29 +597,177 @@ export function useFormData() {
           }
         }
 
-        // Upload new documents if provided
-        if (Array.isArray(data.documents) && data.documents.length > 0) {
-          console.log("📁 Uploading documents:", data.documents.length);
+        // Handle document operations (deletions and uploads)
+        console.log("📁 Processing document changes...");
 
-          // Get user ID for RLS
-          const { data: user } = await supabase.auth.getUser();
-          const userId = user?.user?.id;
+        // Get user ID for RLS
+        const { data: user } = await supabase.auth.getUser();
+        const userId = user?.user?.id;
 
-          if (!userId) {
-            throw new Error("User not authenticated for document upload");
+        if (!userId) {
+          throw new Error("User not authenticated for document operations");
+        }
+
+        // 1. First, handle document deletions by comparing initial vs current documents
+        if (Array.isArray(initialDocuments) && initialDocuments.length > 0) {
+          console.log("�️ Checking for removed documents...");
+
+          // Get current document names/categories from form
+          const currentDocuments = Array.isArray(data.documents)
+            ? data.documents
+            : [];
+          console.log(
+            "📋 Current documents in form:",
+            currentDocuments.map((d) => ({
+              name: d.file?.name || d.name,
+              category: d.category,
+              isExisting: d.isExisting,
+            }))
+          );
+
+          const currentDocSet = new Set(
+            currentDocuments
+              .filter((doc) => doc.isExisting) // Only consider existing documents for removal comparison
+              .map((doc) => {
+                const name = doc.file?.name || doc.name;
+                const category = doc.category || "misc";
+                return `${name}:${category}`;
+              })
+          );
+
+          console.log(
+            "📋 Current existing document keys:",
+            Array.from(currentDocSet)
+          );
+
+          // Find documents that were in initial but are not in current existing (i.e., removed)
+          const removedDocuments = initialDocuments.filter((initialDoc) => {
+            const key = `${initialDoc.file_name}:${
+              initialDoc.category || "misc"
+            }`;
+            const isRemoved = !currentDocSet.has(key);
+            if (isRemoved) {
+              console.log(
+                `🗑️ Document marked for removal: ${initialDoc.file_name} (${initialDoc.category}) - Key: ${key}`
+              );
+            }
+            return isRemoved;
+          });
+
+          console.log(
+            `📋 Found ${removedDocuments.length} documents to remove from database`
+          );
+
+          // Delete removed documents from database and storage
+          for (const removedDoc of removedDocuments) {
+            try {
+              console.log(
+                `🗑️ Deleting document: ${removedDoc.file_name} (${removedDoc.category})`
+              );
+
+              // Delete from storage first
+              if (removedDoc.storage_path) {
+                const { error: storageError } = await supabase.storage
+                  .from("dog-photos")
+                  .remove([removedDoc.storage_path]);
+
+                if (storageError) {
+                  console.warn(
+                    `⚠️ Could not delete file from storage: ${removedDoc.storage_path}`,
+                    storageError
+                  );
+                } else {
+                  console.log(
+                    `✅ Deleted from storage: ${removedDoc.storage_path}`
+                  );
+                }
+              }
+
+              // Delete from database
+              const { error: dbError } = await supabase
+                .from("dog_documents")
+                .delete()
+                .eq("id", removedDoc.id);
+
+              if (dbError) {
+                console.warn(
+                  `⚠️ Could not delete document from database: ${removedDoc.file_name}`,
+                  dbError
+                );
+              } else {
+                console.log(
+                  `✅ Deleted from database: ${removedDoc.file_name}`
+                );
+              }
+            } catch (deleteError) {
+              console.warn(
+                `⚠️ Error deleting document ${removedDoc.file_name}:`,
+                deleteError
+              );
+              // Continue with other deletions even if one fails
+            }
           }
+        }
 
-          for (const item of data.documents) {
-            const file = item?.file || item; // backward compatible if array had File objects
+        // 2. Then, handle new document uploads
+        if (Array.isArray(data.documents) && data.documents.length > 0) {
+          console.log("📁 Uploading new documents:", data.documents.length);
+
+          // Separate new files from existing documents
+          const newFiles = data.documents.filter(
+            (item) => item.file && !item.isExisting
+          );
+          const primaryCertificationCategories = [
+            "pedigree",
+            "dna",
+            "vaccination",
+          ];
+
+          console.log("📋 Processing documents for update:", {
+            totalDocuments: data.documents.length,
+            newFiles: newFiles.length,
+            existingDocs: data.documents.filter((item) => item.isExisting)
+              .length,
+          });
+
+          for (const item of newFiles) {
+            const file = item.file;
             if (!file?.name) continue;
             const category = item?.category || null;
-            const path = `${dogId}/${Date.now()}-${file.name}`;
+
+            // For single-file categories, remove existing files first
+            if (primaryCertificationCategories.includes(category)) {
+              console.log(
+                `🗑️ Removing existing files for single-file category: ${category}`
+              );
+              const { error: deleteError } = await supabase
+                .from("dog_documents")
+                .delete()
+                .eq("dog_id", dogId)
+                .eq("category", category);
+
+              if (deleteError) {
+                console.warn(
+                  `Warning: Could not delete existing ${category} documents:`,
+                  deleteError
+                );
+              }
+            }
+
+            // Determine file type for better organization
+            const isImage =
+              file.type?.startsWith("image/") ||
+              /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name);
+            const subfolder = isImage ? "images" : "documents";
+            const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_"); // Sanitize filename
+            const path = `${dogId}/${subfolder}/${Date.now()}-${sanitizedFileName}`;
 
             const { error: uploadError } = await supabase.storage
-              .from("documents")
+              .from("dog-photos")
               .upload(path, file, { upsert: false });
 
             if (uploadError) {
+              console.error("📤 Upload error for", file.name, ":", uploadError);
               throw new Error(
                 `Upload failed for ${file.name}: ${uploadError.message}`
               );
@@ -557,7 +779,7 @@ export function useFormData() {
                 dog_id: dogId,
                 user_id: userId,
                 file_name: file.name,
-                file_path: path,
+                storage_path: path,
                 file_size_bytes: file.size,
                 content_type: file.type,
                 category: category,

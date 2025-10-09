@@ -20,9 +20,22 @@ export default function DogEditPage() {
   const form = useFormData();
   const [initializing, setInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success"); // "success" or "error"
   const [initialDocuments, setInitialDocuments] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
+
+  // Toast helper function
+  const showToastMessage = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 5000);
+  };
 
   // Check authorization
   useEffect(() => {
@@ -76,7 +89,7 @@ export default function DogEditPage() {
     if (dog && initializing) {
       console.log("🔄 Initializing form with dog data:", dog);
 
-      // Fetch initial documents
+      // Fetch initial documents and populate form
       const fetchInitialDocuments = async () => {
         try {
           const { data: docs, error } = await supabase
@@ -86,38 +99,163 @@ export default function DogEditPage() {
 
           if (!error && docs) {
             setInitialDocuments(docs);
+
+            // Convert database documents to form format
+            // For Primary Certifications (single file only), take only the first document per category
+            // For Additional Health Tests (multiple files allowed), take all documents
+            const primaryCertificationCategories = [
+              "pedigree",
+              "dna",
+              "vaccination",
+            ];
+            const categorizedDocs = {};
+
+            // Group documents by category
+            docs.forEach((doc) => {
+              const category = doc.category || "misc";
+              if (!categorizedDocs[category]) {
+                categorizedDocs[category] = [];
+              }
+              categorizedDocs[category].push(doc);
+            });
+
+            // Process documents according to their category constraints
+            const formDocuments = [];
+            Object.entries(categorizedDocs).forEach(
+              ([category, categoryDocs]) => {
+                if (primaryCertificationCategories.includes(category)) {
+                  // For primary certifications, only take the first (most recent) document
+                  // Sort by ID descending to get the most recent
+                  const sortedDocs = categoryDocs.sort((a, b) => b.id - a.id);
+                  const doc = sortedDocs[0];
+                  formDocuments.push({
+                    name: doc.file_name,
+                    category: category,
+                    storage_path: doc.storage_path,
+                    file_size_bytes: doc.file_size_bytes,
+                    content_type: doc.content_type,
+                    isExisting: true,
+                  });
+
+                  // Log if there were multiple files for single-file category
+                  if (categoryDocs.length > 1) {
+                    console.warn(
+                      `Multiple files found for single-file category '${category}'. Using most recent file:`,
+                      doc.file_name
+                    );
+                  }
+                } else {
+                  // For health tests and other categories, take all documents
+                  categoryDocs.forEach((doc) => {
+                    formDocuments.push({
+                      name: doc.file_name,
+                      category: category,
+                      storage_path: doc.storage_path,
+                      file_size_bytes: doc.file_size_bytes,
+                      content_type: doc.content_type,
+                      isExisting: true,
+                    });
+                  });
+                }
+              }
+            );
+
+            // Use setFormData to populate all fields at once including existing documents
+            form.setFormData({
+              name: dog.name || "",
+              gender: dog.gender || "",
+              breed: dog.breed || "",
+              age: dog.age_years || "", // Map database age_years to UI age field
+              age_years: dog.age_years || "",
+              size: dog.size || "",
+              weight_kg: dog.weight_kg || "",
+              color: dog.color || "",
+              coat_type: dog.coat_type || "",
+              activity_level: dog.activity_level || "",
+              sociability: dog.sociability || "",
+              trainability: dog.trainability || "",
+              ear_type: dog.ear_type || "",
+              tail_type: dog.tail_type || "",
+              muzzle_shape: dog.muzzle_shape || "",
+              build: dog.build || "",
+              vaccinated: dog.vaccinated || false,
+              dna_tested: dog.dna_tested || false,
+              pedigree_certified: dog.pedigree_certified || false,
+              hip_elbow_tested: dog.hip_elbow_tested || false,
+              heart_tested: dog.heart_tested || false,
+              eye_tested: dog.eye_tested || false,
+              genetic_panel: dog.genetic_panel || false,
+              thyroid_tested: dog.thyroid_tested || false,
+              // Load existing documents
+              photo: null,
+              documents: formDocuments,
+            });
+          } else {
+            // If no documents found, still set the form data
+            form.setFormData({
+              name: dog.name || "",
+              gender: dog.gender || "",
+              breed: dog.breed || "",
+              age: dog.age_years || "", // Map database age_years to UI age field
+              age_years: dog.age_years || "",
+              size: dog.size || "",
+              weight_kg: dog.weight_kg || "",
+              color: dog.color || "",
+              coat_type: dog.coat_type || "",
+              activity_level: dog.activity_level || "",
+              sociability: dog.sociability || "",
+              trainability: dog.trainability || "",
+              ear_type: dog.ear_type || "",
+              tail_type: dog.tail_type || "",
+              muzzle_shape: dog.muzzle_shape || "",
+              build: dog.build || "",
+              vaccinated: dog.vaccinated || false,
+              dna_tested: dog.dna_tested || false,
+              pedigree_certified: dog.pedigree_certified || false,
+              hip_elbow_tested: dog.hip_elbow_tested || false,
+              heart_tested: dog.heart_tested || false,
+              eye_tested: dog.eye_tested || false,
+              genetic_panel: dog.genetic_panel || false,
+              thyroid_tested: dog.thyroid_tested || false,
+              photo: null,
+              documents: [],
+            });
           }
         } catch (error) {
           console.warn("Could not fetch initial documents:", error);
+          // Still set form data even if document fetch fails
+          form.setFormData({
+            name: dog.name || "",
+            gender: dog.gender || "",
+            breed: dog.breed || "",
+            age: dog.age_years || "", // Map database age_years to UI age field
+            age_years: dog.age_years || "",
+            size: dog.size || "",
+            weight_kg: dog.weight_kg || "",
+            color: dog.color || "",
+            coat_type: dog.coat_type || "",
+            activity_level: dog.activity_level || "",
+            sociability: dog.sociability || "",
+            trainability: dog.trainability || "",
+            ear_type: dog.ear_type || "",
+            tail_type: dog.tail_type || "",
+            muzzle_shape: dog.muzzle_shape || "",
+            build: dog.build || "",
+            vaccinated: dog.vaccinated || false,
+            dna_tested: dog.dna_tested || false,
+            pedigree_certified: dog.pedigree_certified || false,
+            hip_elbow_tested: dog.hip_elbow_tested || false,
+            heart_tested: dog.heart_tested || false,
+            eye_tested: dog.eye_tested || false,
+            genetic_panel: dog.genetic_panel || false,
+            thyroid_tested: dog.thyroid_tested || false,
+            photo: null,
+            documents: [],
+          });
         }
       };
 
       fetchInitialDocuments();
-
-      // Use setFormData to populate all fields at once
-      form.setFormData({
-        name: dog.name || "",
-        gender: dog.gender || "",
-        breed: dog.breed || "",
-        age_years: dog.age_years || "",
-        size: dog.size || "",
-        weight_kg: dog.weight_kg || "",
-        color: dog.color || "",
-        coat_type: dog.coat_type || "",
-        activity_level: dog.activity_level || "",
-        sociability: dog.sociability || "",
-        trainability: dog.trainability || "",
-        ear_type: dog.ear_type || "",
-        tail_type: dog.tail_type || "",
-        muzzle_shape: dog.muzzle_shape || "",
-        build: dog.build || "",
-        vaccinated: dog.vaccinated || false,
-        dna_tested: dog.dna_tested || false,
-        pedigree_certified: dog.pedigree_certified || false,
-        // Don't pre-populate photo and documents
-        photo: null,
-        documents: [],
-      });
 
       setInitializing(false);
     }
@@ -181,9 +319,14 @@ export default function DogEditPage() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveSuccess(false);
+    setUploadProgress(0);
+
     try {
       console.log("💾 Saving dog profile changes...");
       console.log("📋 Current form data:", form.data);
+
+      setUploadProgress(10); // Started validation
 
       // Basic validation
       if (!form.data.name || !form.data.gender) {
@@ -233,10 +376,16 @@ export default function DogEditPage() {
         }
       }
 
+      setUploadProgress(30); // Completed validation
+
       // Use the form's update method instead of submit (to update existing dog)
-      const success = await form.updateDog(id);
+      const success = await form.updateDog(id, initialDocuments);
+
+      setUploadProgress(80); // Update completed
+
       if (success) {
         console.log("✅ Dog profile updated successfully");
+
         // Update initial documents to current state to prevent cleanup
         const { data: updatedDocs } = await supabase
           .from("dog_documents")
@@ -245,14 +394,36 @@ export default function DogEditPage() {
         if (updatedDocs) {
           setInitialDocuments(updatedDocs);
         }
-        navigate(`/dog/${id}`);
+
+        setUploadProgress(100); // All done
+        setSaveSuccess(true);
+        showToastMessage("Dog profile updated successfully! 🎉", "success");
+
+        // Show success message briefly before navigating
+        setTimeout(() => {
+          navigate(`/dog/${id}`);
+        }, 1500);
       } else {
-        console.error("❌ Failed to update dog profile");
+        throw new Error("Failed to update dog profile. Please try again.");
       }
     } catch (error) {
       console.error("❌ Failed to save changes:", error);
+      setUploadProgress(0);
+      showToastMessage(
+        `Failed to update dog profile: ${error.message}`,
+        "error"
+      );
+      // Don't navigate on error, let user see the error and try again
     } finally {
-      setSaving(false);
+      // Only set saving to false after success message is shown
+      if (!saveSuccess) {
+        setSaving(false);
+      } else {
+        // Keep saving state for success animation
+        setTimeout(() => {
+          setSaving(false);
+        }, 1500);
+      }
     }
   };
 
@@ -487,6 +658,40 @@ export default function DogEditPage() {
           </div>
         </div>
 
+        {/* Success Display */}
+        {saveSuccess && (
+          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-800">
+                  Changes saved successfully!
+                </h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p>
+                    Your dog's profile has been updated and all files have been
+                    uploaded.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Display */}
         {form.error && (
           <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -520,24 +725,99 @@ export default function DogEditPage() {
 
         {/* Sticky Save Bar */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 sm:px-6">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Don't forget to save your changes
-            </p>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
+          <div className="max-w-4xl mx-auto">
+            {/* Progress Bar */}
+            {saving && uploadProgress > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                  <span>
+                    {uploadProgress < 30
+                      ? "Validating..."
+                      : uploadProgress < 80
+                      ? "Updating profile..."
+                      : uploadProgress < 100
+                      ? "Uploading files..."
+                      : "Finalizing..."}
+                  </span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {saveSuccess
+                  ? "✅ Changes saved successfully!"
+                  : "Don't forget to save your changes"}
+              </p>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`px-6 py-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
+                    saveSuccess
+                      ? "bg-green-600 text-white"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  } ${saving ? "opacity-75" : ""}`}
+                >
+                  {saving ? (
+                    <div className="flex items-center">
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Saving...
+                    </div>
+                  ) : saveSuccess ? (
+                    <div className="flex items-center">
+                      <svg
+                        className="mr-2 h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      Saved!
+                    </div>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -545,6 +825,34 @@ export default function DogEditPage() {
         {/* Bottom spacing for sticky bar */}
         <div className="h-20"></div>
       </div>
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 text-white font-medium transition-all duration-300 ${
+            toastType === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
+        >
+          {toastType === "success" ? (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+          )}
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

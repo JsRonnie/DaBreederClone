@@ -49,13 +49,13 @@ export default function useDogDocuments(dogId) {
     };
   }, [dogId]);
 
-  const deleteDocument = async (documentId, filePath) => {
+  const deleteDocument = async (documentId, storagePath) => {
     try {
-      // Delete from storage
-      if (filePath) {
+      // Delete from storage using storage_path
+      if (storagePath) {
         const { error: storageError } = await supabase.storage
-          .from("documents")
-          .remove([filePath]);
+          .from("dog-photos")
+          .remove([storagePath]);
 
         if (storageError) {
           console.warn("⚠️ Failed to delete file from storage:", storageError);

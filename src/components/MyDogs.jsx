@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import ConfirmDialog from "./ConfirmDialog";
@@ -10,7 +10,6 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [error, setError] = useState("");
   const [mine, setMine] = useState([]);
   const [uid, setUid] = useState(userId || null);
-  const [lastFetch, setLastFetch] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [focusedTick, setFocusedTick] = useState(0);
 
@@ -34,25 +33,46 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     return mine;
   }, [dogs, mine]);
 
+  // Use a ref to track if we're currently loading to prevent multiple simultaneous loads
+  const loadingRef = useRef(false);
+  const dataCache = useRef({ dogs: [], lastFetch: 0, userId: null });
+
   useEffect(() => {
     let active = true;
 
     async function load() {
-      console.log("🐕 MyDogs: Starting load...", {
-        uid,
-        lastFetch,
-        mine: mine.length,
-        forceRefresh,
-      });
-
-      // Always load fresh data, reduce caching and also refetch on focus
-      const now = Date.now();
-      if (now - lastFetch < 5000 && mine.length > 0 && forceRefresh === 0) {
-        console.log("🔄 Using cached data");
-        setLoading(false);
+      // Prevent multiple simultaneous loads
+      if (loadingRef.current) {
+        console.log("� Load already in progress, skipping...");
         return;
       }
 
+      console.log("�🐕 MyDogs: Starting load...", {
+        uid,
+        cacheLastFetch: dataCache.current.lastFetch,
+        cacheLength: dataCache.current.dogs.length,
+        forceRefresh,
+      });
+
+      const now = Date.now();
+      const timeSinceLastFetch = now - dataCache.current.lastFetch;
+
+      // Check cache - if we have recent data for the same user, use it
+      if (
+        dataCache.current.userId === uid &&
+        timeSinceLastFetch < 15000 &&
+        forceRefresh === 0 &&
+        (dataCache.current.dogs.length > 0 || dataCache.current.lastFetch > 0)
+      ) {
+        console.log("🔄 Using cached data");
+        if (active) {
+          setMine(dataCache.current.dogs);
+          setLoading(false);
+        }
+        return;
+      }
+
+      loadingRef.current = true;
       setLoading(true);
       setError("");
       try {
@@ -68,8 +88,15 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         }
         if (!effectiveUserId) {
           console.log("❌ No user ID available");
-          setMine([]);
-          setLastFetch(now);
+          if (active) {
+            setMine([]);
+            dataCache.current = {
+              dogs: [],
+              lastFetch: now,
+              userId: effectiveUserId,
+            };
+            setLoading(false);
+          }
           return;
         }
 
@@ -141,12 +168,20 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
         console.log("✅ Processed dogs:", processedDogs.length);
         setMine(processedDogs);
-        setLastFetch(now);
+        dataCache.current = {
+          dogs: processedDogs,
+          lastFetch: now,
+          userId: effectiveUserId,
+        };
       } catch (e) {
         console.error("💥 Load error:", e);
         setError(e.message || "Failed to load your dogs");
+        dataCache.current = { dogs: [], lastFetch: now, userId: uid };
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          loadingRef.current = false;
+        }
       }
     }
 
@@ -159,7 +194,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       active = false;
       clearTimeout(t);
     };
-  }, [uid, forceRefresh, lastFetch, mine.length, focusedTick]); // include focus ticks
+  }, [uid, forceRefresh, focusedTick]); // Removed lastFetch and mine.length to prevent infinite loops
 
   // Refetch when window gains focus
   useEffect(() => {
@@ -167,90 +202,6 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
-
-  async function addSampleDogs() {
-    try {
-      setError("");
-      setLoading(true);
-      let effectiveUserId = uid;
-      if (!effectiveUserId) {
-        const { data: u } = await supabase.auth.getUser();
-        effectiveUserId = u?.user?.id || null;
-        setUid(effectiveUserId);
-      }
-      if (!effectiveUserId)
-        throw new Error("Please sign in to add sample dogs.");
-      const sample = [
-        {
-          name: "Mr.brown",
-          breed: "Great Dane",
-          gender: "male",
-          age_years: 8,
-          size: "large",
-        },
-        {
-          name: "Mango",
-          breed: "Mastiff",
-          gender: "male",
-          age_years: 3,
-          size: "small",
-        },
-        {
-          name: "Ronnie",
-          breed: "Boxer",
-          gender: "male",
-          age_years: 7,
-          size: "medium",
-        },
-      ].map((d) => ({ ...d, user_id: effectiveUserId }));
-      const { error: insErr } = await supabase.from("dogs").insert(sample);
-      if (insErr) throw insErr;
-      const { data, error: qErr } = await supabase
-        .from("dogs")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("id", { ascending: false });
-      if (qErr) throw qErr;
-      setMine(
-        (data || []).map((d) => ({
-          id: d.id,
-          name:
-            typeof d.name === "string"
-              ? d.name
-              : d.name
-              ? String(d.name)
-              : "Unnamed",
-          breed:
-            typeof d.breed === "string"
-              ? d.breed
-              : d.breed
-              ? String(d.breed)
-              : "Unknown",
-          age:
-            d.age_years && typeof d.age_years === "number"
-              ? `${d.age_years} years`
-              : d.age_years && !isNaN(Number(d.age_years))
-              ? `${Number(d.age_years)} years`
-              : "—",
-          sex:
-            d.gender && typeof d.gender === "string"
-              ? d.gender[0].toUpperCase() + d.gender.slice(1)
-              : "—",
-          image: d.image_url || "/heroPup.jpg",
-        }))
-      );
-    } catch (e) {
-      console.error(e);
-      const m = (e.message || "").toLowerCase();
-      if (m.includes("permission denied"))
-        setError(
-          "Permission denied. Check RLS insert policy (user_id = auth.uid())."
-        );
-      else setError(e.message || "Failed to add sample dogs");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   // Function to show confirmation dialog
   function showDeleteConfirmation(dogId, dogName) {
@@ -373,7 +324,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       });
 
       // Force refresh to reload data immediately after deletion
-      setLastFetch(0); // Reset cache timestamp
+      dataCache.current = { dogs: [], lastFetch: 0, userId: null }; // Reset cache
       setForceRefresh((prev) => prev + 1);
 
       // Close the dialog
@@ -491,19 +442,30 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
             <div className="space-y-4">
               <button
                 onClick={onAddDog}
-                className="dog-card-btn dog-card-btn-primary px-8 py-3 text-base"
+                className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50"
               >
+                <svg
+                  className="w-6 h-6 mr-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
                 Add Your First Dog
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-200"></div>
               </button>
 
-              <div>
-                <button
-                  type="button"
-                  onClick={addSampleDogs}
-                  className="text-sm text-blue-600 hover:text-blue-700 underline"
-                >
-                  Or add 3 sample dogs for testing
-                </button>
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mt-2">
+                  🐾 Start building your dog's profile and find the perfect
+                  match!
+                </p>
               </div>
             </div>
 
