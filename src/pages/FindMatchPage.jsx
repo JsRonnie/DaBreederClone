@@ -124,6 +124,23 @@ export default function FindMatchPage() {
                 <div className="dog-info">
                   <h3>{dog.name}</h3>
                   <p>{dog.breed}</p>
+                  <div
+                    className={
+                      "gender-pill " +
+                      (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "male"
+                        ? "male"
+                        : (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "female"
+                          ? "female"
+                          : "unknown"))
+                    }
+                    style={{ marginTop: 6 }}
+                  >
+                    {(() => {
+                      const g = (dog.gender || dog.sex || "").toString();
+                      const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "—";
+                      return <span className="gender-label">{label.toLowerCase()}</span>;
+                    })()}
+                  </div>
                 </div>
               </div>
             ))}

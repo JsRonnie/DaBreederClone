@@ -43,8 +43,9 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     async function load() {
       // Prevent multiple simultaneous loads
       if (loadingRef.current) {
-        console.log("� Load already in progress, skipping...");
-        return;
+        console.log("� Load already in progress, waiting briefly...");
+        // Wait a short time and proceed so we don't silently skip processing
+        await new Promise((r) => setTimeout(r, 150));
       }
 
       console.log("�🐕 MyDogs: Starting load...", {
@@ -81,7 +82,29 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         if (!effectiveUserId) {
           console.log("🔍 No uid provided, checking auth...");
           const { data: u, error: uErr } = await supabase.auth.getUser();
-          if (uErr) throw uErr;
+          if (uErr) {
+            console.warn("Auth getUser error:", uErr);
+            // If the refresh token is invalid/expired, clear session and surface a friendly message
+            const msg = (uErr.message || "").toLowerCase();
+            if (msg.includes("invalid refresh token") || msg.includes("refresh token not found")) {
+              try {
+                // Best-effort cleanup of any stale session
+                await supabase.auth.signOut();
+              } catch (sErr) {
+                console.warn("Failed to sign out during token cleanup:", sErr);
+              }
+              setError("Session expired. Please sign in again.");
+              // Ensure we don't continue trying to query as anonymous
+              if (active) {
+                setMine([]);
+                dataCache.current = { dogs: [], lastFetch: now, userId: null };
+                setLoading(false);
+              }
+              loadingRef.current = false;
+              return;
+            }
+            throw uErr;
+          }
           effectiveUserId = u?.user?.id || null;
           setUid(effectiveUserId);
           console.log("👤 Got user ID from auth:", effectiveUserId);
@@ -109,10 +132,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           // Order by id to be robust even if created_at isn't present yet
           .order("id", { ascending: false });
 
-        console.log("📈 Query result:", {
-          data: data?.length || 0,
-          error: qErr,
-        });
+  // Log raw result for debugging when users report empty lists
+  console.log("📈 Query completed. raw data (typeof):", typeof data, Array.isArray(data), "len:", data?.length, data, "error:", qErr);
         if (qErr) {
           const msg = (qErr.message || "").toLowerCase();
           // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
@@ -138,7 +159,10 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           }
         }
         if (!active) return;
-        const processedDogs = (data || []).map((d) => ({
+        let processedDogs = [];
+        try {
+          console.log("🔧 Mapping raw rows to processedDogs...", (data || []).length);
+          processedDogs = (data || []).map((d) => ({
           id: d.id,
           name:
             typeof d.name === "string"
@@ -162,12 +186,30 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
             d.gender && typeof d.gender === "string"
               ? d.gender[0].toUpperCase() + d.gender.slice(1)
               : "—",
-          image: d.image_url || "/heroPup.jpg",
+          // Accept either image_url (raw DB row) or image (already-normalized)
+          image: d.image || d.image_url || "/heroPup.jpg",
           hidden: d.hidden || false,
         }));
+        } catch (mapErr) {
+          console.error("❌ Error processing dog rows:", mapErr, "raw data:", data);
+          // Fallback: if rows exist but mapping failed, try a simpler pass-through
+          if (Array.isArray(data) && data.length > 0) {
+            processedDogs = data.map((d, i) => ({
+              id: d.id ?? `row-${i}`,
+              name: (d.name && String(d.name)) || `Dog ${i + 1}`,
+              breed: (d.breed && String(d.breed)) || "Unknown",
+              age: (d.age_years && `${d.age_years} years`) || "—",
+              sex: (d.gender && String(d.gender)) || "—",
+              image: d.image || d.image_url || "/heroPup.jpg",
+              hidden: !!d.hidden,
+            }));
+          }
+        }
 
-        console.log("✅ Processed dogs:", processedDogs.length);
-        setMine(processedDogs);
+  console.log("✅ Processed dogs (before set):", processedDogs.length, processedDogs.slice(0, 3));
+  // Force a shallow copy when setting state to avoid any reference quirk
+  setMine(Array.isArray(processedDogs) ? [...processedDogs] : processedDogs);
+  console.log("🔁 mine state set (shallow copy applied)");
         dataCache.current = {
           dogs: processedDogs,
           lastFetch: now,
@@ -202,6 +244,11 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  // Debug: log displayDogs whenever it changes to see what will render
+  useEffect(() => {
+    console.log("🖥️ displayDogs changed: len=", displayDogs.length, displayDogs.slice(0, 5));
+  }, [displayDogs]);
 
   // Function to show confirmation dialog
   function showDeleteConfirmation(dogId, dogName) {
@@ -403,6 +450,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         </p>
       </div>
 
+      
+
       {/* Main Content */}
       <div className="content-section">
         {loading ? (
@@ -502,7 +551,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
                 <div className="card-image-wrapper">
                   <img
-                    src={dog.image}
+                    src={dog.image || dog.image_url || "/heroPup.jpg"}
                     alt={dog.name}
                     className="match-image"
                     onError={(e) => {
@@ -526,7 +575,28 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Gender</span>
-                      <span className="detail-value capitalize">{dog.sex}</span>
+                        <span className="detail-value">
+                          <div
+                            className={
+                              "gender-pill " +
+                              ((dog.sex || dog.gender || "").toString().toLowerCase() ===
+                              "male"
+                                ? "male"
+                                : (dog.sex || dog.gender || "").toString().toLowerCase() ===
+                                  "female"
+                                ? "female"
+                                : "unknown")
+                            }
+                          >
+                            {(() => {
+                              const g = (dog.sex || dog.gender || "").toString();
+                              const label = g
+                                ? g[0].toUpperCase() + g.slice(1).toLowerCase()
+                                : "—";
+                              return <span className="gender-label">{label.toLowerCase()}</span>;
+                            })()}
+                          </div>
+                        </span>
                     </div>
                   </div>
 
