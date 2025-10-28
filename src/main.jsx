@@ -15,6 +15,7 @@ import FindMatchPage from "./pages/FindMatchPage";
 import EditProfilePage from "./pages/EditProfilePage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import MyDogsPage from "./pages/MyDogsPage";
+import NotFoundPage from "./pages/NotFound";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -33,6 +34,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="find-match" element={<FindMatchPage />} />
             <Route path="edit-profile" element={<EditProfilePage />} />
             <Route path="change-password" element={<ChangePasswordPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </Router>
