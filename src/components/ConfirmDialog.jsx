@@ -46,6 +46,8 @@ export default function ConfirmDialog({
           {/* Close button */}
           <button
             type="button"
+            aria-label="Close dialog"
+            title="Close"
             className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 transition-colors duration-200"
             onClick={onClose}
           >

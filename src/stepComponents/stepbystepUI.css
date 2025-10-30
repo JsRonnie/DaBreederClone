@@ -451,6 +451,7 @@ body.step-flow-active {
 	margin: 40px auto 90px;
 	padding: 38px 64px 64px;
 	background: var(--color-panel);
+	-webkit-backdrop-filter: blur(4px);
 	backdrop-filter: blur(4px);
 	border-radius: 10px;
 	box-shadow: 0 4px 26px -8px rgba(0, 0, 0, 0.08);

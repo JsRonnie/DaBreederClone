@@ -5,10 +5,23 @@ import ConfirmDialog from "./ConfirmDialog";
 import "./DogCard.css";
 import "../pages/FindMatchPage.css";
 
+// Lightweight module-level cache so data survives unmount/remounts within the app session.
+// Keyed by userId to keep per-user results separate. We store it on globalThis so
+// it persists across HMR / module reloads during development and is not reinitialized
+// on every import.
+const GLOBAL_DOG_CACHE = (globalThis.__DB_GLOBAL_DOG_CACHE__ = globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
+
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [mine, setMine] = useState([]);
+  // Initialize from module cache so remounting the component shows data immediately
+  const [mine, setMine] = useState(() => {
+    try {
+      return (GLOBAL_DOG_CACHE[userId] && GLOBAL_DOG_CACHE[userId].dogs) || [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [uid, setUid] = useState(userId || null);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [focusedTick, setFocusedTick] = useState(0);
@@ -35,17 +48,42 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
   // Use a ref to track if we're currently loading to prevent multiple simultaneous loads
   const loadingRef = useRef(false);
-  const dataCache = useRef({ dogs: [], lastFetch: 0, userId: null });
+  // Use a ref so we can mutate without triggering re-renders. Initialize from the
+  // module-level cache (if present) so that unmounting the component doesn't lose
+  // already-fetched dog lists when the user navigates away and back.
+  const dataCache = useRef(
+    GLOBAL_DOG_CACHE[userId] || { dogs: [], lastFetch: 0, userId: userId || null }
+  );
+
+  // Keep dataCache in sync when uid changes so we reuse cached results for the
+  // newly-set user id immediately.
+  useEffect(() => {
+    try {
+      dataCache.current = GLOBAL_DOG_CACHE[uid] || { dogs: [], lastFetch: 0, userId: uid || null };
+      if (Array.isArray(dataCache.current.dogs) && dataCache.current.dogs.length > 0) {
+        setMine(dataCache.current.dogs);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [uid]);
+
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    let active = true;
-
     async function load() {
-      // Prevent multiple simultaneous loads
+      // Each invocation gets a unique request id; only the latest one is allowed to commit results.
+      const myReqId = ++requestIdRef.current;
+      // Prevent multiple simultaneous loads. If another load is in progress,
+      // wait (poll) up to 2s for it to finish and then re-check. This avoids
+      // starting overlapping queries that can race and clear state.
       if (loadingRef.current) {
-        console.log("� Load already in progress, waiting briefly...");
-        // Wait a short time and proceed so we don't silently skip processing
-        await new Promise((r) => setTimeout(r, 150));
+        console.log("� Load already in progress, waiting for it to finish...");
+        const start = Date.now();
+        while (loadingRef.current && Date.now() - start < 2000) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        // If the prior load completed, proceed with this load (it will become the latest request).
       }
 
       console.log("�🐕 MyDogs: Starting load...", {
@@ -55,18 +93,19 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         forceRefresh,
       });
 
-      const now = Date.now();
-      const timeSinceLastFetch = now - dataCache.current.lastFetch;
+  const now = Date.now();
+  const timeSinceLastFetch = now - dataCache.current.lastFetch;
+  const desiredUserId = userId || uid;
 
       // Check cache - if we have recent data for the same user, use it
-      if (
-        dataCache.current.userId === uid &&
+        if (
+        dataCache.current.userId === desiredUserId &&
         timeSinceLastFetch < 15000 &&
         forceRefresh === 0 &&
         (dataCache.current.dogs.length > 0 || dataCache.current.lastFetch > 0)
       ) {
         console.log("🔄 Using cached data");
-        if (active) {
+        if (requestIdRef.current === myReqId) {
           setMine(dataCache.current.dogs);
           setLoading(false);
         }
@@ -77,14 +116,17 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       setLoading(true);
       setError("");
       try {
-        let effectiveUserId = uid;
-        // If no userId provided, try to read it from Supabase auth
+        // Prefer an explicit `userId` prop if available; fall back to internal uid.
+        let effectiveUserId = userId || uid;
+        // If neither prop nor state provide a uid, try to read it from Supabase auth
         if (!effectiveUserId) {
-          console.log("🔍 No uid provided, checking auth...");
+          console.log("🔍 No uid provided by prop/state, checking auth...");
           const { data: u, error: uErr } = await supabase.auth.getUser();
           if (uErr) {
             console.warn("Auth getUser error:", uErr);
-            // If the refresh token is invalid/expired, clear session and surface a friendly message
+            // Only treat certain token errors as fatal. Don't clear previously-fetched
+            // data here — that can cause the UI to empty when the auth system is
+            // briefly revalidating tokens (e.g. after a background tab switch).
             const msg = (uErr.message || "").toLowerCase();
             if (msg.includes("invalid refresh token") || msg.includes("refresh token not found")) {
               try {
@@ -94,28 +136,36 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                 console.warn("Failed to sign out during token cleanup:", sErr);
               }
               setError("Session expired. Please sign in again.");
-              // Ensure we don't continue trying to query as anonymous
+              // do not aggressively clear cache here — just set loading false and bail
               if (active) {
-                setMine([]);
-                dataCache.current = { dogs: [], lastFetch: now, userId: null };
                 setLoading(false);
               }
               loadingRef.current = false;
               return;
             }
-            throw uErr;
+            // For other auth/getUser errors, continue and allow fallback to provided uid (if any)
+            // but surface a warning.
           }
           effectiveUserId = u?.user?.id || null;
-          setUid(effectiveUserId);
+          // Only update internal uid when a prop wasn't explicitly provided.
+          if (!userId) setUid(effectiveUserId);
           console.log("👤 Got user ID from auth:", effectiveUserId);
         }
         if (!effectiveUserId) {
           console.log("❌ No user ID available");
-          if (active) {
-            setMine([]);
-            dataCache.current = {
-              dogs: [],
-              lastFetch: now,
+          // If there's cached data for a previous user session, keep showing it briefly
+          // instead of immediately clearing the UI. But we still stop further querying.
+          if (requestIdRef.current === myReqId) {
+            const cached = dataCache.current?.dogs || [];
+            if (cached.length > 0) {
+              setMine(cached);
+            } else {
+              setMine([]);
+            }
+            // update module cache as well
+            GLOBAL_DOG_CACHE[effectiveUserId] = {
+              dogs: dataCache.current?.dogs || [],
+              lastFetch: dataCache.current?.lastFetch || now,
               userId: effectiveUserId,
             };
             setLoading(false);
@@ -158,7 +208,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
             throw qErr;
           }
         }
-        if (!active) return;
+        // Only the latest request should commit results.
+        if (requestIdRef.current !== myReqId) return;
         let processedDogs = [];
         try {
           console.log("🔧 Mapping raw rows to processedDogs...", (data || []).length);
@@ -208,19 +259,29 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
   console.log("✅ Processed dogs (before set):", processedDogs.length, processedDogs.slice(0, 3));
   // Force a shallow copy when setting state to avoid any reference quirk
-  setMine(Array.isArray(processedDogs) ? [...processedDogs] : processedDogs);
-  console.log("🔁 mine state set (shallow copy applied)");
+        const newDogs = Array.isArray(processedDogs) ? [...processedDogs] : processedDogs;
+        setMine(newDogs);
+        console.log("🔁 mine state set (shallow copy applied)");
         dataCache.current = {
-          dogs: processedDogs,
+          dogs: newDogs,
           lastFetch: now,
           userId: effectiveUserId,
         };
+        // Also persist to the module-level cache so remounts can reuse it
+        try {
+          GLOBAL_DOG_CACHE[effectiveUserId] = { ...dataCache.current };
+        } catch (e) {
+          // Non-fatal if writing to module cache fails for any reason
+          console.warn("Failed to persist to GLOBAL_DOG_CACHE:", e);
+        }
       } catch (e) {
         console.error("💥 Load error:", e);
         setError(e.message || "Failed to load your dogs");
-        dataCache.current = { dogs: [], lastFetch: now, userId: uid };
+        // Do not clear previously-cached dogs here; that can cause the UI to
+        // flash an empty state when transient errors occur (e.g., network/auth).
+        // Keep dataCache.current as-is so the UI can continue displaying last-known data.
       } finally {
-        if (active) {
+        if (requestIdRef.current === myReqId) {
           setLoading(false);
           loadingRef.current = false;
         }
@@ -230,19 +291,38 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     load();
     // Safety timeout so UI doesn't appear stuck if something unforeseen happens
     const t = setTimeout(() => {
-      if (active) setLoading(false);
+      // Only the latest request should be able to toggle loading via timeout.
+      setLoading(false);
     }, 6000);
     return () => {
-      active = false;
       clearTimeout(t);
     };
-  }, [uid, forceRefresh, focusedTick]); // Removed lastFetch and mine.length to prevent infinite loops
+  }, [uid, userId, forceRefresh, focusedTick]); // include userId so loads fire when prop changes
 
   // Refetch when window gains focus
   useEffect(() => {
-    const onFocus = () => setFocusedTick((t) => t + 1);
+    const onFocus = () => {
+      console.log("📣 window focus detected - triggering reload");
+      setFocusedTick((t) => t + 1);
+    };
+
+    // Also listen for visibilitychange so switching browser tabs (same window)
+    // triggers a refetch when the document becomes visible again. Some browsers
+    // don't fire window 'focus' when switching tabs, only document visibility.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        console.log("📣 document became visible - triggering reload");
+        setFocusedTick((t) => t + 1);
+      }
+    };
+
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   // Debug: log displayDogs whenever it changes to see what will render
