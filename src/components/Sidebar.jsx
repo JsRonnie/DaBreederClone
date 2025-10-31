@@ -114,6 +114,13 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
             <NavItem
+              label="Forum"
+              icon={<ChatIcon />}
+              to="/forum"
+              disabled={!loggedIn}
+              onClick={onClose}
+            />
+            <NavItem
               label="Add Dog"
               icon={<ChatIcon />}
               to="/add-dog"

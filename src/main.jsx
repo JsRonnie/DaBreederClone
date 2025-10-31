@@ -17,6 +17,8 @@ const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const MyDogsPage = lazy(() => import("./pages/MyDogsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFound"));
+const ForumPage = lazy(() => import("./pages/ForumPage"));
+const ThreadPage = lazy(() => import("./pages/ThreadPage"));
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -36,6 +38,8 @@ createRoot(document.getElementById("root")).render(
               <Route path="find-match" element={<FindMatchPage />} />
               <Route path="edit-profile" element={<EditProfilePage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
+              <Route path="forum" element={<ForumPage />} />
+              <Route path="thread/:id" element={<ThreadPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

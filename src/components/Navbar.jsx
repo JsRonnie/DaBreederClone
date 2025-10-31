@@ -89,6 +89,13 @@ export default function Navbar({
                 >
                   Find Match
                 </Link>
+                <Link
+                  to="/forum"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
+                >
+                  Forum
+                </Link>
               </>
             ) : (
               <>
