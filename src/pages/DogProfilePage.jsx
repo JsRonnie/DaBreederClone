@@ -70,7 +70,7 @@ export default function DogProfilePage() {
                   },
                 });
               } else {
-                navigate("/dashboard");
+                navigate("/my-dog");
               }
             }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -102,7 +102,7 @@ export default function DogProfilePage() {
                         },
                       });
                     } else {
-                      navigate("/dashboard");
+                      navigate("/my-dog");
                     }
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"

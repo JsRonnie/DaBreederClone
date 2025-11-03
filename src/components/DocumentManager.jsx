@@ -2,8 +2,6 @@ import React, { useRef } from "react";
 import "../stepComponents/stepbystepUI.css";
 
 export default function DocumentManager({
-  dogId,
-  requiredCategories = ["vaccination", "pedigree", "dna", "health"],
   data,
   updateDocuments,
   removeDocument,

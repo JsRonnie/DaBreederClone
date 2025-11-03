@@ -8,14 +8,13 @@ import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 // Lazy-load heavier pages to reduce initial bundle size
 const ContactPage = lazy(() => import("./pages/ContactPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const MyDogPage = lazy(() => import("./pages/MyDogPage"));
 const AddDogPage = lazy(() => import("./pages/AddDogPage"));
 const DogProfilePage = lazy(() => import("./pages/DogProfilePage"));
 const DogEditPage = lazy(() => import("./pages/DogEditPage"));
 const FindMatchPage = lazy(() => import("./pages/FindMatchPage"));
 const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
-const MyDogsPage = lazy(() => import("./pages/MyDogsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFound"));
 const ForumPage = lazy(() => import("./pages/ForumPage"));
 const ThreadPage = lazy(() => import("./pages/ThreadPage"));
@@ -30,8 +29,7 @@ createRoot(document.getElementById("root")).render(
               <Route index element={<HomePage />} />
               <Route path="about" element={<AboutPage />} />
               <Route path="contact" element={<ContactPage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="my-dogs" element={<MyDogsPage />} />
+              <Route path="my-dog" element={<MyDogPage />} />
               <Route path="add-dog" element={<AddDogPage />} />
               <Route path="dog/:id" element={<DogProfilePage />} />
               <Route path="dog/:id/edit" element={<DogEditPage />} />

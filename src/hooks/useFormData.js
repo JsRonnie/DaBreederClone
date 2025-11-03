@@ -49,7 +49,7 @@ export function useFormData() {
         return new Error(e.error);
       try {
         return new Error(JSON.stringify(e));
-      } catch (_) {
+      } catch {
         return new Error(String(e));
       }
     }

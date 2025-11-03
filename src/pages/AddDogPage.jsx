@@ -14,11 +14,11 @@ export default function AddDogPage() {
 
   const handleSubmitted = () => {
     console.log("🐕 Dog submitted, going to my dogs...");
-    navigate("/my-dogs");
+    navigate("/my-dog");
   };
 
   const goBack = () => {
-    navigate("/my-dogs");
+    navigate("/my-dog");
   };
 
   return (

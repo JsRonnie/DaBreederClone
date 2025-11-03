@@ -26,8 +26,8 @@ export default function DogEditPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success"); // "success" or "error"
   const [initialDocuments, setInitialDocuments] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [, setCurrentUser] = useState(null);
+  const [, setAuthChecking] = useState(true);
 
   // Toast helper function
   const showToastMessage = (message, type = "success") => {
@@ -51,12 +51,12 @@ export default function DogEditPage() {
         // If we have both user and dog data, check ownership
         if (user && dog && user.id !== dog.user_id) {
           console.log("❌ User not authorized to edit this dog");
-          navigate("/dashboard");
+          navigate("/my-dog");
           return;
         }
       } catch (error) {
         console.error("Auth check failed:", error);
-        navigate("/dashboard");
+        navigate("/my-dog");
       } finally {
         setAuthChecking(false);
       }
@@ -505,7 +505,7 @@ export default function DogEditPage() {
             The dog profile you're trying to edit doesn't exist.
           </p>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/my-dog")}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Dashboard

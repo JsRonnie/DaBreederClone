@@ -37,7 +37,7 @@ export default function Navbar({
         {/* Center: DaBreeder Logo - navigate based on login status */}
         <div className="flex items-center justify-center flex-1">
           <Link
-            to={user ? "/dashboard" : "/"}
+            to={user ? "/my-dog" : "/"}
             className="font-bold text-2xl text-slate-800 hover:opacity-80 transition-opacity"
           >
             <span className="text-blue-600">Da</span>
@@ -76,7 +76,7 @@ export default function Navbar({
             {user ? (
               <>
                 <Link
-                  to="/my-dogs"
+                  to="/my-dog"
                   onClick={() => setOpen(false)}
                   className="text-left hover:text-slate-900 transition-colors"
                 >

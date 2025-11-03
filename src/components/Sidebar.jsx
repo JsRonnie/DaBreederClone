@@ -102,7 +102,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
             <NavItem
               label="My Dogs"
               icon={<PawIcon />}
-              to="/dashboard"
+              to="/my-dog"
               disabled={!loggedIn}
               onClick={onClose}
             />
@@ -122,7 +122,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
             />
             <NavItem
               label="Add Dog"
-              icon={<ChatIcon />}
+              icon={<PlusIcon />}
               to="/add-dog"
               disabled={!loggedIn}
               onClick={onClose}
@@ -332,6 +332,21 @@ function PasswordIcon() {
         strokeLinejoin="round"
         d="M7 11V7a5 5 0 0 1 10 0v4"
       />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="size-5"
+    >
+      <circle cx="12" cy="12" r="9" opacity=".15" />
+      <path strokeLinecap="round" d="M12 7v10M7 12h10" />
     </svg>
   );
 }

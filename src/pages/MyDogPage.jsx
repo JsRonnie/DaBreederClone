@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
 import MyDogs from "../components/MyDogs";
+import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
-export default function MyDogsPage() {
+export default function MyDogPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [dashboardKey] = useState(0);

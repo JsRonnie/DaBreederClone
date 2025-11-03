@@ -80,7 +80,7 @@ export default function AuthModal({
         .trim()
         .replace(/^["']|["']$/g, "")
         .toLowerCase();
-      
+
       // Additional password checks for sign up
       if (isSignUp) {
         const pwError = validatePassword(password, {
@@ -166,7 +166,7 @@ export default function AuthModal({
           if (appUser) {
             try {
               await upsertUserProfile(supabase, session.user);
-            } catch (_) {
+            } catch {
               // ignore profile upsert errors here
             }
             onAuthSuccess?.(appUser);

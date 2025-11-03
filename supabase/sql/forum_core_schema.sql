@@ -93,32 +93,39 @@ alter table public.threads  add column if not exists upvotes_count integer not n
 alter table public.threads  add column if not exists downvotes_count integer not null default 0;
 alter table public.comments add column if not exists upvotes_count integer not null default 0;
 alter table public.comments add column if not exists downvotes_count integer not null default 0;
+alter table public.comments add column if not exists parent_id uuid;
 
 -- Helper functions to recompute counts using count(*)
 create or replace function public.refresh_thread_vote_counts(p_thread_id uuid)
 returns void
 language sql
+security definer
+set search_path = public
 as $$
   update public.threads t
-     set upvotes_count   = (select count(*) from public.votes v where v.thread_id = p_thread_id and v.value = 1),
-         downvotes_count = (select count(*) from public.votes v where v.thread_id = p_thread_id and v.value = -1)
-   where t.id = p_thread_id;
+    set upvotes_count   = (select count(*) from public.votes v where v.thread_id = p_thread_id and v.value = 1),
+      downvotes_count = (select count(*) from public.votes v where v.thread_id = p_thread_id and v.value = -1)
+  where t.id = p_thread_id;
 $$;
 
 create or replace function public.refresh_comment_vote_counts(p_comment_id uuid)
 returns void
 language sql
+security definer
+set search_path = public
 as $$
   update public.comments c
-     set upvotes_count   = (select count(*) from public.votes v where v.comment_id = p_comment_id and v.value = 1),
-         downvotes_count = (select count(*) from public.votes v where v.comment_id = p_comment_id and v.value = -1)
-   where c.id = p_comment_id;
+    set upvotes_count   = (select count(*) from public.votes v where v.comment_id = p_comment_id and v.value = 1),
+      downvotes_count = (select count(*) from public.votes v where v.comment_id = p_comment_id and v.value = -1)
+  where c.id = p_comment_id;
 $$;
 
 -- Trigger function invoked on changes to public.votes
 create or replace function public.on_votes_change_refresh_counts()
 returns trigger
 language plpgsql
+security definer
+set search_path = public
 as $$
 begin
   if (TG_OP = 'INSERT' or TG_OP = 'UPDATE') then
@@ -140,6 +147,11 @@ begin
   return null; -- statement completed; nothing to return for row
 end;
 $$;
+
+-- Optional: allow authenticated role to execute the refresh functions (not required for trigger usage)
+grant execute on function public.refresh_thread_vote_counts(uuid) to authenticated;
+grant execute on function public.refresh_comment_vote_counts(uuid) to authenticated;
+grant execute on function public.on_votes_change_refresh_counts() to authenticated;
 
 -- Create the trigger only if it doesn't already exist
 do $$
@@ -190,10 +202,18 @@ begin
       add constraint comments_thread_id_fkey foreign key (thread_id)
       references public.threads(id) on delete cascade;
   end if;
+  if not exists (
+    select 1 from pg_constraint where conname='comments_parent_id_fkey'
+  ) then
+    alter table public.comments
+      add constraint comments_parent_id_fkey foreign key (parent_id)
+      references public.comments(id) on delete cascade;
+  end if;
 end$$;
 
 create index if not exists idx_comments_thread_id on public.comments(thread_id);
 create index if not exists idx_comments_created_at on public.comments(created_at);
+create index if not exists idx_comments_parent_id on public.comments(parent_id);
 
 -- Votes
 create table if not exists public.votes (

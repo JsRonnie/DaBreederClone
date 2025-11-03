@@ -27,7 +27,7 @@ export default function Layout() {
 
   const handleAuthSuccess = (u) => {
     setUser(u);
-    navigate("/dashboard");
+    navigate("/my-dog");
     setSidebarOpen(false);
     setAuthOpen(false);
   };
