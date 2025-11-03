@@ -282,7 +282,8 @@ export default function ThreadPage() {
   // removed thread-level save; composer toggles instead
   async function postComment(e) {
     e.preventDefault();
-    const body = e.currentTarget.body.value.trim();
+    const form = e.currentTarget;
+    const body = form.body.value.trim();
     if (!body) return;
     setPosting(true);
     setError("");
@@ -299,7 +300,7 @@ export default function ThreadPage() {
         )
         .single();
       if (error) throw error;
-      e.currentTarget.reset();
+      if (form && typeof form.reset === "function") form.reset();
       // Optimistically add at end and bump thread comment count
       setComments((prev) => [...prev, { ...data, my_vote: null }]);
       setThread((t) =>
@@ -583,12 +584,20 @@ export default function ThreadPage() {
           {thread.title}
         </h1>
 
-        {/* Body (full) */}
-        {thread.body && (
+        {/* Body or Image */}
+        {thread.image_url ? (
+          <div className="mt-3">
+            <img
+              src={thread.image_url}
+              alt={thread.title || "Thread image"}
+              className="max-h-[520px] w-full object-contain rounded-md border border-slate-200 bg-slate-50"
+            />
+          </div>
+        ) : thread.body ? (
           <p className="mt-2 whitespace-pre-wrap text-slate-700">
             {thread.body}
           </p>
-        )}
+        ) : null}
 
         {/* Bottom row: votes and comments */}
         <div className="mt-3 flex items-center gap-2 text-sm text-slate-700">

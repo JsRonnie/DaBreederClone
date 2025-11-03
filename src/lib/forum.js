@@ -1,5 +1,9 @@
 import supabase from "./supabaseClient";
 
+// Capability cache so we don't repeatedly issue failing selects on older DBs
+let THREADS_HAS_IMAGE_URL = true;
+let THREADS_HAS_COUNTS = true; // upvotes_count, downvotes_count
+
 // Tiny helper to read the current authenticated user id
 async function getCurrentUserId() {
   const { data, error } = await supabase.auth.getUser();
@@ -11,33 +15,68 @@ async function getCurrentUserId() {
 export async function fetchThreads({
   limit = 20,
   from = 0,
-  sort = "newest",
+  sort = "new",
 } = {}) {
   // build query
-  let qb = supabase
-    .from("threads")
-    .select(
-      "id, title, body, user_id, created_at, upvotes_count, downvotes_count"
-    );
+  // Prefer selecting optional columns if supported
+  const cols = ["id", "title", "body", "user_id", "created_at"];
+  if (THREADS_HAS_IMAGE_URL) cols.splice(3, 0, "image_url");
+  if (THREADS_HAS_COUNTS) {
+    cols.push("upvotes_count", "downvotes_count");
+  }
+  let selectCols = cols.join(", ");
+  let qb = supabase.from("threads").select(selectCols);
 
+  // Map legacy and new sort keys to DB ordering (coarse ordering)
   switch (sort) {
+    case "new":
     case "newest":
       qb = qb.order("created_at", { ascending: false });
       break;
+    case "old":
     case "oldest":
       qb = qb.order("created_at", { ascending: true });
       break;
+    case "best":
+    case "top":
     case "most_popular":
-      qb = qb.order("upvotes_count", { ascending: false });
+      // Use upvotes_count as a proxy for net score; tie-break by recency
+      qb = qb
+        .order("upvotes_count", { ascending: false })
+        .order("created_at", { ascending: false });
       break;
     case "least_popular":
-      qb = qb.order("upvotes_count", { ascending: true });
+      qb = qb
+        .order("upvotes_count", { ascending: true })
+        .order("created_at", { ascending: true });
       break;
     default:
       qb = qb.order("created_at", { ascending: false });
   }
 
-  const { data, error } = await qb.range(from, from + limit - 1);
+  let { data, error } = await qb.range(from, from + limit - 1);
+  // Fallback for older DBs missing optional columns
+  if (
+    error &&
+    (error.code === "42703" ||
+      /image_url|upvotes_count|downvotes_count/.test(error.message || ""))
+  ) {
+    // Update capability flags based on error
+    if (/image_url/.test(error.message || "")) THREADS_HAS_IMAGE_URL = false;
+    if (/upvotes_count|downvotes_count/.test(error.message || ""))
+      THREADS_HAS_COUNTS = false;
+    const retryCols = ["id", "title", "body", "user_id", "created_at"];
+    // Only include supported columns
+    if (THREADS_HAS_IMAGE_URL) retryCols.splice(3, 0, "image_url");
+    if (THREADS_HAS_COUNTS) retryCols.push("upvotes_count", "downvotes_count");
+    selectCols = retryCols.join(", ");
+    qb = supabase.from("threads").select(selectCols);
+    // If counts not available, avoid ordering by counts at the DB level
+    if (!THREADS_HAS_COUNTS && (sort === "best" || sort === "top")) {
+      qb = qb.order("created_at", { ascending: false });
+    }
+    ({ data, error } = await qb.range(from, from + limit - 1));
+  }
   if (error) throw error;
   let rows = data || [];
 
@@ -59,7 +98,7 @@ export async function fetchThreads({
     // ignore if comments table/permission not present
   }
 
-  // Fallback: if denormalized up/down counts aren't maintained by triggers,
+  // Fallback: if denormalized up/down counts aren't present or maintained by triggers,
   // compute them directly from votes and merge. This ensures UI persists after reload.
   try {
     if (rows.length) {
@@ -86,27 +125,65 @@ export async function fetchThreads({
     // ignore if votes not accessible
   }
 
+  // Refine ordering client-side for 'best'/'top' using net score if possible
+  if (sort === "best" || sort === "top") {
+    rows = [...rows].sort((a, b) => {
+      const as = (a.upvotes_count || 0) - (a.downvotes_count || 0);
+      const bs = (b.upvotes_count || 0) - (b.downvotes_count || 0);
+      if (bs !== as) return bs - as;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  } else if (sort === "new") {
+    rows = [...rows].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+  } else if (sort === "old") {
+    rows = [...rows].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    );
+  }
+
   return rows;
 }
 
 // Fetch a single thread and its comments (with vote counts)
 export async function fetchThreadWithComments(threadId) {
-  const [threadRes, commentsRes] = await Promise.all([
-    supabase
+  // Try to include optional columns; adapt if missing
+  const baseCols = ["id", "title", "body", "user_id", "created_at"];
+  if (THREADS_HAS_IMAGE_URL) baseCols.splice(3, 0, "image_url");
+  if (THREADS_HAS_COUNTS) baseCols.push("upvotes_count", "downvotes_count");
+  let threadRes = await supabase
+    .from("threads")
+    .select(baseCols.join(", "))
+    .eq("id", threadId)
+    .single();
+  if (
+    threadRes.error &&
+    (threadRes.error.code === "42703" ||
+      /image_url|upvotes_count|downvotes_count/.test(
+        threadRes.error.message || ""
+      ))
+  ) {
+    if (/image_url/.test(threadRes.error.message || ""))
+      THREADS_HAS_IMAGE_URL = false;
+    if (/upvotes_count|downvotes_count/.test(threadRes.error.message || ""))
+      THREADS_HAS_COUNTS = false;
+    const retryCols = ["id", "title", "body", "user_id", "created_at"];
+    if (THREADS_HAS_IMAGE_URL) retryCols.splice(3, 0, "image_url");
+    if (THREADS_HAS_COUNTS) retryCols.push("upvotes_count", "downvotes_count");
+    threadRes = await supabase
       .from("threads")
-      .select(
-        "id, title, body, user_id, created_at, upvotes_count, downvotes_count"
-      )
+      .select(retryCols.join(", "))
       .eq("id", threadId)
-      .single(),
-    supabase
-      .from("comments")
-      .select(
-        "id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count"
-      )
-      .eq("thread_id", threadId)
-      .order("created_at", { ascending: true }),
-  ]);
+      .single();
+  }
+  const commentsRes = await supabase
+    .from("comments")
+    .select(
+      "id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count"
+    )
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: true });
 
   if (threadRes.error) throw threadRes.error;
   if (commentsRes.error) throw commentsRes.error;

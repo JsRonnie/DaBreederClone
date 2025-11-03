@@ -42,6 +42,7 @@ create table if not exists public.threads (
   id uuid primary key default gen_random_uuid(),
   title text,
   body text,
+  image_url text,
   user_id uuid,
   created_at timestamptz not null default now(),
   upvotes_count integer not null default 0,
@@ -51,6 +52,7 @@ create table if not exists public.threads (
 -- Columns (idempotent adds in case table already existed with fewer columns)
 alter table public.threads add column if not exists title text;
 alter table public.threads add column if not exists body text;
+alter table public.threads add column if not exists image_url text;
 alter table public.threads add column if not exists user_id uuid;
 alter table public.threads add column if not exists created_at timestamptz not null default now();
 alter table public.threads add column if not exists upvotes_count integer not null default 0;

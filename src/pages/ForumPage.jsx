@@ -17,10 +17,13 @@ export default function ForumPage() {
   const [lastLoadedAt, setLastLoadedAt] = useState(0);
   // per-card delete removed from list UI; thread deletion is handled on the thread page
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [postType, setPostType] = useState("text"); // 'text' | 'image'
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const canPost = useMemo(() => !!user, [user]);
 
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("best");
 
   const load = useCallback(async () => {
     try {
@@ -218,7 +221,7 @@ export default function ForumPage() {
     if (!canPost) return;
     const form = e.currentTarget;
     const title = form.title.value.trim();
-    const body = form.body.value.trim();
+    const body = (form.body?.value || "").trim();
     if (!title) return;
 
     setBusy(true);
@@ -228,15 +231,73 @@ export default function ForumPage() {
         data: { user: authUser },
       } = await supabase.auth.getUser();
       if (!authUser?.id) throw new Error("You must be signed in to post");
+      let image_url = null;
+      if (postType === "image") {
+        const file = imageFile || form.image?.files?.[0];
+        if (!file) throw new Error("Please choose an image file");
+        // Upload to 'thread-images' bucket
+        const path = `${authUser.id}/${Date.now()}_${file.name}`;
+        const up = await supabase.storage
+          .from("thread-images")
+          .upload(path, file, { upsert: false, contentType: file.type });
+        if (up.error) {
+          if (/Bucket not found/i.test(up.error.message || "")) {
+            throw new Error(
+              "Image storage bucket not found. Please create the 'thread-images' bucket (supabase/sql/storage_thread_images.sql) and try again."
+            );
+          }
+          throw up.error;
+        }
+        const { data: pub } = supabase.storage
+          .from("thread-images")
+          .getPublicUrl(path);
+        image_url = pub?.publicUrl || null;
+        if (!image_url)
+          throw new Error(
+            "Could not get a public URL for the uploaded image; check storage policy"
+          );
+      }
+
+      // Build insert payload: only include image_url when actually posting an image
+      const payload = {
+        title,
+        body: postType === "text" ? body || null : null,
+        user_id: authUser.id,
+      };
+      if (postType === "image") payload.image_url = image_url;
 
       const { data, error } = await supabase
         .from("threads")
-        .insert([{ title, body: body || null, user_id: authUser.id }])
+        .insert([payload])
         .select("id")
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        // Friendly guidance if DB hasn't been migrated with image_url
+        if (
+          postType === "image" &&
+          (error.code === "42703" || /image_url/.test(error.message))
+        ) {
+          throw new Error(
+            "Image posts are not enabled yet. Please apply the database migration that adds threads.image_url (supabase/sql/forum_core_schema.sql), or switch to a Text post."
+          );
+        }
+        throw error;
+      }
 
       if (data?.id) {
+        // Notify success, then navigate
+        try {
+          window.dispatchEvent(
+            new CustomEvent("toast", {
+              detail: {
+                message: "Post published to the forum",
+                type: "success",
+              },
+            })
+          );
+        } catch {
+          /* noop */
+        }
         navigate(`/thread/${data.id}`);
         return true;
       } else {
@@ -249,6 +310,18 @@ export default function ForumPage() {
           .limit(1);
         if (selErr) throw selErr;
         if (rows && rows[0]?.id) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("toast", {
+                detail: {
+                  message: "Post published to the forum",
+                  type: "success",
+                },
+              })
+            );
+          } catch {
+            /* noop */
+          }
           navigate(`/thread/${rows[0].id}`);
           return true;
         } else {
@@ -353,24 +426,36 @@ export default function ForumPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Forum</h1>
         <div className="flex items-center gap-2">
-          <label className="text-sm flex items-center gap-2">
-            <span className="sr-only">Filter threads</span>
+          <label className="text-xs text-slate-600 flex items-center gap-2">
+            Sort by
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="text-sm px-3 py-1.5 rounded-md border border-slate-200 bg-white"
-              aria-label="Filter threads"
+              className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-white"
+              aria-label="Sort threads"
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="most_popular">Most popular</option>
-              <option value="least_popular">Least popular</option>
+              <option value="best">Best</option>
+              <option value="top">Top</option>
+              <option value="new">New</option>
+              <option value="old">Old</option>
             </select>
           </label>
           <button
             onClick={() => {
-              if (canPost) setShowCreateModal(true);
-              else
+              if (canPost) {
+                // Reset modal state on open
+                setPostType("text");
+                if (imagePreview) {
+                  try {
+                    URL.revokeObjectURL(imagePreview);
+                  } catch {
+                    /* noop */
+                  }
+                }
+                setImageFile(null);
+                setImagePreview(null);
+                setShowCreateModal(true);
+              } else
                 window.dispatchEvent(
                   new CustomEvent("openAuthModal", {
                     detail: { mode: "signin" },
@@ -394,23 +479,32 @@ export default function ForumPage() {
 
       {/* Create Post Modal */}
       {showCreateModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center"
-        >
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50">
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowCreateModal(false)}
+            className="absolute inset-0 bg-black/20"
+            onClick={() => {
+              setShowCreateModal(false);
+              if (imagePreview) {
+                try {
+                  URL.revokeObjectURL(imagePreview);
+                } catch {
+                  /* noop */
+                }
+              }
+              setImageFile(null);
+              setImagePreview(null);
+            }}
           />
-          <div className="relative z-10 w-full max-w-xl mx-4">
-            <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Create Post</h2>
+          {/* Panel */}
+          <div className="relative z-10 mx-auto max-w-2xl p-4 min-h-full flex items-center justify-center">
+            <div className="w-full rounded-2xl border border-slate-200 bg-white shadow-xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <h2 className="text-base font-semibold">Create post</h2>
                 <button
                   onClick={() => setShowCreateModal(false)}
                   aria-label="Close"
-                  className="text-slate-600 hover:text-slate-900"
+                  className="text-slate-500 hover:text-slate-900"
                 >
                   ✕
                 </button>
@@ -418,33 +512,164 @@ export default function ForumPage() {
               <form
                 onSubmit={async (e) => {
                   const ok = await handleCreateThread(e);
-                  if (ok) setShowCreateModal(false);
+                  if (ok) {
+                    if (imagePreview) {
+                      try {
+                        URL.revokeObjectURL(imagePreview);
+                      } catch {
+                        /* noop */
+                      }
+                    }
+                    setShowCreateModal(false);
+                    setImageFile(null);
+                    setImagePreview(null);
+                  }
                 }}
-                className="grid gap-3"
+                className="p-5 grid gap-4"
               >
-                <label className="text-sm font-medium" htmlFor="modal-title">
-                  Title
-                </label>
-                <input
-                  id="modal-title"
-                  name="title"
-                  className="border rounded-md p-2"
-                  placeholder="What do you want to discuss?"
-                />
-                <label className="text-sm font-medium" htmlFor="modal-body">
-                  Body (optional)
-                </label>
-                <textarea
-                  id="modal-body"
-                  name="body"
-                  className="border rounded-md p-2 min-h-24"
-                  placeholder="Add details here..."
-                />
-                <div className="flex justify-end gap-2">
+                {/* Segmented control */}
+                <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-sm w-max">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-3 py-1.5 rounded-md border"
+                    onClick={() => setPostType("text")}
+                    className={`px-3 py-1.5 rounded-md transition-colors ${
+                      postType === "text"
+                        ? "bg-white shadow-sm border border-slate-200"
+                        : "hover:bg-white/60"
+                    }`}
+                  >
+                    Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPostType("image")}
+                    className={`ml-1 px-3 py-1.5 rounded-md transition-colors ${
+                      postType === "image"
+                        ? "bg-white shadow-sm border border-slate-200"
+                        : "hover:bg-white/60"
+                    }`}
+                  >
+                    Image
+                  </button>
+                </div>
+
+                {/* Title */}
+                <div className="grid gap-1">
+                  <label
+                    className="text-xs text-slate-600"
+                    htmlFor="modal-title"
+                  >
+                    Title
+                  </label>
+                  <input
+                    id="modal-title"
+                    name="title"
+                    className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Catchy headline"
+                  />
+                </div>
+
+                {postType === "text" ? (
+                  <div className="grid gap-1">
+                    <label
+                      className="text-xs text-slate-600"
+                      htmlFor="modal-body"
+                    >
+                      Body (optional)
+                    </label>
+                    <textarea
+                      id="modal-body"
+                      name="body"
+                      className="rounded-lg border border-slate-300 px-3 py-2 min-h-28 outline-none focus:ring-2 focus:ring-slate-300"
+                      placeholder="Write your thoughts..."
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <label
+                      className="text-xs text-slate-600"
+                      htmlFor="modal-image"
+                    >
+                      Image
+                    </label>
+                    {/* Dropzone-like area */}
+                    <label
+                      htmlFor="modal-image"
+                      className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-600 cursor-pointer hover:bg-slate-50"
+                    >
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Selected"
+                          className="max-h-56 w-full object-contain rounded-md border border-slate-200 bg-slate-50"
+                        />
+                      ) : (
+                        <>
+                          <span>
+                            Drag and drop an image here, or click to select
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            PNG, JPG, GIF (per your rules)
+                          </span>
+                        </>
+                      )}
+                    </label>
+                    <input
+                      id="modal-image"
+                      name="image"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        if (!f) {
+                          if (imagePreview) {
+                            try {
+                              URL.revokeObjectURL(imagePreview);
+                            } catch {
+                              /* noop */
+                            }
+                          }
+                          setImageFile(null);
+                          setImagePreview(null);
+                          return;
+                        }
+                        if (imagePreview) {
+                          try {
+                            URL.revokeObjectURL(imagePreview);
+                          } catch {
+                            /* noop */
+                          }
+                        }
+                        setImageFile(f);
+                        try {
+                          const url = URL.createObjectURL(f);
+                          setImagePreview(url);
+                        } catch {
+                          setImagePreview(null);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      if (imagePreview) {
+                        try {
+                          URL.revokeObjectURL(imagePreview);
+                        } catch {
+                          /* noop */
+                        }
+                      }
+                      setImageFile(null);
+                      setImagePreview(null);
+                    }}
+                    className="px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50"
                   >
                     Cancel
                   </button>
@@ -453,7 +678,7 @@ export default function ForumPage() {
                     disabled={busy}
                     className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {busy ? "Posting…" : "Post Thread"}
+                    {busy ? "Posting…" : "Post"}
                   </button>
                 </div>
               </form>
@@ -505,12 +730,21 @@ export default function ForumPage() {
                   {t.title}
                 </div>
 
-                {/* Body excerpt */}
-                {excerpt && (
+                {/* Body excerpt or Image preview */}
+                {t.image_url ? (
+                  <div className="mt-2">
+                    <img
+                      src={t.image_url}
+                      alt={t.title || "Thread image"}
+                      className="max-h-72 w-full object-contain rounded-md border border-slate-200 bg-slate-50"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : excerpt ? (
                   <p className="mt-1 text-sm text-slate-700 line-clamp-3">
                     {excerpt}
                   </p>
-                )}
+                ) : null}
 
                 {/* Bottom row: up/down votes and comments */}
                 <div

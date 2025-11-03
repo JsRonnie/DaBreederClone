@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import AuthModal from "../components/AuthModal";
 import Footer from "../components/Footer";
+import Toast from "../components/Toast";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -76,6 +77,8 @@ export default function Layout() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      <Toast />
 
       <Footer />
     </div>
