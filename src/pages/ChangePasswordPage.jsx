@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import supabase from "../lib/supabaseClient";
 import { useAuth } from "../hooks/useAuth";
+import { validatePassword, passwordPolicyNote } from "../utils/passwordRules";
 
 export default function ChangePasswordPage() {
   const { user } = useAuth();
@@ -30,8 +31,12 @@ export default function ChangePasswordPage() {
       return;
     }
 
-    if (passwords.newPassword.length < 6) {
-      setMessage("Error: Password must be at least 6 characters long");
+    const pwErr = validatePassword(passwords.newPassword, {
+      email: user?.email,
+      username: user?.name,
+    });
+    if (pwErr) {
+      setMessage(`Error: ${pwErr}`);
       setLoading(false);
       return;
     }
@@ -105,7 +110,7 @@ export default function ChangePasswordPage() {
               value={passwords.newPassword}
               onChange={handleChange}
               required
-              minLength={6}
+              minLength={8}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter new password"
             />
@@ -125,7 +130,7 @@ export default function ChangePasswordPage() {
               value={passwords.confirmPassword}
               onChange={handleChange}
               required
-              minLength={6}
+              minLength={8}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Confirm new password"
             />
@@ -153,11 +158,7 @@ export default function ChangePasswordPage() {
           <h3 className="text-sm font-medium text-gray-900 mb-2">
             Password Requirements:
           </h3>
-          <ul className="text-sm text-gray-600 space-y-1">
-            <li>• At least 6 characters long</li>
-            <li>• Use a strong, unique password</li>
-            <li>• Consider using a password manager</li>
-          </ul>
+          <pre className="text-sm text-gray-600 whitespace-pre-wrap">{passwordPolicyNote}</pre>
         </div>
       </div>
     </div>

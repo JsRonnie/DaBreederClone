@@ -21,6 +21,7 @@ export default function AuthProvider({ children }) {
     return {
       id: user.id,
       name: meta.name || meta.full_name || user.email?.split("@")[0] || "User",
+      email: user.email || null,
       role: "Dog Owner",
       avatarUrl:
         meta.avatar_url ||

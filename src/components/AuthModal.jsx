@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Modal from "./Modal";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
+import { validatePassword } from "../utils/passwordRules";
 
 export default function AuthModal({
   open,
@@ -24,6 +25,7 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
+  const didCompleteRef = useRef(false);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -37,6 +39,7 @@ export default function AuthModal({
     setInfoMsg("");
     setLoading(false);
     setAgreedToTerms(false);
+    didCompleteRef.current = false;
     // When modal closes, clear sensitive fields like password
     if (!open) {
       setPassword("");
@@ -77,8 +80,16 @@ export default function AuthModal({
         .trim()
         .replace(/^["']|["']$/g, "")
         .toLowerCase();
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters.");
+      
+      // Additional password checks for sign up
+      if (isSignUp) {
+        const pwError = validatePassword(password, {
+          email: emailClean,
+          username: name,
+        });
+        if (pwError) {
+          throw new Error(pwError);
+        }
       }
 
       if (isSignUp) {
@@ -106,7 +117,8 @@ export default function AuthModal({
           await upsertUserProfile(supabase, data.session.user);
           onAuthSuccess?.(appUser);
           // Close modal after successful sign up
-          setTimeout(() => onClose?.(), 100);
+          onClose?.();
+          didCompleteRef.current = true;
         }
       } else {
         // Sign in
@@ -123,7 +135,8 @@ export default function AuthModal({
           await upsertUserProfile(supabase, data.session.user);
           onAuthSuccess?.(appUser);
           // Close modal after successful login
-          setTimeout(() => onClose?.(), 100);
+          onClose?.();
+          didCompleteRef.current = true;
         }
       }
     } catch (e) {
@@ -138,6 +151,53 @@ export default function AuthModal({
           "Supabase rejected the email string. If you disabled confirmations for dev, you can still use any address like a@b.co, but make sure it looks like an email.";
       }
       setErrorMsg(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // As a safety net: if Supabase reports SIGNED_IN while the modal is open,
+  // auto-close and dispatch success once. This covers delayed session cases.
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && open && !didCompleteRef.current) {
+          const appUser = toAppUser(session);
+          if (appUser) {
+            try {
+              await upsertUserProfile(supabase, session.user);
+            } catch (_) {
+              // ignore profile upsert errors here
+            }
+            onAuthSuccess?.(appUser);
+          }
+          onClose?.();
+          setLoading(false);
+          didCompleteRef.current = true;
+        }
+      }
+    );
+    return () => sub.subscription.unsubscribe();
+  }, [open, onAuthSuccess, onClose]);
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setInfoMsg("");
+    const emailClean = email.trim().toLowerCase();
+    if (!emailClean) {
+      setErrorMsg("Enter your email above, then click Forgot password.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, {
+        redirectTo: `${window.location.origin}/change-password`,
+      });
+      if (error) throw error;
+      setInfoMsg("Check your email for a password reset link.");
+    } catch (err) {
+      setErrorMsg(err?.message || "Couldn't start password reset.");
     } finally {
       setLoading(false);
     }
@@ -219,6 +279,7 @@ export default function AuthModal({
                     {!isSignUp && (
                       <a
                         href="#"
+                        onClick={handleForgotPassword}
                         className="text-xs text-slate-600 hover:text-slate-900"
                       >
                         forgot password
@@ -282,6 +343,11 @@ export default function AuthModal({
                       )}
                     </button>
                   </div>
+                  {isSignUp && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      At least 8 characters. Don’t use your email or username.
+                    </p>
+                  )}
                 </div>
 
                 {isSignUp && (
