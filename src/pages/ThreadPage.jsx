@@ -9,6 +9,7 @@ import {
   getMyThreadVote,
   getMyCommentVotes,
 } from "../lib/forum";
+import "./FindMatchPage.css";
 
 export default function ThreadPage() {
   const { id } = useParams();
@@ -28,7 +29,7 @@ export default function ThreadPage() {
     id: null,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [commentSort, setCommentSort] = useState("best"); // best | top | new | old
+  const [commentSort, setCommentSort] = useState("new"); // best | hot | new | old
   const [showComposer, setShowComposer] = useState(false);
   const [votingThread, setVotingThread] = useState(false);
   const [votingComments, setVotingComments] = useState({});
@@ -248,8 +249,6 @@ export default function ThreadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedTick]);
 
-  const netScore = (u, d) => Number(u || 0) - Number(d || 0) || 0;
-
   // helper to build nested comments tree
   function buildTree(flat) {
     const byId = {};
@@ -266,6 +265,20 @@ export default function ThreadPage() {
     return roots;
   }
 
+  // Precompute descendant reply counts to support 'hot' (most commented) sorting
+  const descendantCounts = useMemo(() => {
+    const roots = buildTree(comments);
+    const map = {};
+    function countDesc(node) {
+      let total = (node.children || []).length;
+      for (const ch of node.children || []) total += countDesc(ch);
+      map[node.id] = total;
+      return total;
+    }
+    for (const r of roots) countDesc(r);
+    return map;
+  }, [comments]);
+
   // sort comparator based on commentSort
   const commentComparator = useMemo(() => {
     switch (commentSort) {
@@ -273,17 +286,25 @@ export default function ThreadPage() {
         return (a, b) => new Date(b.created_at) - new Date(a.created_at);
       case "old":
         return (a, b) => new Date(a.created_at) - new Date(b.created_at);
-      case "top":
+      case "hot":
+        // Hot: most replies (descendants)
+        return (a, b) => {
+          const ac = descendantCounts[a.id] || 0;
+          const bc = descendantCounts[b.id] || 0;
+          if (bc !== ac) return bc - ac;
+          return new Date(b.created_at) - new Date(a.created_at);
+        };
       case "best":
       default:
+        // Best: most upvotes
         return (a, b) => {
-          const as = netScore(a.upvotes_count, a.downvotes_count);
-          const bs = netScore(b.upvotes_count, b.downvotes_count);
+          const as = Number(a.upvotes_count || 0);
+          const bs = Number(b.upvotes_count || 0);
           if (bs !== as) return bs - as;
-          return new Date(a.created_at) - new Date(b.created_at);
+          return new Date(b.created_at) - new Date(a.created_at);
         };
     }
-  }, [commentSort]);
+  }, [commentSort, descendantCounts]);
 
   const sortTree = React.useCallback(
     (nodes) => {
@@ -558,7 +579,14 @@ export default function ThreadPage() {
   if (!thread) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-6">
-        {error ? <div className="text-red-600">{error}</div> : "Loading…"}
+        {error ? (
+          <div className="text-red-600">{error}</div>
+        ) : (
+          <div className="loading-state" style={{ minHeight: 140 }}>
+            <div className="loading-spinner" />
+            <p>Loading thread...</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -684,7 +712,7 @@ export default function ThreadPage() {
             className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-white"
           >
             <option value="best">Best</option>
-            <option value="top">Top</option>
+            <option value="hot">Hot</option>
             <option value="new">New</option>
             <option value="old">Old</option>
           </select>

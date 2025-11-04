@@ -1,17 +1,18 @@
 import { useState } from "react";
 import MyDogs from "../components/MyDogs";
 import { useAuth } from "../hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 export default function MyDogPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [dashboardKey] = useState(0);
 
-  if (!user) {
-    navigate("/");
-    return null;
-  }
+  // While auth is resolving, render nothing (or a spinner if desired)
+  if (loading) return null;
+
+  // After loading: if not authenticated, redirect declaratively
+  if (!user) return <Navigate to="/" replace />;
 
   const goToAddDog = () => navigate("/add-dog");
 

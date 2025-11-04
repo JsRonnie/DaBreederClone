@@ -1,17 +1,31 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import supabase from "../lib/supabaseClient";
 import { fetchThreads, toggleThreadVote } from "../lib/forum";
+import "./FindMatchPage.css";
+
+// Module-level cache to survive unmounts and brief auth revalidations between tab switches
+const GLOBAL_FORUM_CACHE = (globalThis.__DB_GLOBAL_FORUM_CACHE__ =
+  globalThis.__DB_GLOBAL_FORUM_CACHE__ || {
+    threads: [],
+    lastLoadedAt: 0,
+    sort: "new",
+  });
 
 export default function ForumPage() {
   const { user, loading } = React.useContext(AuthContext);
   const navigate = useNavigate();
-  // Module-level cache to survive unmounts and brief auth revalidations between tab switches
-  const GLOBAL_FORUM_CACHE = (globalThis.__DB_GLOBAL_FORUM_CACHE__ =
-    globalThis.__DB_GLOBAL_FORUM_CACHE__ || { threads: [], lastLoadedAt: 0, sort: "best" });
 
-  const [threads, setThreads] = useState(() => GLOBAL_FORUM_CACHE.threads || []);
+  const [threads, setThreads] = useState(
+    () => GLOBAL_FORUM_CACHE.threads || []
+  );
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,7 +33,7 @@ export default function ForumPage() {
   const [votingMap, setVotingMap] = useState({}); // in-flight votes per thread id
 
   // comments are loaded on the thread page now; keep thread list simple
-  const [lastLoadedAt, setLastLoadedAt] = useState(GLOBAL_FORUM_CACHE.lastLoadedAt || 0);
+  const lastLoadedAtRef = useRef(GLOBAL_FORUM_CACHE.lastLoadedAt || 0);
   const [focusedTick, setFocusedTick] = useState(0);
   // Avoid overlapping loads
   const loadingRef = useRef(false);
@@ -31,7 +45,7 @@ export default function ForumPage() {
 
   const canPost = useMemo(() => !!user, [user]);
 
-  const [sort, setSort] = useState("best");
+  const [sort, setSort] = useState("new");
 
   const lastRetryAtRef = useRef(0);
 
@@ -42,7 +56,7 @@ export default function ForumPage() {
       // If auth is in flux and we have cached threads, prefer showing cache instead of a blank state.
       if ((!user || loading) && (GLOBAL_FORUM_CACHE.threads || []).length) {
         setThreads(GLOBAL_FORUM_CACHE.threads);
-        setLastLoadedAt(GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now());
+        lastLoadedAtRef.current = GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now();
       }
 
       // Prevent overlapping loads (helps during rapid focus/visibility events)
@@ -75,13 +89,17 @@ export default function ForumPage() {
       // If server returned 0 rows but we have a non-empty cache and the user is not yet authenticated,
       // keep showing the cached list to avoid a confusing empty flash after a tab switch.
       const isUnauthed = !user && loading !== false;
-      if (enriched.length === 0 && (GLOBAL_FORUM_CACHE.threads || []).length && isUnauthed) {
+      if (
+        enriched.length === 0 &&
+        (GLOBAL_FORUM_CACHE.threads || []).length &&
+        isUnauthed
+      ) {
         setThreads(GLOBAL_FORUM_CACHE.threads);
-        setLastLoadedAt(GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now());
+        lastLoadedAtRef.current = GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now();
       } else {
         setThreads(enriched);
         const ts = Date.now();
-        setLastLoadedAt(ts);
+        lastLoadedAtRef.current = ts;
         // persist to module cache
         GLOBAL_FORUM_CACHE.threads = enriched;
         GLOBAL_FORUM_CACHE.lastLoadedAt = ts;
@@ -115,18 +133,21 @@ export default function ForumPage() {
         if (now - (lastRetryAtRef.current || 0) > 1200) {
           lastRetryAtRef.current = now;
           setTimeout(() => {
-            try { load(); } catch {}
+            try {
+              load();
+            } catch {
+              /* noop */
+            }
           }, 800);
         }
       } else {
         setError(err.message || "Failed to load threads");
       }
-    }
-    finally {
+    } finally {
       loadingRef.current = false;
       setListLoading(false);
     }
-  }, [user, sort]);
+  }, [user, sort, loading]);
 
   useEffect(() => {
     load();
@@ -259,7 +280,9 @@ export default function ForumPage() {
 
   // Refresh on tab focus/visibility change; nudge refetch via focusedTick to debounce
   useEffect(() => {
-    function onFocusVisibility() { setFocusedTick((t) => t + 1); }
+    function onFocusVisibility() {
+      setFocusedTick((t) => t + 1);
+    }
     function onVisibility() {
       if (document.visibilityState === "visible") onFocusVisibility();
     }
@@ -499,7 +522,7 @@ export default function ForumPage() {
               aria-label="Sort threads"
             >
               <option value="best">Best</option>
-              <option value="top">Top</option>
+              <option value="hot">Hot</option>
               <option value="new">New</option>
               <option value="old">Old</option>
             </select>
@@ -753,130 +776,139 @@ export default function ForumPage() {
 
       {/* Inline post removed — modal is primary. */}
 
-      <ul className="grid gap-3">
-        {threads.map((t) => {
-          const excerpt = t.body
-            ? t.body.length > 220
-              ? t.body.slice(0, 220) + "…"
-              : t.body
-            : "";
-          return (
-            <li
-              key={t.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/thread/${t.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ")
-                  navigate(`/thread/${t.id}`);
-              }}
-              className="p-4 border border-slate-200 rounded-lg bg-white/60 hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <div className="flex-1 min-w-0">
-                {/* Top row: Name   Date */}
-                <div className="flex items-center justify-between text-xs text-slate-600">
-                  <div className="truncate">
-                    {t.author?.name ? (
-                      <span className="font-medium text-slate-800">
-                        {t.author.name}
+      {listLoading && threads.length === 0 ? (
+        <div className="loading-state" style={{ minHeight: 140 }}>
+          <div className="loading-spinner" />
+          <p>Loading forum...</p>
+        </div>
+      ) : (
+        <ul className="grid gap-3">
+          {threads.map((t) => {
+            const excerpt = t.body
+              ? t.body.length > 220
+                ? t.body.slice(0, 220) + "…"
+                : t.body
+              : "";
+            return (
+              <li
+                key={t.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/thread/${t.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    navigate(`/thread/${t.id}`);
+                }}
+                className="p-4 border border-slate-200 rounded-lg bg-white/60 hover:shadow-md transition-shadow cursor-pointer"
+              >
+                <div className="flex-1 min-w-0">
+                  {/* Top row: Name   Date */}
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <div className="truncate">
+                      {t.author?.name ? (
+                        <span className="font-medium text-slate-800">
+                          {t.author.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">Anonymous</span>
+                      )}
+                    </div>
+                    <span className="shrink-0">
+                      {new Date(t.created_at).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <div className="mt-1 text-lg font-semibold text-slate-900">
+                    {t.title}
+                  </div>
+
+                  {/* Body excerpt or Image preview */}
+                  {t.image_url ? (
+                    <div className="mt-2">
+                      <img
+                        src={t.image_url}
+                        alt={t.title || "Thread image"}
+                        className="max-h-72 w-full object-contain rounded-md border border-slate-200 bg-slate-50"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : excerpt ? (
+                    <p className="mt-1 text-sm text-slate-700 line-clamp-3">
+                      {excerpt}
+                    </p>
+                  ) : null}
+
+                  {/* Bottom row: up/down votes and comments */}
+                  <div
+                    className="mt-3 flex items-center gap-2 text-sm text-slate-700"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      aria-label="Upvote"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        vote(t.id, 1);
+                      }}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border ${
+                        myVotes[t.id] === 1
+                          ? "border-green-300 text-green-700 bg-green-50"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}
+                      disabled={!!votingMap[t.id]}
+                    >
+                      ▲{" "}
+                      <span className="tabular-nums">
+                        {t.upvotes_count ?? 0}
                       </span>
-                    ) : (
-                      <span className="text-slate-500">Anonymous</span>
-                    )}
+                    </button>
+                    <button
+                      aria-label="Downvote"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        vote(t.id, -1);
+                      }}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border ${
+                        myVotes[t.id] === -1
+                          ? "border-rose-300 text-rose-700 bg-rose-50"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}
+                      disabled={!!votingMap[t.id]}
+                    >
+                      ▼{" "}
+                      <span className="tabular-nums">
+                        {t.downvotes_count ?? 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/thread/${t.id}`);
+                      }}
+                      className="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
+                      aria-label="Open thread comments"
+                      title="Open comments"
+                    >
+                      💬{" "}
+                      <span className="tabular-nums">
+                        {t.comments_count ?? 0}
+                      </span>
+                    </button>
                   </div>
-                  <span className="shrink-0">
-                    {new Date(t.created_at).toLocaleString()}
-                  </span>
                 </div>
 
-                {/* Title */}
-                <div className="mt-1 text-lg font-semibold text-slate-900">
-                  {t.title}
-                </div>
-
-                {/* Body excerpt or Image preview */}
-                {t.image_url ? (
-                  <div className="mt-2">
-                    <img
-                      src={t.image_url}
-                      alt={t.title || "Thread image"}
-                      className="max-h-72 w-full object-contain rounded-md border border-slate-200 bg-slate-50"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : excerpt ? (
-                  <p className="mt-1 text-sm text-slate-700 line-clamp-3">
-                    {excerpt}
-                  </p>
-                ) : null}
-
-                {/* Bottom row: up/down votes and comments */}
-                <div
-                  className="mt-3 flex items-center gap-2 text-sm text-slate-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    aria-label="Upvote"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      vote(t.id, 1);
-                    }}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border ${
-                      myVotes[t.id] === 1
-                        ? "border-green-300 text-green-700 bg-green-50"
-                        : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                    disabled={!!votingMap[t.id]}
-                  >
-                    ▲{" "}
-                    <span className="tabular-nums">{t.upvotes_count ?? 0}</span>
-                  </button>
-                  <button
-                    aria-label="Downvote"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      vote(t.id, -1);
-                    }}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border ${
-                      myVotes[t.id] === -1
-                        ? "border-rose-300 text-rose-700 bg-rose-50"
-                        : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                    disabled={!!votingMap[t.id]}
-                  >
-                    ▼{" "}
-                    <span className="tabular-nums">
-                      {t.downvotes_count ?? 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/thread/${t.id}`);
-                    }}
-                    className="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
-                    aria-label="Open thread comments"
-                    title="Open comments"
-                  >
-                    💬{" "}
-                    <span className="tabular-nums">
-                      {t.comments_count ?? 0}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* delete button removed from forum list cards per design */}
+                {/* delete button removed from forum list cards per design */}
+              </li>
+            );
+          })}
+          {!threads.length && (
+            <li className="text-slate-500">
+              No threads yet. Be the first to post.
             </li>
-          );
-        })}
-        {!threads.length && (
-          <li className="text-slate-500">
-            No threads yet. Be the first to post.
-          </li>
-        )}
-      </ul>
+          )}
+        </ul>
+      )}
     </div>
   );
 }

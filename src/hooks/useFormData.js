@@ -428,6 +428,11 @@ export function useFormData() {
       }
 
       setSuccess(true);
+      try {
+        globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
+      } catch {
+        /* noop */
+      }
       return dogId;
     } catch (e) {
       setError(normalizeError(e));
@@ -791,6 +796,11 @@ export function useFormData() {
         }
 
         setSuccess(true);
+        try {
+          globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
+        } catch {
+          /* noop */
+        }
         return true;
       } catch (e) {
         setError(normalizeError(e));

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export default function Modal({
   open,
@@ -8,6 +8,7 @@ export default function Modal({
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     function onKey(e) {
@@ -19,6 +20,18 @@ export default function Modal({
       setTimeout(() => setIsAnimating(true), 10);
       window.addEventListener("keydown", onKey);
       document.body.style.overflow = "hidden";
+      // Optionally move focus into the dialog when it opens
+      setTimeout(() => {
+        if (!containerRef.current) return;
+        const panel = containerRef.current.querySelector('[role="dialog"]');
+        if (panel && typeof panel.focus === "function") {
+          // Make focusable temporarily if needed
+          const prev = panel.getAttribute("tabindex");
+          if (!prev) panel.setAttribute("tabindex", "-1");
+          panel.focus();
+          if (!prev) setTimeout(() => panel.removeAttribute("tabindex"), 0);
+        }
+      }, 20);
     } else if (isVisible) {
       // Start closing animation
       setIsAnimating(false);
@@ -31,10 +44,33 @@ export default function Modal({
     };
   }, [open, onClose, isVisible]);
 
+  // Ensure that when "open" becomes false, no element inside remains focused
+  useEffect(() => {
+    if (!open && containerRef.current) {
+      const active = document.activeElement;
+      if (active && containerRef.current.contains(active)) {
+        if (typeof active.blur === "function") active.blur();
+        const main = document.querySelector("main, [role='main']");
+        if (main && typeof main.focus === "function") {
+          const prevTabIndex = main.getAttribute("tabindex");
+          if (!prevTabIndex) main.setAttribute("tabindex", "-1");
+          main.focus();
+          if (!prevTabIndex)
+            setTimeout(() => main.removeAttribute("tabindex"), 0);
+        }
+      }
+    }
+  }, [open]);
+
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed inset-0 z-50`} aria-hidden={!open}>
+    <div
+      ref={containerRef}
+      className={`fixed inset-0 z-50`}
+      aria-hidden={!open}
+      inert={!open}
+    >
       <div
         className={`absolute inset-0 bg-black/40 backdrop-blur-md transition-all duration-300 ease-in-out ${
           isAnimating ? "opacity-100" : "opacity-0"

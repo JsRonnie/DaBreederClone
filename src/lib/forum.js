@@ -38,12 +38,17 @@ export async function fetchThreads({
       qb = qb.order("created_at", { ascending: true });
       break;
     case "best":
-    case "top":
-    case "most_popular":
-      // Use upvotes_count as a proxy for net score; tie-break by recency
+    case "most_upvoted":
+      // Best: Most upvotes; tie-break by recency
       qb = qb
         .order("upvotes_count", { ascending: false })
         .order("created_at", { ascending: false });
+      break;
+    case "hot":
+    case "top":
+    case "most_commented":
+      // Hot: Most comments (computed client-side), fallback to recent at DB level
+      qb = qb.order("created_at", { ascending: false });
       break;
     case "least_popular":
       qb = qb
@@ -125,12 +130,21 @@ export async function fetchThreads({
     // ignore if votes not accessible
   }
 
-  // Refine ordering client-side for 'best'/'top' using net score if possible
-  if (sort === "best" || sort === "top") {
+  // Refine ordering client-side
+  if (sort === "best" || sort === "most_upvoted") {
+    // Best: sort by upvotes_count
     rows = [...rows].sort((a, b) => {
-      const as = (a.upvotes_count || 0) - (a.downvotes_count || 0);
-      const bs = (b.upvotes_count || 0) - (b.downvotes_count || 0);
+      const as = a.upvotes_count || 0;
+      const bs = b.upvotes_count || 0;
       if (bs !== as) return bs - as;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  } else if (sort === "hot" || sort === "top" || sort === "most_commented") {
+    // Hot: sort by comments_count
+    rows = [...rows].sort((a, b) => {
+      const ac = a.comments_count || 0;
+      const bc = b.comments_count || 0;
+      if (bc !== ac) return bc - ac;
       return new Date(b.created_at) - new Date(a.created_at);
     });
   } else if (sort === "new") {

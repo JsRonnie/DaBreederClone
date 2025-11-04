@@ -31,6 +31,58 @@ export default function AuthProvider({ children }) {
     };
   };
 
+  // Prefetch user's dogs into the global cache to warm other pages (FindMatch, MyDogs)
+  async function prefetchUserDogs(userId) {
+    if (!userId) return;
+    try {
+      const GLOBAL = (globalThis.__DB_GLOBAL_DOG_CACHE__ =
+        globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
+      const existing = GLOBAL[userId];
+      // If we have a recent entry (15m), skip
+      if (existing && Date.now() - (existing.lastFetch || 0) < 15 * 60 * 1000)
+        return;
+      const { data, error } = await supabase
+        .from("dogs")
+        .select("id,name,breed,gender,sex,image_url,hidden,user_id")
+        .eq("user_id", userId)
+        .order("id", { ascending: false });
+      if (error) {
+        // Try a resilient fallback without failing the app
+        try {
+          const fb = await supabase
+            .from("dogs")
+            .select("*")
+            .eq("user_id", userId)
+            .order("id", { ascending: false });
+          if (!fb.error) {
+            GLOBAL[userId] = {
+              dogs: fb.data || [],
+              lastFetch: Date.now(),
+              userId,
+            };
+          }
+        } catch {
+          /* noop */
+        }
+        return;
+      }
+      // Map to a lightweight shape similar to MyDogs processed shape
+      const mapped = (data || []).map((d) => ({
+        id: d.id,
+        name: d.name || "Unnamed",
+        breed: d.breed || "Unknown",
+        age_years: d.age_years,
+        sex: d.gender || d.sex || null,
+        image: d.image || d.image_url || null,
+        hidden: !!d.hidden,
+      }));
+      GLOBAL[userId] = { dogs: mapped, lastFetch: Date.now(), userId };
+    } catch (err) {
+      // non-fatal
+      console.warn("prefetchUserDogs failed:", err?.message || err);
+    }
+  }
+
   const handleLogout = async () => {
     console.log("Logout initiated..."); // Debug log
 
@@ -87,6 +139,12 @@ export default function AuthProvider({ children }) {
         setUser(appUser);
         // Only upsert profile on initial load, not every auth change
         await upsertUserProfile(supabase, data.session.user);
+        // Warm the dog cache for faster pages (don't await)
+        try {
+          prefetchUserDogs(appUser.id);
+        } catch {
+          /* noop */
+        }
       }
       setLoading(false);
     });
@@ -101,6 +159,12 @@ export default function AuthProvider({ children }) {
           // Only upsert on sign in, not on token refresh
           if (event === "SIGNED_IN") {
             await upsertUserProfile(supabase, session.user);
+            // Warm the dog cache on sign-in
+            try {
+              prefetchUserDogs(appUser.id);
+            } catch {
+              /* noop */
+            }
           }
         } else if (event === "SIGNED_OUT") {
           setUser(null);

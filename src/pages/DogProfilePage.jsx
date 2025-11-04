@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import supabase from "../lib/supabaseClient";
+import "./FindMatchPage.css"; // reuse shared loading styles
 
 export default function DogProfilePage() {
   const { id } = useParams();
@@ -25,11 +26,9 @@ export default function DogProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
-        </div>
+      <div className="loading-state" style={{ minHeight: 140 }}>
+        <div className="loading-spinner" />
+        <p>Loading profile...</p>
       </div>
     );
   }

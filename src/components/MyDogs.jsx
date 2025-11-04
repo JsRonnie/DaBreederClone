@@ -11,6 +11,10 @@ import "../pages/FindMatchPage.css";
 // on every import.
 const GLOBAL_DOG_CACHE = (globalThis.__DB_GLOBAL_DOG_CACHE__ =
   globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
+// Global invalidation timestamp; when set (> lastFetch), MyDogs will refresh once
+if (typeof globalThis.__DB_DOGS_INVALIDATE_TS__ !== "number") {
+  globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
+}
 
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true);
@@ -25,7 +29,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
   });
   const [uid, setUid] = useState(userId || null);
   const [forceRefresh, setForceRefresh] = useState(0);
-  const [focusedTick, setFocusedTick] = useState(0);
+  // Removed focus-based auto refresh to avoid unwanted reloads when navigating back
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -108,12 +112,14 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       const now = Date.now();
       const timeSinceLastFetch = now - dataCache.current.lastFetch;
       const desiredUserId = userId || uid;
+      const invalidateTs = Number(globalThis.__DB_DOGS_INVALIDATE_TS__ || 0);
 
       // Check cache - if we have recent data for the same user, use it
       if (
         dataCache.current.userId === desiredUserId &&
-        timeSinceLastFetch < 15000 &&
+        timeSinceLastFetch < 15 * 60 * 1000 && // extend cache tolerance to 15 minutes
         forceRefresh === 0 &&
+        invalidateTs <= (dataCache.current.lastFetch || 0) &&
         (dataCache.current.dogs.length > 0 || dataCache.current.lastFetch > 0)
       ) {
         console.log("🔄 Using cached data");
@@ -306,6 +312,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         // Also persist to the module-level cache so remounts can reuse it
         try {
           GLOBAL_DOG_CACHE[effectiveUserId] = { ...dataCache.current };
+          // Clear global invalidation on successful refresh
+          globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
         } catch (e) {
           // Non-fatal if writing to module cache fails for any reason
           console.warn("Failed to persist to GLOBAL_DOG_CACHE:", e);
@@ -333,33 +341,9 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
     return () => {
       clearTimeout(t);
     };
-  }, [uid, userId, forceRefresh, focusedTick]); // include userId so loads fire when prop changes
+  }, [uid, userId, forceRefresh]); // load only on explicit triggers
 
-  // Refetch when window gains focus
-  useEffect(() => {
-    const onFocus = () => {
-      console.log("📣 window focus detected - triggering reload");
-      setFocusedTick((t) => t + 1);
-    };
-
-    // Also listen for visibilitychange so switching browser tabs (same window)
-    // triggers a refetch when the document becomes visible again. Some browsers
-    // don't fire window 'focus' when switching tabs, only document visibility.
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        console.log("📣 document became visible - triggering reload");
-        setFocusedTick((t) => t + 1);
-      }
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+  // Intentionally removed auto refetch on focus/visibility to preserve cached list when navigating back.
 
   // Debug: log displayDogs whenever it changes to see what will render
   useEffect(() => {
@@ -492,6 +476,11 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
       // Force refresh to reload data immediately after deletion
       dataCache.current = { dogs: [], lastFetch: 0, userId: null }; // Reset cache
+      try {
+        globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
+      } catch {
+        /* noop */
+      }
       setForceRefresh((prev) => prev + 1);
 
       // Close the dialog

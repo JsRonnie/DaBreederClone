@@ -13,7 +13,6 @@ const AddDogPage = lazy(() => import("./pages/AddDogPage"));
 const DogProfilePage = lazy(() => import("./pages/DogProfilePage"));
 const DogEditPage = lazy(() => import("./pages/DogEditPage"));
 const FindMatchPage = lazy(() => import("./pages/FindMatchPage"));
-const EditProfilePage = lazy(() => import("./pages/EditProfilePage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFound"));
 const ForumPage = lazy(() => import("./pages/ForumPage"));
@@ -34,7 +33,6 @@ createRoot(document.getElementById("root")).render(
               <Route path="dog/:id" element={<DogProfilePage />} />
               <Route path="dog/:id/edit" element={<DogEditPage />} />
               <Route path="find-match" element={<FindMatchPage />} />
-              <Route path="edit-profile" element={<EditProfilePage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
               <Route path="forum" element={<ForumPage />} />
               <Route path="thread/:id" element={<ThreadPage />} />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
 function NavItem({ icon, label, onClick, active, danger, disabled, to }) {
@@ -31,11 +31,37 @@ function NavItem({ icon, label, onClick, active, danger, disabled, to }) {
 
 export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
+  const containerRef = useRef(null);
+
+  // When the sidebar closes, ensure no element inside remains focused
+  useEffect(() => {
+    if (!open && containerRef.current) {
+      const active = document.activeElement;
+      if (active && containerRef.current.contains(active)) {
+        if (typeof active.blur === "function") active.blur();
+        // Optionally move focus to the main content region if present
+        const main = document.querySelector("main, [role='main']");
+        if (main && typeof main.focus === "function") {
+          // Temporarily make it focusable if not already
+          const prevTabIndex = main.getAttribute("tabindex");
+          if (!prevTabIndex) main.setAttribute("tabindex", "-1");
+          main.focus();
+          // Clean up tabindex if we added it
+          if (!prevTabIndex) {
+            // Allow next tick to keep focus, then remove
+            setTimeout(() => main.removeAttribute("tabindex"), 0);
+          }
+        }
+      }
+    }
+  }, [open]);
 
   return (
     <div
+      ref={containerRef}
       className={`fixed inset-0 z-[60] ${open ? "" : "pointer-events-none"}`}
       aria-hidden={!open}
+      inert={!open}
     >
       {/* Scrim */}
       <div
@@ -137,13 +163,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
             Settings
           </div>
           <nav className="grid gap-1">
-            <NavItem
-              label="Edit Profile"
-              icon={<EditProfileIcon />}
-              to="/edit-profile"
-              disabled={!loggedIn}
-              onClick={onClose}
-            />
             <NavItem
               label="Change Password"
               icon={<PasswordIcon />}
@@ -294,24 +313,6 @@ function HeartIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
-      />
-    </svg>
-  );
-}
-
-function EditProfileIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
       />
     </svg>
   );

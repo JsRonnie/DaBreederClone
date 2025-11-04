@@ -1,25 +1,46 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useContext,
+} from "react";
 import supabase from "../lib/supabaseClient";
 import { calculateMatchScore } from "../utils/matchmaking";
 import { Link, useLocation } from "react-router-dom";
 import "./FindMatchPage.css";
+import { AuthContext } from "../context/AuthContext";
+
+// Global cache to avoid empty flashes when auth briefly revalidates on tab switch
+const GLOBAL_FINDMATCH_CACHE = (globalThis.__DB_GLOBAL_FINDMATCH_CACHE__ =
+  globalThis.__DB_GLOBAL_FINDMATCH_CACHE__ || { userDogs: [], lastFetch: 0 });
+// Shared invalidation timestamp with MyDogs: when > lastFetch, we refresh once
+if (typeof globalThis.__DB_DOGS_INVALIDATE_TS__ !== "number") {
+  globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
+}
 
 export default function FindMatchPage() {
   const location = useLocation();
-  // Global cache to avoid empty flashes when auth briefly revalidates on tab switch
-  const GLOBAL_FINDMATCH_CACHE = (globalThis.__DB_GLOBAL_FINDMATCH_CACHE__ =
-    globalThis.__DB_GLOBAL_FINDMATCH_CACHE__ || { userDogs: [], lastFetch: 0 });
+  const { user: authUser } = useContext(AuthContext);
+  // Debug logger for this page
+  const FM_LOG = (...args) => console.log("🔎 [FindMatch]", ...args);
+  const MATCHES_TTL = 15 * 60 * 1000; // 15 minutes
 
-  const [userDogs, setUserDogs] = useState(() => GLOBAL_FINDMATCH_CACHE.userDogs || []);
+  const [userDogs, setUserDogs] = useState(
+    () => GLOBAL_FINDMATCH_CACHE.userDogs || []
+  );
   const [selectedDog, setSelectedDog] = useState(null);
   const [potentialMatches, setPotentialMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [slowLoad, setSlowLoad] = useState(false); // >2.5s
-  const [verySlowLoad, setVerySlowLoad] = useState(false); // >8s
+  // Split loading states so selecting a dog doesn't reload the dog grid/card
+  const [dogsLoading, setDogsLoading] = useState(
+    () => (GLOBAL_FINDMATCH_CACHE.userDogs || []).length === 0
+  );
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  // Simplified loading UI (no long-load hints)
   const [error, setError] = useState(null);
-  const [focusedTick, setFocusedTick] = useState(0);
   const loadingRef = useRef(false);
   const requestIdRef = useRef(0);
+  const matchesRequestIdRef = useRef(0);
 
   const fetchUserDogs = useCallback(async () => {
     // use a request id to ensure only last response wins
@@ -29,140 +50,298 @@ export default function FindMatchPage() {
     loadingRef.current = true;
     try {
       setError(null);
-      setLoading(true);
-      // If cache is recent (<15s), use it first to avoid blank state
+      // Only show spinner if we don't already have cache to render
+      const hadCache = (GLOBAL_FINDMATCH_CACHE.userDogs || []).length > 0;
+      if (!hadCache) setDogsLoading(true);
       const now = Date.now();
+      const invalidateTs = Number(globalThis.__DB_DOGS_INVALIDATE_TS__ || 0);
+      const cacheFresh =
+        now - (GLOBAL_FINDMATCH_CACHE.lastFetch || 0) < 15 * 60 * 1000; // 15 min TTL
+      const hasCache = (GLOBAL_FINDMATCH_CACHE.userDogs || []).length > 0;
+      FM_LOG("fetchUserDogs: start", {
+        hadCache,
+        hasCache,
+        cacheFresh,
+        invalidateTs,
+        lastFetch: GLOBAL_FINDMATCH_CACHE.lastFetch || 0,
+        authUserId: authUser?.id || null,
+      });
+      // Use cache immediately to avoid blank state
+      if (hasCache) setUserDogs(GLOBAL_FINDMATCH_CACHE.userDogs);
+      // If cache is fresh and wasn't invalidated by add/edit/delete, skip network
       if (
-        now - (GLOBAL_FINDMATCH_CACHE.lastFetch || 0) < 15000 &&
-        (GLOBAL_FINDMATCH_CACHE.userDogs || []).length
+        hasCache &&
+        cacheFresh &&
+        invalidateTs <= (GLOBAL_FINDMATCH_CACHE.lastFetch || 0)
       ) {
-        setUserDogs(GLOBAL_FINDMATCH_CACHE.userDogs);
+        FM_LOG("fetchUserDogs: using fresh cache, skipping network", {
+          count: (GLOBAL_FINDMATCH_CACHE.userDogs || []).length,
+        });
+        setDogsLoading(false);
+        return;
+      }
+      // Prefer AuthContext user (fast), fall back to supabase.auth.getUser
+      let effectiveUserId = authUser?.id || null;
+      if (!effectiveUserId) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        effectiveUserId = user?.id || null;
+      }
+      if (!effectiveUserId) {
+        // No user yet. If we have cache, keep it and stop spinner; otherwise wait for auth change.
+        FM_LOG("fetchUserDogs: no user yet", { hasCache });
+        if (hasCache) setDogsLoading(false);
+        return;
+      }
+      // Seed from MyDogs cache (if available) before network
+      try {
+        const DOG_CACHE = globalThis.__DB_GLOBAL_DOG_CACHE__ || {};
+        const dogEntry = DOG_CACHE[effectiveUserId];
+        const dogCacheFresh =
+          dogEntry && Date.now() - (dogEntry.lastFetch || 0) < MATCHES_TTL;
+        if (
+          dogEntry &&
+          Array.isArray(dogEntry.dogs) &&
+          dogEntry.dogs.length > 0
+        ) {
+          const mapped = dogEntry.dogs.map((d) => ({
+            id: d.id,
+            name: d.name,
+            breed: d.breed,
+            gender: d.sex || d.gender || null,
+            sex: d.sex || d.gender || null,
+            image_url: d.image || d.image_url || null,
+            hidden: !!d.hidden,
+            user_id: effectiveUserId,
+          }));
+          FM_LOG("seed from MyDogs cache", {
+            count: mapped.length,
+            lastFetch: dogEntry.lastFetch,
+            fresh: !!dogCacheFresh,
+          });
+          setUserDogs(mapped);
+          GLOBAL_FINDMATCH_CACHE.userDogs = mapped;
+          GLOBAL_FINDMATCH_CACHE.lastFetch = dogEntry.lastFetch || Date.now();
+          if (dogCacheFresh && invalidateTs <= (dogEntry.lastFetch || 0)) {
+            setDogsLoading(false);
+            return; // fresh enough, skip network
+          }
+        }
+      } catch (e) {
+        FM_LOG("seed cache error", e?.message || e);
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user?.id) {
-        // No user (or auth revalidating). Keep cached dogs if available and schedule a retry
-        const hasCache = (GLOBAL_FINDMATCH_CACHE.userDogs || []).length > 0;
-        if (hasCache) setUserDogs(GLOBAL_FINDMATCH_CACHE.userDogs);
-        // Release the loading lock but keep the spinner on
-        loadingRef.current = false;
-        setTimeout(() => {
-          // Re-attempt after a short delay
-          fetchUserDogs();
-        }, 700);
-        return; // keep loading=true
-      }
-      const { data, error } = await supabase
+      // Try minimal columns first; fall back to * if schema differs
+      let query = supabase
         .from("dogs")
-        .select("*")
-        .eq("user_id", user.id)
+        .select("id,name,breed,gender,sex,image_url,hidden,user_id")
+        .eq("user_id", effectiveUserId)
         .order("id", { ascending: false });
+      let { data, error } = await query;
+      if (error && /42703|column|does not exist/i.test(error.message || "")) {
+        FM_LOG("fetchUserDogs: column mismatch, falling back to *");
+        const fb = await supabase
+          .from("dogs")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("id", { ascending: false });
+        data = fb.data;
+        error = fb.error;
+      }
       if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
+        FM_LOG("fetchUserDogs: query error", error);
+      } else {
+        FM_LOG("fetchUserDogs: fetched rows", (data || []).length);
+      }
+      if (error) {
+        const msg = (error.message || "").toLowerCase();
+        // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
+        if (msg.includes("user_id") && msg.includes("does not exist")) {
+          const fallback = await supabase
+            .from("dogs")
+            .select("*")
+            .order("id", { ascending: false });
+          if (fallback.error) {
+            setError(fallback.error.message);
+            setDogsLoading(false);
+            return;
+          }
+          data = fallback.data;
+          FM_LOG(
+            "fetchUserDogs: user_id missing, using fallback of all dogs",
+            (data || []).length
+          );
+          setError(
+            "Note: 'user_id' column missing. Showing all dogs. Add a user_id uuid column to filter per-user."
+          );
+        } else if (
+          msg.includes("permission denied") ||
+          msg.includes("not allowed")
+        ) {
+          FM_LOG("fetchUserDogs: permission denied");
+          setError(
+            "Permission denied when reading your dogs. If Row Level Security is ON, add select policy: user_id = auth.uid()."
+          );
+          setDogsLoading(false);
+          return;
+        } else {
+          FM_LOG("fetchUserDogs: unhandled error", error.message);
+          setError(error.message);
+          setDogsLoading(false);
+          return;
+        }
       }
       if (requestIdRef.current !== myReq) return;
       setUserDogs(data || []);
       GLOBAL_FINDMATCH_CACHE.userDogs = data || [];
       GLOBAL_FINDMATCH_CACHE.lastFetch = Date.now();
-      setLoading(false);
+      FM_LOG("fetchUserDogs: cache updated", {
+        count: (data || []).length,
+        lastFetch: GLOBAL_FINDMATCH_CACHE.lastFetch,
+      });
+      // Clear invalidation after successful refresh
+      try {
+        globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
+      } catch {
+        /* noop */
+      }
+      setDogsLoading(false);
     } finally {
       loadingRef.current = false;
     }
-  }, []);
+  }, [authUser?.id, MATCHES_TTL]);
 
   useEffect(() => {
     fetchUserDogs();
 
     // Restore state if coming back from a profile page
     if (location.state) {
-      const { selectedDog: savedSelectedDog, potentialMatches: savedMatches } =
-        location.state;
+      const { selectedDog: savedSelectedDog } = location.state;
       if (savedSelectedDog) {
+        FM_LOG("restore: selectedDog from navigation state", {
+          id: savedSelectedDog.id,
+          name: savedSelectedDog.name,
+        });
         setSelectedDog(savedSelectedDog);
-      }
-      if (savedMatches) {
-        setPotentialMatches(savedMatches);
       }
     }
   }, [location.state, fetchUserDogs]);
 
-  // Refresh dogs when tab gains focus / becomes visible
-  useEffect(() => {
-    const onFocus = () => setFocusedTick((t) => t + 1);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") setFocusedTick((t) => t + 1);
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+  // Removed focus/visibility-based auto refresh; we rely on global invalidation from add/edit/delete only
 
-  useEffect(() => {
-    // Debounce reload: only refetch if we have no dogs or cache is stale
-    const stale = Date.now() - (GLOBAL_FINDMATCH_CACHE.lastFetch || 0) > 10000;
-    if (!userDogs.length || stale) {
-      (async () => {
-        if (loadingRef.current) return;
-        // mimic initial fetch flow
-        await fetchUserDogs();
-      })();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedTick]);
-
-  // Long-loading detector to show helpful text if it takes too long
-  useEffect(() => {
-    let t1, t2;
-    if (loading) {
-      t1 = setTimeout(() => setSlowLoad(true), 2500);
-      t2 = setTimeout(() => setVerySlowLoad(true), 8000);
-    } else {
-      setSlowLoad(false);
-      setVerySlowLoad(false);
-    }
-    return () => {
-      if (t1) clearTimeout(t1);
-      if (t2) clearTimeout(t2);
-    };
-  }, [loading]);
+  // Removed long-loading detector and retry UI for a cleaner experience
 
   const handleSelectDog = async (dog) => {
+    FM_LOG("selectDog:", { id: dog.id, name: dog.name });
     setSelectedDog(dog);
-    setLoading(true);
+    setMatchesLoading(true);
     setError(null);
-    setPotentialMatches([]);
+    // Keep existing matches visible during fetch for better UX
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    FM_LOG("matches: fetching for dog", { id: dog.id, userId: user?.id });
 
-    const { data, error } = await supabase
-      .from("dogs")
-      .select("*")
-      .neq("gender", dog.gender) // Basic filtering for breeding compatibility
-      .neq("user_id", user.id); // Exclude user's own dogs
-
-    if (error) {
-      setError(error.message);
-    } else {
-      const scoredMatches = data
-        .map((match) => ({
-          ...match,
-          score: calculateMatchScore(dog, match),
-        }))
-        .filter((match) => match.score > 0) // Only show compatible matches
-        .sort((a, b) => b.score - a.score) // Sort by score descending
-        .slice(0, 3); // Get top 3 matches only
-      setPotentialMatches(scoredMatches);
+    // Try a robust query sequence that adapts to schema and RLS
+    async function queryOthers({
+      genderColumn = "gender",
+      includeHiddenFilter = true,
+    }) {
+      let q = supabase
+        .from("dogs")
+        .select("*")
+        .order("id", { ascending: false })
+        .limit(200);
+      // Exclude same gender if column exists
+      if (genderColumn)
+        q = q.neq(
+          genderColumn,
+          dog[genderColumn] || dog.gender || dog.sex || null
+        );
+      // Exclude my own dogs when possible
+      if (user?.id) q = q.neq("user_id", user.id);
+      // Only show visible/public dogs when possible
+      if (includeHiddenFilter) q = q.eq("hidden", false);
+      return await q;
     }
-    setLoading(false);
+
+    const myReq = ++matchesRequestIdRef.current;
+    let resp = await queryOthers({
+      genderColumn: "gender",
+      includeHiddenFilter: true,
+    });
+    if (resp.error) {
+      const msg = (resp.error.message || "").toLowerCase();
+      FM_LOG("matches: first query error", msg);
+      // If hidden column doesn't exist, try without it
+      if (msg.includes("hidden") && msg.includes("does not exist")) {
+        resp = await queryOthers({
+          genderColumn: "gender",
+          includeHiddenFilter: false,
+        });
+      }
+    }
+
+    // If gender column doesn't exist, try 'sex'
+    if (resp.error) {
+      const msg = (resp.error.message || "").toLowerCase();
+      FM_LOG("matches: gender column missing?", msg);
+      if (msg.includes("gender") && msg.includes("does not exist")) {
+        resp = await queryOthers({
+          genderColumn: "sex",
+          includeHiddenFilter: true,
+        });
+        if (resp.error) {
+          const msg2 = (resp.error.message || "").toLowerCase();
+          FM_LOG("matches: sex+hidden error", msg2);
+          if (msg2.includes("hidden") && msg2.includes("does not exist")) {
+            resp = await queryOthers({
+              genderColumn: "sex",
+              includeHiddenFilter: false,
+            });
+          }
+        }
+      }
+    }
+
+    if (resp.error) {
+      const msg = (resp.error.message || "").toLowerCase();
+      FM_LOG("matches: final error", msg);
+      if (msg.includes("permission denied") || msg.includes("not allowed")) {
+        setError(
+          "Permission denied when reading other dogs. If RLS is ON, add a read policy to allow public profiles (e.g., hidden = false)."
+        );
+      } else {
+        setError(resp.error.message);
+      }
+      setMatchesLoading(false);
+      return;
+    }
+
+    const rows = resp.data || [];
+    FM_LOG("matches: fetched rows", rows.length);
+    const scoredMatches = rows
+      .map((match) => ({
+        ...match,
+        score: calculateMatchScore(dog, match),
+      }))
+      .filter((match) => match.score > 0) // Only show compatible matches
+      .sort((a, b) => b.score - a.score) // Sort by score descending
+      .slice(0, 3); // Get top 3 matches only
+    FM_LOG("matches: scored", {
+      total: rows.length,
+      shown: scoredMatches.length,
+      top: scoredMatches.map((m) => ({ id: m.id, score: m.score })).slice(0, 3),
+    });
+    if (matchesRequestIdRef.current === myReq) {
+      setPotentialMatches(scoredMatches);
+      setMatchesLoading(false);
+      FM_LOG("matches: done");
+    } else {
+      FM_LOG("matches: stale result discarded");
+    }
   };
 
   const handleContact = (match) => {
@@ -186,27 +365,10 @@ export default function FindMatchPage() {
       {/* Dog Selection Section */}
       <div className="content-section">
         <h2 className="section-title">Select Your Dog</h2>
-        {loading ? (
+        {dogsLoading && userDogs.length === 0 ? (
           <div className="loading-state" style={{ minHeight: 140 }}>
             <div className="loading-spinner" />
-            <p>Loading your dogs…</p>
-            {slowLoad && (
-              <p className="text-sm" style={{ color: "#4b5563", marginTop: 6 }}>
-                Still loading. This can happen right after switching tabs or on a slow
-                connection. We’ll keep trying automatically.
-              </p>
-            )}
-            {verySlowLoad && (
-              <div style={{ marginTop: 10, display: "flex", gap: 8, justifyContent: "center" }}>
-                <button
-                  className="primary-btn"
-                  onClick={() => fetchUserDogs()}
-                  type="button"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
+            <p>Loading your dogs...</p>
           </div>
         ) : userDogs.length === 0 ? (
           <div className="empty-state">
@@ -229,6 +391,7 @@ export default function FindMatchPage() {
                   src={dog.image_url || "/shibaPor.jpg"}
                   alt={dog.name}
                   className="dog-image"
+                  loading="lazy"
                 />
                 <div className="dog-info">
                   <h3>{dog.name}</h3>
@@ -236,18 +399,28 @@ export default function FindMatchPage() {
                   <div
                     className={
                       "gender-pill " +
-                      (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "male"
+                      (((dog.gender || dog.sex || "") + "")
+                        .toString()
+                        .toLowerCase() === "male"
                         ? "male"
-                        : (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "female"
-                          ? "female"
-                          : "unknown"))
+                        : ((dog.gender || dog.sex || "") + "")
+                            .toString()
+                            .toLowerCase() === "female"
+                        ? "female"
+                        : "unknown")
                     }
                     style={{ marginTop: 6 }}
                   >
                     {(() => {
                       const g = (dog.gender || dog.sex || "").toString();
-                      const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "—";
-                      return <span className="gender-label">{label.toLowerCase()}</span>;
+                      const label = g
+                        ? g[0].toUpperCase() + g.slice(1).toLowerCase()
+                        : "—";
+                      return (
+                        <span className="gender-label">
+                          {label.toLowerCase()}
+                        </span>
+                      );
                     })()}
                   </div>
                 </div>
@@ -262,7 +435,7 @@ export default function FindMatchPage() {
         <div className="content-section">
           <h2 className="section-title">Matches for {selectedDog.name}</h2>
 
-          {loading && (
+          {matchesLoading && (
             <div className="loading-state">
               <div className="loading-spinner"></div>
               <p>Finding matches...</p>
@@ -275,13 +448,13 @@ export default function FindMatchPage() {
             </div>
           )}
 
-          {!loading && potentialMatches.length === 0 && !error && (
+          {!matchesLoading && potentialMatches.length === 0 && !error && (
             <div className="empty-state">
               <p>No compatible matches found at this time.</p>
             </div>
           )}
 
-          {!loading && potentialMatches.length > 0 && (
+          {!matchesLoading && potentialMatches.length > 0 && (
             <div className="matches-grid">
               {potentialMatches.map((match, index) => (
                 <div key={match.id} className="match-card">
@@ -293,6 +466,7 @@ export default function FindMatchPage() {
                       src={match.image_url || "/shibaPor.jpg"}
                       alt={match.name}
                       className="match-image"
+                      loading="lazy"
                     />
                   </div>
 
