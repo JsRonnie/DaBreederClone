@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import supabase from "../lib/supabaseClient";
@@ -7,14 +7,22 @@ import { fetchThreads, toggleThreadVote } from "../lib/forum";
 export default function ForumPage() {
   const { user, loading } = React.useContext(AuthContext);
   const navigate = useNavigate();
-  const [threads, setThreads] = useState([]);
+  // Module-level cache to survive unmounts and brief auth revalidations between tab switches
+  const GLOBAL_FORUM_CACHE = (globalThis.__DB_GLOBAL_FORUM_CACHE__ =
+    globalThis.__DB_GLOBAL_FORUM_CACHE__ || { threads: [], lastLoadedAt: 0, sort: "best" });
+
+  const [threads, setThreads] = useState(() => GLOBAL_FORUM_CACHE.threads || []);
   const [busy, setBusy] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState("");
   const [myVotes, setMyVotes] = useState({}); // { [threadId]: 1 | -1 | null }
   const [votingMap, setVotingMap] = useState({}); // in-flight votes per thread id
 
   // comments are loaded on the thread page now; keep thread list simple
-  const [lastLoadedAt, setLastLoadedAt] = useState(0);
+  const [lastLoadedAt, setLastLoadedAt] = useState(GLOBAL_FORUM_CACHE.lastLoadedAt || 0);
+  const [focusedTick, setFocusedTick] = useState(0);
+  // Avoid overlapping loads
+  const loadingRef = useRef(false);
   // per-card delete removed from list UI; thread deletion is handled on the thread page
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [postType, setPostType] = useState("text"); // 'text' | 'image'
@@ -25,9 +33,22 @@ export default function ForumPage() {
 
   const [sort, setSort] = useState("best");
 
+  const lastRetryAtRef = useRef(0);
+
   const load = useCallback(async () => {
     try {
       setError("");
+      setListLoading(true);
+      // If auth is in flux and we have cached threads, prefer showing cache instead of a blank state.
+      if ((!user || loading) && (GLOBAL_FORUM_CACHE.threads || []).length) {
+        setThreads(GLOBAL_FORUM_CACHE.threads);
+        setLastLoadedAt(GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now());
+      }
+
+      // Prevent overlapping loads (helps during rapid focus/visibility events)
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
       const rows = await fetchThreads({ limit: 50, sort });
       // Fetch display names for posters
       let enriched = rows;
@@ -51,8 +72,21 @@ export default function ForumPage() {
       } catch {
         enriched = rows;
       }
-      setThreads(enriched);
-      setLastLoadedAt(Date.now());
+      // If server returned 0 rows but we have a non-empty cache and the user is not yet authenticated,
+      // keep showing the cached list to avoid a confusing empty flash after a tab switch.
+      const isUnauthed = !user && loading !== false;
+      if (enriched.length === 0 && (GLOBAL_FORUM_CACHE.threads || []).length && isUnauthed) {
+        setThreads(GLOBAL_FORUM_CACHE.threads);
+        setLastLoadedAt(GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now());
+      } else {
+        setThreads(enriched);
+        const ts = Date.now();
+        setLastLoadedAt(ts);
+        // persist to module cache
+        GLOBAL_FORUM_CACHE.threads = enriched;
+        GLOBAL_FORUM_CACHE.lastLoadedAt = ts;
+        GLOBAL_FORUM_CACHE.sort = sort;
+      }
       // Preload my votes for listed threads in bulk
       if (user) {
         try {
@@ -69,7 +103,28 @@ export default function ForumPage() {
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to load threads");
+      const msg = (err?.message || "").toLowerCase();
+      // If RLS/permission or transient auth refresh causes a denied select,
+      // keep any cached threads visible and schedule a short retry.
+      if (
+        /permission denied|not allowed|rls|anonymous/.test(msg) &&
+        (GLOBAL_FORUM_CACHE.threads || []).length
+      ) {
+        setThreads(GLOBAL_FORUM_CACHE.threads);
+        const now = Date.now();
+        if (now - (lastRetryAtRef.current || 0) > 1200) {
+          lastRetryAtRef.current = now;
+          setTimeout(() => {
+            try { load(); } catch {}
+          }, 800);
+        }
+      } else {
+        setError(err.message || "Failed to load threads");
+      }
+    }
+    finally {
+      loadingRef.current = false;
+      setListLoading(false);
     }
   }, [user, sort]);
 
@@ -202,19 +257,28 @@ export default function ForumPage() {
     }
   }, [threads.length, loading, load]);
 
-  // Refresh on tab focus/visibility change if list is empty or stale
+  // Refresh on tab focus/visibility change; nudge refetch via focusedTick to debounce
   useEffect(() => {
-    function onFocus() {
-      const stale = Date.now() - lastLoadedAt > 10000;
-      if (!threads.length || stale) load();
+    function onFocusVisibility() { setFocusedTick((t) => t + 1); }
+    function onVisibility() {
+      if (document.visibilityState === "visible") onFocusVisibility();
     }
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocusVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocusVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [threads.length, lastLoadedAt, load]);
+  }, []);
+
+  // Debounced reload when tab gains focus or becomes visible; keep cache to avoid empty flashes
+  useEffect(() => {
+    const stale = Date.now() - (GLOBAL_FORUM_CACHE.lastLoadedAt || 0) > 10000;
+    if (!threads.length || stale) {
+      load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedTick]);
 
   async function handleCreateThread(e) {
     e.preventDefault();

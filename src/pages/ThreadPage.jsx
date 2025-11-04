@@ -33,6 +33,7 @@ export default function ThreadPage() {
   const [votingThread, setVotingThread] = useState(false);
   const [votingComments, setVotingComments] = useState({});
   const composerId = "new-comment";
+  const [focusedTick, setFocusedTick] = useState(0);
 
   async function load() {
     try {
@@ -223,6 +224,29 @@ export default function ThreadPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
+
+  // Refresh when window regains focus or document becomes visible again
+  useEffect(() => {
+    const onFocus = () => setFocusedTick((t) => t + 1);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") setFocusedTick((t) => t + 1);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  // Debounced reload on focus changes (avoids empty flashes during auth refresh)
+  useEffect(() => {
+    // Only reload if we have nothing yet or content is older than 10s
+    if (!thread || !thread.id) {
+      load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedTick]);
 
   const netScore = (u, d) => Number(u || 0) - Number(d || 0) || 0;
 
