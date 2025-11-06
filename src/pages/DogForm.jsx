@@ -7,12 +7,27 @@ import Step4Documents from "../stepComponents/Step4Documents";
 import StepNavigation from "../stepComponents/StepNavigation";
 import "../stepComponents/stepbystepUI.css";
 import "./FindMatchPage.css";
+import { createCache } from "../lib/cache";
+import { getCookie, setCookie, deleteCookie } from "../utils/cookies";
 
 const TOTAL_STEPS = 4;
 
 export default function DogForm({ onSubmitted }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    try {
+      const s = parseInt(getCookie("dogform_step") || "1", 10);
+      return Number.isFinite(s) && s >= 1 && s <= TOTAL_STEPS ? s : 1;
+    } catch {
+      return 1;
+    }
+  });
   const form = useFormData();
+  const formCache = React.useRef(
+    createCache("dog-form", {
+      storage: "localStorage",
+      defaultTTL: 7 * 24 * 60 * 60 * 1000,
+    })
+  );
 
   // Apply modern background style when this component is mounted
   useEffect(() => {
@@ -21,6 +36,39 @@ export default function DogForm({ onSubmitted }) {
       document.body.style.backgroundColor = "";
     };
   }, []);
+
+  // Restore cached form data on mount
+  useEffect(() => {
+    try {
+      const saved = formCache.current.get("data");
+      if (saved && typeof saved === "object") {
+        form.setFormData(saved);
+      }
+    } catch {
+      /* noop */
+    }
+    // Depend on the stable setter only to avoid rerunning every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.setFormData]);
+
+  // Persist step and form data on changes (lightweight)
+  useEffect(() => {
+    try {
+      setCookie("dogform_step", String(step), { days: 7 });
+    } catch {
+      /* noop */
+    }
+  }, [step]);
+
+  useEffect(() => {
+    try {
+      // Avoid storing large File objects; strip filey fields before caching
+      const { photo: _PHOTO, documents: _DOCS, ...rest } = form.data || {};
+      formCache.current.set("data", rest);
+    } catch {
+      /* noop */
+    }
+  }, [form.data]);
 
   const canNext = useMemo(() => {
     switch (step) {
@@ -68,6 +116,12 @@ export default function DogForm({ onSubmitted }) {
 
       form.reset();
       setStep(1);
+      try {
+        formCache.current.delete("data");
+        deleteCookie("dogform_step");
+      } catch {
+        /* noop */
+      }
       onSubmitted?.();
     }
   };

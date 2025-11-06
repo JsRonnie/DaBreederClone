@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
+import { safeGetUser } from "../lib/auth";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
   fetchThreadWithComments,
@@ -10,6 +11,7 @@ import {
   getMyCommentVotes,
 } from "../lib/forum";
 import "./FindMatchPage.css";
+import { getCookie, setCookie } from "../utils/cookies";
 
 export default function ThreadPage() {
   const { id } = useParams();
@@ -29,7 +31,9 @@ export default function ThreadPage() {
     id: null,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [commentSort, setCommentSort] = useState("new"); // best | hot | new | old
+  const [commentSort, setCommentSort] = useState(
+    () => getCookie("thread_comment_sort") || "new"
+  ); // best | hot | new | old
   const [showComposer, setShowComposer] = useState(false);
   const [votingThread, setVotingThread] = useState(false);
   const [votingComments, setVotingComments] = useState({});
@@ -333,9 +337,8 @@ export default function ThreadPage() {
     setPosting(true);
     setError("");
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: userRes } = await safeGetUser();
+      const user = userRes?.user || null;
       if (!user?.id) throw new Error("You must be signed in to comment");
       const { data, error } = await supabase
         .from("comments")
@@ -369,9 +372,8 @@ export default function ThreadPage() {
   async function actuallyDeleteThread() {
     setDeletingThread(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: userRes } = await safeGetUser();
+      const user = userRes?.user || null;
       if (!user?.id) throw new Error("You must be signed in to delete");
       const { error } = await supabase
         .from("threads")
@@ -708,7 +710,15 @@ export default function ThreadPage() {
           Sort by
           <select
             value={commentSort}
-            onChange={(e) => setCommentSort(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCommentSort(val);
+              try {
+                setCookie("thread_comment_sort", val, { days: 60 });
+              } catch (err) {
+                void err;
+              }
+            }}
             className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-white"
           >
             <option value="best">Best</option>

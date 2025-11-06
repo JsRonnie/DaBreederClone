@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
+import { safeGetUser } from "../lib/auth";
 import ConfirmDialog from "./ConfirmDialog";
 import "./DogCard.css";
 import "../pages/FindMatchPage.css";
+import { createCache } from "../lib/cache";
+import { getCookie, setCookie } from "../utils/cookies";
 
 // Lightweight module-level cache so data survives unmount/remounts within the app session.
 // Keyed by userId to keep per-user results separate. We store it on globalThis so
@@ -15,6 +18,12 @@ const GLOBAL_DOG_CACHE = (globalThis.__DB_GLOBAL_DOG_CACHE__ =
 if (typeof globalThis.__DB_DOGS_INVALIDATE_TS__ !== "number") {
   globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
 }
+
+// Persistent cache (localStorage) with TTL for dog lists keyed by userId
+const PERSIST_DOGS = createCache("dogs-cache", {
+  storage: "localStorage",
+  defaultTTL: 15 * 60 * 1000, // 15 minutes
+});
 
 export default function MyDogs({ dogs = [], onAddDog, userId }) {
   const [loading, setLoading] = useState(true);
@@ -68,11 +77,22 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
   // newly-set user id immediately.
   useEffect(() => {
     try {
-      dataCache.current = GLOBAL_DOG_CACHE[uid] || {
-        dogs: [],
-        lastFetch: 0,
-        userId: uid || null,
-      };
+      // Try persistent cache first
+      const persisted = uid ? PERSIST_DOGS.get(uid) : null;
+      if (persisted && Array.isArray(persisted)) {
+        dataCache.current = {
+          dogs: persisted,
+          lastFetch: Date.now(),
+          userId: uid || null,
+        };
+        GLOBAL_DOG_CACHE[uid] = { ...dataCache.current };
+      } else {
+        dataCache.current = GLOBAL_DOG_CACHE[uid] || {
+          dogs: [],
+          lastFetch: 0,
+          userId: uid || null,
+        };
+      }
       if (
         Array.isArray(dataCache.current.dogs) &&
         dataCache.current.dogs.length > 0
@@ -136,10 +156,17 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       try {
         // Prefer an explicit `userId` prop if available; fall back to internal uid.
         let effectiveUserId = userId || uid;
-        // If neither prop nor state provide a uid, try to read it from Supabase auth
+        // If neither prop nor state provide a uid, try cookie then auth
         if (!effectiveUserId) {
+          // Cookie can help restore last user quickly on reloads
+          try {
+            const cookieUid = getCookie("mydogs_user");
+            if (cookieUid) effectiveUserId = cookieUid;
+          } catch {
+            /* noop */
+          }
           console.log("🔍 No uid provided by prop/state, checking auth...");
-          const { data: u, error: uErr } = await supabase.auth.getUser();
+          const { data: u, error: uErr } = await safeGetUser();
           if (uErr) {
             console.warn("Auth getUser error:", uErr);
             // Only treat certain token errors as fatal. Don't clear previously-fetched
@@ -193,6 +220,11 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         }
 
         console.log("📊 Querying dogs for user:", effectiveUserId);
+        try {
+          setCookie("mydogs_user", effectiveUserId, { days: 30 });
+        } catch {
+          /* noop */
+        }
         let { data, error: qErr } = await supabase
           .from("dogs")
           // Select all columns to avoid errors if some optional columns (like image_url) don't exist yet
@@ -200,6 +232,29 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           .eq("user_id", effectiveUserId)
           // Order by id to be robust even if created_at isn't present yet
           .order("id", { ascending: false });
+
+        // If ordering by id fails (column not found), try created_at, then no order
+        if (qErr) {
+          const em = (qErr.message || qErr.details || "").toLowerCase();
+          if (/42703|column|does not exist/.test(em) && /\bid\b/.test(em)) {
+            const alt = await supabase
+              .from("dogs")
+              .select("*")
+              .eq("user_id", effectiveUserId)
+              .order("created_at", { ascending: false });
+            if (!alt.error) {
+              data = alt.data;
+              qErr = null;
+            } else {
+              const alt2 = await supabase
+                .from("dogs")
+                .select("*")
+                .eq("user_id", effectiveUserId);
+              data = alt2.data;
+              qErr = alt2.error;
+            }
+          }
+        }
 
         // Log raw result for debugging when users report empty lists
         console.log(
@@ -216,12 +271,26 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
           const msg = (qErr.message || "").toLowerCase();
           // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
           if (msg.includes("user_id") && msg.includes("does not exist")) {
-            const fallback = await supabase
-              .from("dogs")
-              .select("*")
-              .order("id", { ascending: false });
-            if (fallback.error) throw fallback.error;
-            data = fallback.data;
+            // Try to show all dogs with sensible ordering fallback
+            let fb = await supabase.from("dogs").select("*").order("id", {
+              ascending: false,
+            });
+            if (fb.error) {
+              const em2 = (
+                fb.error.message ||
+                fb.error.details ||
+                ""
+              ).toLowerCase();
+              if (/id/.test(em2)) {
+                const fb2 = await supabase
+                  .from("dogs")
+                  .select("*")
+                  .order("created_at", { ascending: false });
+                fb = fb2.error ? await supabase.from("dogs").select("*") : fb2;
+              }
+            }
+            if (fb.error) throw fb.error;
+            data = fb.data;
             setError(
               "Note: 'user_id' column missing. Showing all dogs. Add a user_id uuid column to filter per-user."
             );
@@ -312,6 +381,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         // Also persist to the module-level cache so remounts can reuse it
         try {
           GLOBAL_DOG_CACHE[effectiveUserId] = { ...dataCache.current };
+          // Persist to localStorage-backed cache for reloads/new tabs
+          PERSIST_DOGS.set(String(effectiveUserId), newDogs);
           // Clear global invalidation on successful refresh
           globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
         } catch (e) {
@@ -400,7 +471,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       console.log("📄 Fetching dog documents...");
       const { data: documents, error: docFetchError } = await supabase
         .from("dog_documents")
-        .select("file_path")
+        // We store storage_path (and file_name) in dog_documents
+        .select("id, storage_path, file_name, category")
         .eq("dog_id", dogId);
 
       if (docFetchError) {
@@ -425,16 +497,35 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         }
       }
 
-      // Delete document files
+      // Delete document files (stored under 'dog-photos' bucket with storage_path)
       if (documents && documents.length > 0) {
-        const docPaths = documents.map((doc) => doc.file_path).filter(Boolean);
+        const docPaths = documents
+          .map((doc) => doc.storage_path || doc.file_path || null) // fallback if older column existed
+          .filter(Boolean);
         if (docPaths.length > 0) {
           console.log(`📋 Deleting ${docPaths.length} documents:`, docPaths);
-          const { error: docDelError } = await supabase.storage
-            .from("documents")
+          let docDelError = null;
+          // Primary bucket where we store both photos and documents
+          const primary = await supabase.storage
+            .from("dog-photos")
             .remove(docPaths);
+          docDelError = primary.error || null;
           if (docDelError) {
-            console.warn("⚠️ Could not delete some documents:", docDelError);
+            const msg = (docDelError.message || "").toLowerCase();
+            // Fallback: some projects may have used a separate 'documents' bucket
+            if (msg.includes("bucket") && msg.includes("not found")) {
+              const fallback = await supabase.storage
+                .from("documents")
+                .remove(docPaths);
+              if (fallback.error) {
+                console.warn(
+                  "⚠️ Could not delete some documents from fallback bucket:",
+                  fallback.error
+                );
+              }
+            } else {
+              console.warn("⚠️ Could not delete some documents:", docDelError);
+            }
           }
         }
       }

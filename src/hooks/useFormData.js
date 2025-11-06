@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import supabase from "../lib/supabaseClient";
+import { safeGetUser } from "../lib/auth";
 
 const initialData = {
   name: "",
@@ -248,8 +249,7 @@ export function useFormData() {
 
       // Attach user_id (requires authenticated session if RLS policies rely on it)
       try {
-        const { data: userResult, error: userError } =
-          await supabase.auth.getUser();
+        const { data: userResult, error: userError } = await safeGetUser();
         console.log("🔐 Auth check result:", { userResult, userError });
         if (userError) {
           throw new Error(
@@ -606,8 +606,8 @@ export function useFormData() {
         console.log("📁 Processing document changes...");
 
         // Get user ID for RLS
-        const { data: user } = await supabase.auth.getUser();
-        const userId = user?.user?.id;
+        const { data: ures } = await safeGetUser();
+        const userId = ures?.user?.id;
 
         if (!userId) {
           throw new Error("User not authenticated for document operations");

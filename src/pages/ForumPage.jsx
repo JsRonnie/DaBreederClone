@@ -8,8 +8,10 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import supabase from "../lib/supabaseClient";
+import { safeGetUser } from "../lib/auth";
 import { fetchThreads, toggleThreadVote } from "../lib/forum";
 import "./FindMatchPage.css";
+import { getCookie, setCookie } from "../utils/cookies";
 
 // Module-level cache to survive unmounts and brief auth revalidations between tab switches
 const GLOBAL_FORUM_CACHE = (globalThis.__DB_GLOBAL_FORUM_CACHE__ =
@@ -45,7 +47,7 @@ export default function ForumPage() {
 
   const canPost = useMemo(() => !!user, [user]);
 
-  const [sort, setSort] = useState("new");
+  const [sort, setSort] = useState(() => getCookie("forum_sort") || "new");
 
   const lastRetryAtRef = useRef(0);
 
@@ -314,9 +316,8 @@ export default function ForumPage() {
     setBusy(true);
     setError("");
     try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+      const { data: sess } = await safeGetUser();
+      const authUser = sess?.user;
       if (!authUser?.id) throw new Error("You must be signed in to post");
       let image_url = null;
       if (postType === "image") {
@@ -517,7 +518,15 @@ export default function ForumPage() {
             Sort by
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSort(val);
+                try {
+                  setCookie("forum_sort", val, { days: 60 });
+                } catch (err) {
+                  void err;
+                }
+              }}
               className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-white"
               aria-label="Sort threads"
             >

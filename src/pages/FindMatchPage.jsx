@@ -6,10 +6,13 @@ import React, {
   useContext,
 } from "react";
 import supabase from "../lib/supabaseClient";
+import { safeGetUser } from "../lib/auth";
 import { calculateMatchScore } from "../utils/matchmaking";
 import { Link, useLocation } from "react-router-dom";
 import "./FindMatchPage.css";
 import { AuthContext } from "../context/AuthContext";
+import { createCache } from "../lib/cache";
+import { getCookie, setCookie } from "../utils/cookies";
 
 // Global cache to avoid empty flashes when auth briefly revalidates on tab switch
 const GLOBAL_FINDMATCH_CACHE = (globalThis.__DB_GLOBAL_FINDMATCH_CACHE__ =
@@ -25,11 +28,18 @@ export default function FindMatchPage() {
   // Debug logger for this page
   const FM_LOG = (...args) => console.log("🔎 [FindMatch]", ...args);
   const MATCHES_TTL = 15 * 60 * 1000; // 15 minutes
+  const matchesCache = useRef(
+    createCache("match-cache", {
+      storage: "sessionStorage",
+      defaultTTL: MATCHES_TTL,
+    })
+  );
 
   const [userDogs, setUserDogs] = useState(
     () => GLOBAL_FINDMATCH_CACHE.userDogs || []
   );
   const [selectedDog, setSelectedDog] = useState(null);
+  const selectedDogIdRef = useRef(null);
   const [potentialMatches, setPotentialMatches] = useState([]);
   // Split loading states so selecting a dog doesn't reload the dog grid/card
   const [dogsLoading, setDogsLoading] = useState(
@@ -83,10 +93,27 @@ export default function FindMatchPage() {
       // Prefer AuthContext user (fast), fall back to supabase.auth.getUser
       let effectiveUserId = authUser?.id || null;
       if (!effectiveUserId) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        effectiveUserId = user?.id || null;
+        const { data } = await safeGetUser();
+        effectiveUserId = data?.user?.id || null;
+      }
+      // Seed from persistent dogs cache if available (from MyDogs)
+      try {
+        if (effectiveUserId) {
+          const persisted = (await import("../lib/cache"))
+            .createCache("dogs-cache", {
+              storage: "localStorage",
+              defaultTTL: MATCHES_TTL,
+            })
+            .get(String(effectiveUserId));
+          if (Array.isArray(persisted) && persisted.length > 0) {
+            FM_LOG("seed from persistent dogs cache", persisted.length);
+            setUserDogs(persisted);
+            GLOBAL_FINDMATCH_CACHE.userDogs = persisted;
+            GLOBAL_FINDMATCH_CACHE.lastFetch = Date.now();
+          }
+        }
+      } catch (err) {
+        void err;
       }
       if (!effectiveUserId) {
         // No user yet. If we have cache, keep it and stop spinner; otherwise wait for auth change.
@@ -132,22 +159,34 @@ export default function FindMatchPage() {
         FM_LOG("seed cache error", e?.message || e);
       }
 
-      // Try minimal columns first; fall back to * if schema differs
-      let query = supabase
-        .from("dogs")
-        .select("id,name,breed,gender,sex,image_url,hidden,user_id")
-        .eq("user_id", effectiveUserId)
-        .order("id", { ascending: false });
-      let { data, error } = await query;
-      if (error && /42703|column|does not exist/i.test(error.message || "")) {
-        FM_LOG("fetchUserDogs: column mismatch, falling back to *");
-        const fb = await supabase
-          .from("dogs")
-          .select("*")
-          .eq("user_id", effectiveUserId)
-          .order("id", { ascending: false });
-        data = fb.data;
-        error = fb.error;
+      // Try minimal columns first; adapt ordering/columns based on schema
+      let data = null;
+      let error = null;
+      async function tryQuery({
+        cols = "*",
+        orderBy = null,
+        withFilter = true,
+      }) {
+        let q = supabase.from("dogs").select(cols);
+        if (withFilter) q = q.eq("user_id", effectiveUserId);
+        if (orderBy) q = q.order(orderBy, { ascending: false });
+        const res = await q;
+        return { data: res.data, error: res.error };
+      }
+      ({ data, error } = await tryQuery({}));
+      // Fallbacks for column/order mismatches
+      if (error) {
+        const em = (error.message || error.details || "").toLowerCase();
+        if (/42703|column|does not exist/.test(em)) {
+          // Already using star select with no order; try gentle ordering fallbacks if needed
+          ({ data, error } = await tryQuery({
+            cols: "*",
+            orderBy: "created_at",
+          }));
+          if (error) {
+            ({ data, error } = await tryQuery({ cols: "*", orderBy: null }));
+          }
+        }
       }
       if (error) {
         FM_LOG("fetchUserDogs: query error", error);
@@ -158,10 +197,28 @@ export default function FindMatchPage() {
         const msg = (error.message || "").toLowerCase();
         // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
         if (msg.includes("user_id") && msg.includes("does not exist")) {
-          const fallback = await supabase
+          // No user_id column: show all dogs, adapt order if needed
+          let fb = await supabase
             .from("dogs")
             .select("*")
             .order("id", { ascending: false });
+          let fallback = fb;
+          if (fb.error) {
+            const em3 = (
+              fb.error.message ||
+              fb.error.details ||
+              ""
+            ).toLowerCase();
+            if (/id/.test(em3)) {
+              const fb2 = await supabase
+                .from("dogs")
+                .select("*")
+                .order("created_at", { ascending: false });
+              fallback = fb2.error
+                ? await supabase.from("dogs").select("*")
+                : fb2;
+            }
+          }
           if (fallback.error) {
             setError(fallback.error.message);
             setDogsLoading(false);
@@ -193,11 +250,33 @@ export default function FindMatchPage() {
         }
       }
       if (requestIdRef.current !== myReq) return;
-      setUserDogs(data || []);
-      GLOBAL_FINDMATCH_CACHE.userDogs = data || [];
+      // Client-side sort to avoid server 400s from unknown columns
+      let list = Array.isArray(data) ? [...data] : [];
+      if (list.length > 1) {
+        const hasId = Object.prototype.hasOwnProperty.call(list[0], "id");
+        const hasCreated = Object.prototype.hasOwnProperty.call(
+          list[0],
+          "created_at"
+        );
+        try {
+          if (hasCreated) {
+            list.sort((a, b) => {
+              const ta = new Date(a.created_at).getTime() || 0;
+              const tb = new Date(b.created_at).getTime() || 0;
+              return tb - ta; // desc
+            });
+          } else if (hasId) {
+            list.sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0));
+          }
+        } catch {
+          // ignore sorting errors and keep original order
+        }
+      }
+      setUserDogs(list);
+      GLOBAL_FINDMATCH_CACHE.userDogs = list;
       GLOBAL_FINDMATCH_CACHE.lastFetch = Date.now();
       FM_LOG("fetchUserDogs: cache updated", {
-        count: (data || []).length,
+        count: list.length,
         lastFetch: GLOBAL_FINDMATCH_CACHE.lastFetch,
       });
       // Clear invalidation after successful refresh
@@ -224,7 +303,42 @@ export default function FindMatchPage() {
           name: savedSelectedDog.name,
         });
         setSelectedDog(savedSelectedDog);
+        selectedDogIdRef.current = savedSelectedDog.id;
+        try {
+          setCookie("findmatch_selected_dog", String(savedSelectedDog.id), {
+            days: 7,
+          });
+        } catch (err) {
+          void err;
+        }
+        // Also restore previously computed matches if provided or cached
+        const stateMatches = location.state?.potentialMatches;
+        if (Array.isArray(stateMatches) && stateMatches.length > 0) {
+          FM_LOG("restore: potentialMatches from state", stateMatches.length);
+          setPotentialMatches(stateMatches);
+          setMatchesLoading(false);
+        } else {
+          try {
+            const cached = matchesCache.current.get(
+              `matches:${savedSelectedDog.id}`
+            );
+            if (Array.isArray(cached) && cached.length > 0) {
+              FM_LOG("restore: potentialMatches from cache", cached.length);
+              setPotentialMatches(cached);
+              setMatchesLoading(false);
+            }
+          } catch (err) {
+            void err;
+          }
+        }
       }
+    }
+    // Try restoring selected dog from cookie on mount
+    try {
+      const sid = getCookie("findmatch_selected_dog");
+      if (sid) selectedDogIdRef.current = sid;
+    } catch (err) {
+      void err;
     }
   }, [location.state, fetchUserDogs]);
 
@@ -235,76 +349,119 @@ export default function FindMatchPage() {
   const handleSelectDog = async (dog) => {
     FM_LOG("selectDog:", { id: dog.id, name: dog.name });
     setSelectedDog(dog);
+    selectedDogIdRef.current = dog.id;
+    try {
+      setCookie("findmatch_selected_dog", String(dog.id), { days: 7 });
+    } catch (err) {
+      void err;
+    }
     setMatchesLoading(true);
     setError(null);
     // Keep existing matches visible during fetch for better UX
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: userRes } = await safeGetUser();
+    const user = userRes?.user || null;
     FM_LOG("matches: fetching for dog", { id: dog.id, userId: user?.id });
 
     // Try a robust query sequence that adapts to schema and RLS
-    async function queryOthers({
-      genderColumn = "gender",
-      includeHiddenFilter = true,
+    function buildQuery({
+      genderField,
+      includeHidden,
+      orderBy,
+      includeUserId,
     }) {
-      let q = supabase
-        .from("dogs")
-        .select("*")
-        .order("id", { ascending: false })
-        .limit(200);
-      // Exclude same gender if column exists
-      if (genderColumn)
-        q = q.neq(
-          genderColumn,
-          dog[genderColumn] || dog.gender || dog.sex || null
-        );
-      // Exclude my own dogs when possible
-      if (user?.id) q = q.neq("user_id", user.id);
+      let q = supabase.from("dogs").select("*").limit(200);
+      if (orderBy) q = q.order(orderBy, { ascending: false });
+      // Exclude same gender if we have both the column and a value on selected dog
+      const genderValue = genderField
+        ? dog[genderField] || dog.gender || dog.sex || null
+        : null;
+      if (genderField && genderValue != null) {
+        q = q.neq(genderField, genderValue);
+      }
+      // Exclude my own dogs when possible (and column exists)
+      if (includeUserId && user?.id) q = q.neq("user_id", user.id);
       // Only show visible/public dogs when possible
-      if (includeHiddenFilter) q = q.eq("hidden", false);
-      return await q;
+      if (includeHidden) q = q.eq("hidden", false);
+      return q;
+    }
+
+    async function runAdaptiveMatchesQuery() {
+      // Start optimistic and then adapt based on specific error messages
+      let opts = {
+        genderField: "gender",
+        includeHidden: true,
+        orderBy: null,
+        includeUserId: true,
+      };
+      for (let i = 0; i < 8; i++) {
+        const res = await buildQuery(opts);
+        const resp = await res;
+        if (!resp.error) return resp;
+        const em = (
+          resp.error.message ||
+          resp.error.details ||
+          ""
+        ).toLowerCase();
+        // Remove hidden filter if column missing
+        if (
+          opts.includeHidden &&
+          /hidden/.test(em) &&
+          /does not exist|42703|column/.test(em)
+        ) {
+          opts.includeHidden = false;
+          continue;
+        }
+        // Switch gender field from gender -> sex -> none
+        if (
+          opts.genderField === "gender" &&
+          /gender/.test(em) &&
+          /does not exist|42703|column/.test(em)
+        ) {
+          opts.genderField = "sex";
+          continue;
+        }
+        if (
+          opts.genderField === "sex" &&
+          /sex/.test(em) &&
+          /does not exist|42703|column/.test(em)
+        ) {
+          opts.genderField = null;
+          continue;
+        }
+        // Drop user_id filter if column missing
+        if (
+          opts.includeUserId &&
+          /user_id/.test(em) &&
+          /does not exist|42703|column/.test(em)
+        ) {
+          opts.includeUserId = false;
+          continue;
+        }
+        // No ordering used initially to avoid 400s from unknown order columns
+        // No known remediation left
+        return resp;
+      }
+      // Fallback: last attempt without any optional filters/order
+      return await buildQuery({
+        genderField: null,
+        includeHidden: false,
+        orderBy: null,
+        includeUserId: false,
+      });
     }
 
     const myReq = ++matchesRequestIdRef.current;
-    let resp = await queryOthers({
-      genderColumn: "gender",
-      includeHiddenFilter: true,
-    });
-    if (resp.error) {
-      const msg = (resp.error.message || "").toLowerCase();
-      FM_LOG("matches: first query error", msg);
-      // If hidden column doesn't exist, try without it
-      if (msg.includes("hidden") && msg.includes("does not exist")) {
-        resp = await queryOthers({
-          genderColumn: "gender",
-          includeHiddenFilter: false,
-        });
-      }
+    // Cache-first: if we have cached matches for this dog, use them
+    const cached = matchesCache.current.get(`matches:${dog.id}`);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      FM_LOG("matches: using cached", cached.length);
+      setPotentialMatches(cached);
+      setMatchesLoading(false);
+      return;
     }
 
-    // If gender column doesn't exist, try 'sex'
-    if (resp.error) {
-      const msg = (resp.error.message || "").toLowerCase();
-      FM_LOG("matches: gender column missing?", msg);
-      if (msg.includes("gender") && msg.includes("does not exist")) {
-        resp = await queryOthers({
-          genderColumn: "sex",
-          includeHiddenFilter: true,
-        });
-        if (resp.error) {
-          const msg2 = (resp.error.message || "").toLowerCase();
-          FM_LOG("matches: sex+hidden error", msg2);
-          if (msg2.includes("hidden") && msg2.includes("does not exist")) {
-            resp = await queryOthers({
-              genderColumn: "sex",
-              includeHiddenFilter: false,
-            });
-          }
-        }
-      }
-    }
+    let resp = await runAdaptiveMatchesQuery();
 
     if (resp.error) {
       const msg = (resp.error.message || "").toLowerCase();
@@ -337,6 +494,11 @@ export default function FindMatchPage() {
     });
     if (matchesRequestIdRef.current === myReq) {
       setPotentialMatches(scoredMatches);
+      try {
+        matchesCache.current.set(`matches:${dog.id}`, scoredMatches);
+      } catch (err) {
+        void err;
+      }
       setMatchesLoading(false);
       FM_LOG("matches: done");
     } else {
