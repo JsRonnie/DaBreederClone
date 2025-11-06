@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Modal from "./Modal";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
@@ -11,6 +12,7 @@ export default function AuthModal({
   onSwitch,
   onAuthSuccess,
 }) {
+  const navigate = useNavigate();
   const isSignUp = mode === "signup";
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1200
@@ -183,43 +185,7 @@ export default function AuthModal({
     return () => sub.subscription.unsubscribe();
   }, [open, onAuthSuccess, onClose]);
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
-    setInfoMsg("");
-    const emailClean = email.trim().toLowerCase();
-    if (!emailClean) {
-      setErrorMsg("Enter your email above, then click Forgot password.");
-      return;
-    }
-    const origin =
-      (import.meta.env && import.meta.env.VITE_SITE_URL) ||
-      (typeof window !== "undefined" ? window.location.origin : "");
-    try {
-      setLoading(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, {
-        redirectTo: origin ? `${origin}/change-password` : undefined,
-      });
-      if (error) throw error;
-      setInfoMsg("Check your email for a password reset link.");
-    } catch (err) {
-      const raw = err?.message || "Couldn't start password reset.";
-      const lc = raw.toLowerCase();
-      let friendly = raw;
-      if (lc.includes("for security reasons") && lc.includes("redirects")) {
-        friendly = `Supabase blocked the redirect URL. In Supabase → Authentication → URL Configuration → Redirect URLs, add ${origin}/change-password (and your dev URL).`;
-      } else if (lc.includes("email provider") && lc.includes("disabled")) {
-        friendly =
-          "Supabase Email provider is disabled. In Supabase → Authentication → Providers → Email, enable Email sign-in and ensure SMTP/system email is configured.";
-      } else if (lc.includes("smtp") || lc.includes("email not sent")) {
-        friendly =
-          "Supabase couldn't send the email. Check Authentication → Email (SMTP) settings or try the default System Email. Also check project email quotas.";
-      }
-      setErrorMsg(friendly);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Deprecated inline reset flow; we now use a dedicated page
 
   return (
     <Modal open={open} onClose={onClose} widthClass="max-w-5xl">
@@ -295,13 +261,21 @@ export default function AuthModal({
                       Password
                     </label>
                     {!isSignUp && (
-                      <a
-                        href="#"
-                        onClick={handleForgotPassword}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Close the auth modal and navigate to the dedicated Forgot Password page
+                          try {
+                            onClose?.();
+                          } finally {
+                            // Defer navigation to ensure modal state updates first
+                            setTimeout(() => navigate("/forgot-password"), 0);
+                          }
+                        }}
                         className="text-xs text-slate-600 hover:text-slate-900"
                       >
-                        forgot password
-                      </a>
+                        Forgot password
+                      </button>
                     )}
                   </div>
                   <div className="relative mt-1">
