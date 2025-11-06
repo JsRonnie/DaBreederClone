@@ -93,13 +93,16 @@ export default function AuthModal({
       }
 
       if (isSignUp) {
+        const origin =
+          (import.meta.env && import.meta.env.VITE_SITE_URL) ||
+          (typeof window !== "undefined" ? window.location.origin : "");
         // Sign up: may require email confirmation, thus session can be null
         const { data, error } = await supabase.auth.signUp({
           email: emailClean,
           password,
           options: {
             data: name ? { name } : undefined,
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: origin || undefined,
           },
         });
         if (error) throw error;
@@ -189,15 +192,30 @@ export default function AuthModal({
       setErrorMsg("Enter your email above, then click Forgot password.");
       return;
     }
+    const origin =
+      (import.meta.env && import.meta.env.VITE_SITE_URL) ||
+      (typeof window !== "undefined" ? window.location.origin : "");
     try {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(emailClean, {
-        redirectTo: `${window.location.origin}/change-password`,
+        redirectTo: origin ? `${origin}/change-password` : undefined,
       });
       if (error) throw error;
       setInfoMsg("Check your email for a password reset link.");
     } catch (err) {
-      setErrorMsg(err?.message || "Couldn't start password reset.");
+      const raw = err?.message || "Couldn't start password reset.";
+      const lc = raw.toLowerCase();
+      let friendly = raw;
+      if (lc.includes("for security reasons") && lc.includes("redirects")) {
+        friendly = `Supabase blocked the redirect URL. In Supabase → Authentication → URL Configuration → Redirect URLs, add ${origin}/change-password (and your dev URL).`;
+      } else if (lc.includes("email provider") && lc.includes("disabled")) {
+        friendly =
+          "Supabase Email provider is disabled. In Supabase → Authentication → Providers → Email, enable Email sign-in and ensure SMTP/system email is configured.";
+      } else if (lc.includes("smtp") || lc.includes("email not sent")) {
+        friendly =
+          "Supabase couldn't send the email. Check Authentication → Email (SMTP) settings or try the default System Email. Also check project email quotas.";
+      }
+      setErrorMsg(friendly);
     } finally {
       setLoading(false);
     }
