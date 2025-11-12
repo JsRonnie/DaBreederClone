@@ -21,10 +21,6 @@ export const DOG_ALLOWED_COLUMNS = [
   "activity_level",
   "sociability",
   "trainability",
-  // Optionally extended fields used in edit forms in some deployments:
-  "ear_type",
-  "tail_type",
-  "muzzle_shape",
 ];
 
 export const DOG_LIST_COLUMNS = [

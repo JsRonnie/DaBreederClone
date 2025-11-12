@@ -106,9 +106,7 @@ export default function DogEditPage() {
               activity_level: dog.activity_level || "",
               sociability: dog.sociability || "",
               trainability: dog.trainability || "",
-              ear_type: dog.ear_type || "",
-              tail_type: dog.tail_type || "",
-              muzzle_shape: dog.muzzle_shape || "",
+
               build: dog.build || "",
               vaccinated: dog.vaccinated || false,
               dna_tested: dog.dna_tested || false,
@@ -137,9 +135,7 @@ export default function DogEditPage() {
               activity_level: dog.activity_level || "",
               sociability: dog.sociability || "",
               trainability: dog.trainability || "",
-              ear_type: dog.ear_type || "",
-              tail_type: dog.tail_type || "",
-              muzzle_shape: dog.muzzle_shape || "",
+
               build: dog.build || "",
               vaccinated: dog.vaccinated || false,
               dna_tested: dog.dna_tested || false,
@@ -169,9 +165,7 @@ export default function DogEditPage() {
             activity_level: dog.activity_level || "",
             sociability: dog.sociability || "",
             trainability: dog.trainability || "",
-            ear_type: dog.ear_type || "",
-            tail_type: dog.tail_type || "",
-            muzzle_shape: dog.muzzle_shape || "",
+
             build: dog.build || "",
             vaccinated: dog.vaccinated || false,
             dna_tested: dog.dna_tested || false,

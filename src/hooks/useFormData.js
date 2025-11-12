@@ -34,9 +34,6 @@ const initialData = {
   activity_level: "",
   sociability: "",
   trainability: "",
-  ear_type: "",
-  tail_type: "",
-  muzzle_shape: "",
   photo: null, // File object for main dog photo
   documents: [], // Array of { file: File, category: string }
 };
