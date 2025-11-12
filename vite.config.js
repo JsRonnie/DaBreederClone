@@ -5,6 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    environment: "jsdom",
+    setupFiles: "src/test/setupTests.js",
+    globals: true,
+    css: true,
+    include: ["src/**/*.{test,spec}.{js,jsx,ts,tsx}"],
+  },
   build: {
     rollupOptions: {
       output: {

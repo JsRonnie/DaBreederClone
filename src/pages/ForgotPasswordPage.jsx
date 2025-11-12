@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import supabase from "../lib/supabaseClient";
+import ErrorMessage from "../components/ErrorMessage";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -36,12 +38,9 @@ export default function ForgotPasswordPage() {
       const origin =
         (import.meta.env && import.meta.env.VITE_SITE_URL) ||
         (typeof window !== "undefined" ? window.location.origin : "");
-      const { error: err } = await supabase.auth.resetPasswordForEmail(
-        emailClean,
-        {
-          redirectTo: origin ? `${origin}/change-password` : undefined,
-        }
-      );
+      const { error: err } = await supabase.auth.resetPasswordForEmail(emailClean, {
+        redirectTo: origin ? `${origin}/change-password` : undefined,
+      });
       if (err) throw err;
       setInfo(
         "If an account exists for that email, we've sent a password reset link. Please check your inbox."
@@ -90,8 +89,7 @@ export default function ForgotPasswordPage() {
       const lc = raw.toLowerCase();
       let friendly = raw;
       if (lc.includes("expired") || lc.includes("invalid")) {
-        friendly =
-          "That code is invalid or expired. Request a new reset email.";
+        friendly = "That code is invalid or expired. Request a new reset email.";
       }
       setError(friendly);
     } finally {
@@ -104,20 +102,13 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Password recovery
-            </h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Password recovery</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Enter your email to receive a one-time recovery code, then paste
-              it below.
+              Enter your email to receive a one-time recovery code, then paste it below.
             </p>
           </div>
 
-          {error && (
-            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-              {error}
-            </div>
-          )}
+          {error && <ErrorMessage message={error} />}
           {info && (
             <div className="mb-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
               {info}
@@ -127,9 +118,7 @@ export default function ForgotPasswordPage() {
           {/* Send code */}
           <form onSubmit={handleSubmit} className="grid gap-4 mb-6">
             <div>
-              <label className="text-sm font-medium text-slate-700">
-                Email address
-              </label>
+              <label className="text-sm font-medium text-slate-700">Email address</label>
               <input
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 type="email"
@@ -144,9 +133,7 @@ export default function ForgotPasswordPage() {
               type="submit"
               disabled={loading}
               className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-white font-medium ${
-                loading
-                  ? "bg-blue-600/60 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                loading ? "bg-blue-600/60 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
               {loading ? "Sending…" : "Send recovery code"}
@@ -156,9 +143,7 @@ export default function ForgotPasswordPage() {
           {/* Verify code */}
           <form onSubmit={handleVerifyCode} className="grid gap-4">
             <div>
-              <label className="text-sm font-medium text-slate-700">
-                One-time code
-              </label>
+              <label className="text-sm font-medium text-slate-700">One-time code</label>
               <input
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={code}
@@ -173,9 +158,7 @@ export default function ForgotPasswordPage() {
               type="submit"
               disabled={verifying}
               className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-white font-medium ${
-                verifying
-                  ? "bg-green-600/60 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
+                verifying ? "bg-green-600/60 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
               }`}
             >
               {verifying ? "Verifying…" : "Verify code & continue"}
@@ -183,8 +166,12 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="mt-6 flex items-center justify-between text-sm">
-            <Link to="/" className="text-slate-600 hover:text-slate-900">
-              ← Back to home
+            <Link
+              to="/"
+              className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-2"
+            >
+              <FaArrowLeft />
+              <span>Back to home</span>
             </Link>
             <Link to="/" className="text-blue-600 hover:underline">
               Remembered it? Sign in

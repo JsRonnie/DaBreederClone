@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 export default function Footer() {
   return (
@@ -10,12 +10,13 @@ export default function Footer() {
             <span className="text-blue-400">Da</span>
             <span>Breeder</span>
           </div>
-          
+
           {/* Description */}
           <p className="text-slate-300 text-base leading-relaxed max-w-2xl">
-            Connecting responsible dog breeders through advanced genetic matching, health record verification, and community support.
+            Connecting responsible dog breeders through advanced genetic matching, health record
+            verification, and community support.
           </p>
-          
+
           {/* Copyright */}
           <div className="pt-6 border-t border-slate-700 w-full">
             <p className="text-slate-400 text-sm">
@@ -25,5 +26,5 @@ export default function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

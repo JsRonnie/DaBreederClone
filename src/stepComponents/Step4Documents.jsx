@@ -1,10 +1,6 @@
 import React, { useRef } from "react";
 
-export default function Step4Documents({
-  data,
-  updateDocuments,
-  removeDocument,
-}) {
+export default function Step4Documents({ data, updateDocuments, removeDocument }) {
   const vaccinationRef = useRef(null);
   const pedigreeRef = useRef(null);
   const dnaRef = useRef(null);
@@ -28,8 +24,7 @@ export default function Step4Documents({
         "text/plain",
         "text/rtf",
       ];
-      const validExtensions =
-        /\.(jpg|jpeg|png|gif|bmp|webp|pdf|doc|docx|txt|rtf)$/i;
+      const validExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|pdf|doc|docx|txt|rtf)$/i;
       const maxSize = 10 * 1024 * 1024; // 10MB
 
       if (file.size > maxSize) {
@@ -64,15 +59,13 @@ export default function Step4Documents({
 
   // Component for single file upload (Primary Certifications)
   const SingleDocumentUploadSection = ({ title, category, inputRef }) => {
-    const categoryFiles =
-      data.documents?.filter((f) => f.category === category) || [];
+    const categoryFiles = data.documents?.filter((f) => f.category === category) || [];
 
     // For single file categories, we should only have one file maximum
     // If there are multiple files due to data inconsistency, take only the first one
     const hasFile = categoryFiles.length > 0;
     const currentFile = hasFile ? categoryFiles[0] : null;
-    const fileName =
-      currentFile?.file?.name || currentFile?.name || "Unknown file";
+    const fileName = currentFile?.file?.name || currentFile?.name || "Unknown file";
 
     const handleSingleFileUpload = (filesList) => {
       if (filesList.length > 0) {
@@ -84,8 +77,7 @@ export default function Step4Documents({
     return (
       <div className="field">
         <label>
-          {title}{" "}
-          <span className="single-file-indicator">(Single file only)</span>
+          {title} <span className="single-file-indicator">(Single file only)</span>
         </label>
         <div className="documents-preview">
           {hasFile ? (
@@ -171,16 +163,12 @@ export default function Step4Documents({
 
   // Component for multiple file upload (Additional Health Tests)
   const MultipleDocumentUploadSection = ({ title, category, inputRef }) => {
-    const categoryFiles =
-      data.documents?.filter((f) => f.category === category) || [];
+    const categoryFiles = data.documents?.filter((f) => f.category === category) || [];
 
     return (
       <div className="field">
         <label>
-          {title}{" "}
-          <span className="multiple-file-indicator">
-            (Multiple files allowed)
-          </span>
+          {title} <span className="multiple-file-indicator">(Multiple files allowed)</span>
         </label>
         <div className="documents-preview">
           {categoryFiles.length > 0 ? (
@@ -188,10 +176,7 @@ export default function Step4Documents({
               {categoryFiles.map((f, index) => {
                 const fileName = f.file?.name || f.name || "Unknown file";
                 return (
-                  <div
-                    key={`${category}-${fileName}-${index}`}
-                    className="document-item has-file"
-                  >
+                  <div key={`${category}-${fileName}-${index}`} className="document-item has-file">
                     <div className="document-info">
                       <svg
                         className="document-icon"
@@ -285,10 +270,7 @@ export default function Step4Documents({
 
   // Check if any documents are required
   const hasAnyDocuments =
-    data.vaccinated ||
-    data.pedigree_certified ||
-    data.dna_tested ||
-    hasAdditionalHealthTests;
+    data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests;
 
   return (
     <div className="step step-4">
@@ -297,11 +279,7 @@ export default function Step4Documents({
       {!hasAnyDocuments ? (
         <div className="no-documents-message">
           <div className="no-docs-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="document-icon"
-            >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="document-icon">
               <path
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 stroke="currentColor"
@@ -314,23 +292,19 @@ export default function Step4Documents({
           </div>
           <h4>No Documents Required</h4>
           <p>
-            Based on your health certification selections, no document uploads
-            are required at this time. You can proceed to submit your dog's
-            profile.
+            Based on your health certification selections, no document uploads are required at this
+            time. You can proceed to submit your dog's profile.
           </p>
           <div className="no-docs-tip">
-            <strong>Tip:</strong> If you want to upload documents, go back to
-            the Health & Verification step and select the relevant
-            certifications (Pedigree Certified, DNA Tested, Vaccinated, or
-            Additional Health Tests).
+            <strong>Tip:</strong> If you want to upload documents, go back to the Health &
+            Verification step and select the relevant certifications (Pedigree Certified, DNA
+            Tested, Vaccinated, or Additional Health Tests).
           </div>
         </div>
       ) : (
         <>
           <div className="documents-categories">
-            {(data.vaccinated ||
-              data.pedigree_certified ||
-              data.dna_tested) && (
+            {(data.vaccinated || data.pedigree_certified || data.dna_tested) && (
               <div className="primary-certifications">
                 <h4 className="category-title">Primary Certifications</h4>
                 <p className="category-description">
@@ -369,12 +343,9 @@ export default function Step4Documents({
             {/* Show Additional Health Tests only if any are checked */}
             {hasAdditionalHealthTests && (
               <div className="additional-health-tests">
-                <h4 className="category-title">
-                  Additional Health Tests (Optional)
-                </h4>
+                <h4 className="category-title">Additional Health Tests (Optional)</h4>
                 <p className="category-description">
-                  Multiple documents can be uploaded for comprehensive health
-                  records
+                  Multiple documents can be uploaded for comprehensive health records
                 </p>
 
                 <MultipleDocumentUploadSection
@@ -387,8 +358,7 @@ export default function Step4Documents({
           </div>
 
           <small className="upload-note">
-            <strong>Accepted formats:</strong> PDF, JPG, PNG, DOC, DOCX, TXT,
-            RTF
+            <strong>Accepted formats:</strong> PDF, JPG, PNG, DOC, DOCX, TXT, RTF
             <br />
             <strong>Max file size:</strong> 10MB per file
             <br />

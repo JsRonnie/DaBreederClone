@@ -26,8 +26,7 @@ export default function AuthProvider({ children }) {
       avatarUrl:
         meta.avatar_url ||
         meta.avatarUrl ||
-        "https://api.dicebear.com/9.x/initials/svg?seed=" +
-          encodeURIComponent(user.email || "U"),
+        "https://api.dicebear.com/9.x/initials/svg?seed=" + encodeURIComponent(user.email || "U"),
     };
   };
 
@@ -39,8 +38,7 @@ export default function AuthProvider({ children }) {
         globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
       const existing = GLOBAL[userId];
       // If we have a recent entry (15m), skip
-      if (existing && Date.now() - (existing.lastFetch || 0) < 15 * 60 * 1000)
-        return;
+      if (existing && Date.now() - (existing.lastFetch || 0) < 15 * 60 * 1000) return;
       const { data, error } = await supabase
         .from("dogs")
         .select("id,name,breed,gender,sex,image_url,hidden,user_id")
@@ -149,28 +147,26 @@ export default function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted || !initialLoadDone) return;
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted || !initialLoadDone) return;
 
-        const appUser = toAppUser(session);
-        if (appUser) {
-          setUser(appUser);
-          // Only upsert on sign in, not on token refresh
-          if (event === "SIGNED_IN") {
-            await upsertUserProfile(supabase, session.user);
-            // Warm the dog cache on sign-in
-            try {
-              prefetchUserDogs(appUser.id);
-            } catch {
-              /* noop */
-            }
+      const appUser = toAppUser(session);
+      if (appUser) {
+        setUser(appUser);
+        // Only upsert on sign in, not on token refresh
+        if (event === "SIGNED_IN") {
+          await upsertUserProfile(supabase, session.user);
+          // Warm the dog cache on sign-in
+          try {
+            prefetchUserDogs(appUser.id);
+          } catch {
+            /* noop */
           }
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
         }
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
       }
-    );
+    });
 
     return () => {
       mounted = false;

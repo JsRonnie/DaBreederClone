@@ -46,8 +46,7 @@ export default function useDogProfile(dogId) {
         setDog(dogRow);
         // Prefer image_url if it's a full URL; otherwise just leave null and let UI show placeholder
         const url =
-          typeof dogRow.image_url === "string" &&
-          dogRow.image_url.startsWith("http")
+          typeof dogRow.image_url === "string" && dogRow.image_url.startsWith("http")
             ? dogRow.image_url
             : null;
         setPhotoUrl(url);

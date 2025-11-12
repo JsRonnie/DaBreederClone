@@ -92,9 +92,7 @@ export default function ChangePasswordPage() {
     return (
       <div className="max-w-md mx-auto p-6">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">
-            Set a new password
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Set a new password</h1>
           {message && (
             <div
               className={`mb-4 p-4 rounded-md ${
@@ -108,10 +106,7 @@ export default function ChangePasswordPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label
-                htmlFor="newPassword"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
                 New Password
               </label>
               <input
@@ -119,9 +114,7 @@ export default function ChangePasswordPage() {
                 id="newPassword"
                 name="newPassword"
                 value={passwords.newPassword}
-                onChange={(e) =>
-                  setPasswords((p) => ({ ...p, newPassword: e.target.value }))
-                }
+                onChange={(e) => setPasswords((p) => ({ ...p, newPassword: e.target.value }))}
                 required
                 minLength={8}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -171,9 +164,7 @@ export default function ChangePasswordPage() {
   return (
     <div className="max-w-md mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Change Password
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Change Password</h1>
 
         {message && (
           <div
@@ -189,10 +180,7 @@ export default function ChangePasswordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label
-              htmlFor="newPassword"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
               New Password
             </label>
             <input
@@ -247,12 +235,8 @@ export default function ChangePasswordPage() {
         </form>
 
         <div className="mt-6 p-4 bg-gray-50 rounded-md">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
-            Password Requirements:
-          </h3>
-          <pre className="text-sm text-gray-600 whitespace-pre-wrap">
-            {passwordPolicyNote}
-          </pre>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">Password Requirements:</h3>
+          <pre className="text-sm text-gray-600 whitespace-pre-wrap">{passwordPolicyNote}</pre>
         </div>
       </div>
     </div>

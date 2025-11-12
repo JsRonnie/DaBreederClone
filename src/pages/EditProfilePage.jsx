@@ -65,9 +65,7 @@ export default function EditProfilePage() {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Edit Profile
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h1>
           <p className="text-gray-600">Please sign in to edit your profile.</p>
         </div>
       </div>
@@ -93,10 +91,7 @@ export default function EditProfilePage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label
-              htmlFor="full_name"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
               Full Name
             </label>
             <input
@@ -111,10 +106,7 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email
             </label>
             <input
@@ -132,10 +124,7 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
               Phone Number
             </label>
             <input
@@ -150,10 +139,7 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="location"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
               Location
             </label>
             <input
@@ -168,10 +154,7 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="bio"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
               Bio
             </label>
             <textarea

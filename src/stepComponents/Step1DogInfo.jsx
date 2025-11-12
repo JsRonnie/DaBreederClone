@@ -221,6 +221,7 @@ export default function Step1DogInfo({
   updateField,
   updatePhoto,
   currentPhotoUrl,
+  errors = {},
 }) {
   const [breedSearch, setBreedSearch] = useState("");
   const [showBreedDropdown, setShowBreedDropdown] = useState(false);
@@ -235,10 +236,7 @@ export default function Step1DogInfo({
   // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        breedContainerRef.current &&
-        !breedContainerRef.current.contains(event.target)
-      ) {
+      if (breedContainerRef.current && !breedContainerRef.current.contains(event.target)) {
         setShowBreedDropdown(false);
         setBreedSearch("");
       }
@@ -269,7 +267,9 @@ export default function Step1DogInfo({
   return (
     <div className="step step-1">
       <div className="field">
-        <label htmlFor="dog-name">Dog Name</label>
+        <label htmlFor="dog-name">
+          Dog Name {errors.name && <span style={{ color: "#ef4444" }}>*</span>}
+        </label>
         <input
           id="dog-name"
           type="text"
@@ -278,10 +278,13 @@ export default function Step1DogInfo({
           onChange={(e) => updateField("name", e.target.value)}
           placeholder="Enter dog name"
         />
+        {/* Suppress required notification; red * on label indicates required */}
       </div>
 
       <div className="field">
-        <label htmlFor="dog-gender">Gender</label>
+        <label htmlFor="dog-gender">
+          Gender {errors.gender && <span style={{ color: "#ef4444" }}>*</span>}
+        </label>
         <select
           id="dog-gender"
           className="select-input"
@@ -292,48 +295,39 @@ export default function Step1DogInfo({
           <option value="male">Male</option>
           <option value="female">Female</option>
         </select>
+        {/* Suppress required notification; red * on label indicates required */}
       </div>
 
       <div className="field">
-        <label htmlFor="dog-age">Age (years)</label>
+        <label htmlFor="dog-age-years">
+          Age (Years){errors.age_years && <span style={{ color: "#ef4444" }}> *</span>}
+        </label>
         <input
-          id="dog-age"
+          id="dog-age-years"
           type="number"
-          min="0"
-          max="25"
-          step="0.1"
+          min="2"
+          max="7"
+          step="1"
           className="text-input"
-          value={data.age || ""}
+          value={data.age_years || ""}
           onChange={(e) => {
-            const value = e.target.value;
-            // Allow empty value
-            if (value === "") {
-              updateField("age", "");
-              return;
-            }
-            // Convert to number and validate
-            const numValue = parseFloat(value);
-            if (!isNaN(numValue) && numValue >= 0 && numValue <= 25) {
-              updateField("age", value);
-            }
-            // If invalid, don't update the field (keeps previous valid value)
+            const v = e.target.value;
+            if (v === "") return updateField("age_years", "");
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 2 && n <= 7) updateField("age_years", String(n));
           }}
-          placeholder="Enter age in years (max 25)"
+          placeholder="Enter dog age"
         />
-        <small
-          style={{
-            color: "#6b7280",
-            fontSize: "0.75rem",
-            display: "block",
-            marginTop: "0.25rem",
-          }}
-        >
-          Maximum age allowed is 25 years
-        </small>
+        {/* Show only non-required validation messages (e.g., range/format) */}
+        {errors.age_years && !/required/i.test(errors.age_years) && (
+          <div className="field-error">{errors.age_years}</div>
+        )}
       </div>
 
       <div className="field">
-        <label htmlFor="dog-breed">Breed</label>
+        <label htmlFor="dog-breed">
+          Breed {errors.breed && <span style={{ color: "#ef4444" }}>*</span>}
+        </label>
         <div className="breed-input-container" ref={breedContainerRef}>
           <input
             id="dog-breed"
@@ -375,19 +369,17 @@ export default function Step1DogInfo({
                   ))}
                   {filteredBreeds.length > 10 && (
                     <div className="breed-more-results">
-                      ... and {filteredBreeds.length - 10} more results. Keep
-                      typing to narrow down.
+                      ... and {filteredBreeds.length - 10} more results. Keep typing to narrow down.
                     </div>
                   )}
                 </>
               ) : (
-                <div className="breed-no-results">
-                  No breeds found matching "{breedSearch}"
-                </div>
+                <div className="breed-no-results">No breeds found matching "{breedSearch}"</div>
               )}
             </div>
           )}
         </div>
+        {/* Suppress required notification; red * on label indicates required */}
       </div>
 
       {/* Enhanced Photo Upload Section */}
@@ -404,23 +396,13 @@ export default function Step1DogInfo({
                     alt="New dog photo preview"
                     className="photo-thumbnail"
                   />
-                  <span className="document-filename">
-                    {data.photo.name} (New)
-                  </span>
+                  <span className="document-filename">{data.photo.name} (New)</span>
                 </div>
                 <div className="document-buttons">
-                  <button
-                    type="button"
-                    className="add-more-btn"
-                    onClick={handlePhotoButtonClick}
-                  >
+                  <button type="button" className="add-more-btn" onClick={handlePhotoButtonClick}>
                     Change Photo
                   </button>
-                  <button
-                    type="button"
-                    className="remove-document-btn"
-                    onClick={handlePhotoRemove}
-                  >
+                  <button type="button" className="remove-document-btn" onClick={handlePhotoRemove}>
                     Remove
                   </button>
                 </div>
@@ -431,19 +413,11 @@ export default function Step1DogInfo({
             <div className="documents-preview">
               <div className="document-item">
                 <div className="document-info">
-                  <img
-                    src={currentPhotoUrl}
-                    alt="Current dog photo"
-                    className="photo-thumbnail"
-                  />
+                  <img src={currentPhotoUrl} alt="Current dog photo" className="photo-thumbnail" />
                   <span className="document-filename">Current Photo</span>
                 </div>
                 <div className="document-buttons">
-                  <button
-                    type="button"
-                    className="add-more-btn"
-                    onClick={handlePhotoButtonClick}
-                  >
+                  <button type="button" className="add-more-btn" onClick={handlePhotoButtonClick}>
                     Change Photo
                   </button>
                 </div>
@@ -467,11 +441,7 @@ export default function Step1DogInfo({
                   <span className="document-filename">No photo uploaded</span>
                 </div>
                 <div className="document-buttons">
-                  <button
-                    type="button"
-                    className="add-more-btn"
-                    onClick={handlePhotoButtonClick}
-                  >
+                  <button type="button" className="add-more-btn" onClick={handlePhotoButtonClick}>
                     Add Photo
                   </button>
                 </div>

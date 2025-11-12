@@ -6,13 +6,11 @@ export default function AboutUs() {
       <div className="mx-auto max-w-6xl px-6">
         {/* Hero Section */}
         <div className="text-center mb-20">
-          <h2 className="text-5xl font-light text-gray-900 mb-6">
-            About DaBreeder
-          </h2>
+          <h2 className="text-5xl font-light text-gray-900 mb-6">About DaBreeder</h2>
           <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto mb-8"></div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Promoting ethical dog breeding in the Philippines through
-            transparency, technology, and community
+            Promoting ethical dog breeding in the Philippines through transparency, technology, and
+            community
           </p>
         </div>
 
@@ -34,17 +32,15 @@ export default function AboutUs() {
                 />
               </svg>
             </div>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-              Our Mission
-            </h3>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-4">Our Mission</h3>
             <p className="text-gray-700 leading-relaxed text-lg">
-              DaBreeder is a platform designed to promote ethical dog breeding
-              in the Philippines by helping breeders and pet owners find
-              genetically compatible, healthy, and responsibly raised dogs.
+              DaBreeder is a platform designed to promote ethical dog breeding in the Philippines by
+              helping breeders and pet owners find genetically compatible, healthy, and responsibly
+              raised dogs.
             </p>
             <p className="text-gray-700 leading-relaxed text-lg mt-4">
-              We aim to create a safe, transparent, and collaborative
-              environment where breeders and owners can connect with confidence.
+              We aim to create a safe, transparent, and collaborative environment where breeders and
+              owners can connect with confidence.
             </p>
           </div>
 
@@ -69,14 +65,11 @@ export default function AboutUs() {
                 />
               </svg>
             </div>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-              Our Vision
-            </h3>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-4">Our Vision</h3>
             <p className="text-gray-700 leading-relaxed text-lg">
-              To build the most trusted digital hub for dog breeders and
-              enthusiasts — where healthy breeding practices, responsible
-              ownership, and genetic matching are the foundation of every
-              connection.
+              To build the most trusted digital hub for dog breeders and enthusiasts — where healthy
+              breeding practices, responsible ownership, and genetic matching are the foundation of
+              every connection.
             </p>
           </div>
         </div>
@@ -84,9 +77,7 @@ export default function AboutUs() {
         {/* Core Values */}
         <div className="mb-20">
           <div className="text-center mb-16">
-            <h3 className="text-4xl font-light text-gray-900 mb-6">
-              Our Core Values
-            </h3>
+            <h3 className="text-4xl font-light text-gray-900 mb-6">Our Core Values</h3>
             <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto"></div>
           </div>
 
@@ -112,9 +103,7 @@ export default function AboutUs() {
                   />
                 </svg>
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Transparency
-              </h4>
+              <h4 className="text-xl font-semibold text-gray-900 mb-3">Transparency</h4>
               <p className="text-gray-600 leading-relaxed text-sm">
                 Verified records build trust between breeders and owners.
               </p>
@@ -136,9 +125,7 @@ export default function AboutUs() {
                   />
                 </svg>
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Community
-              </h4>
+              <h4 className="text-xl font-semibold text-gray-900 mb-3">Community</h4>
               <p className="text-gray-600 leading-relaxed text-sm">
                 A strong breeder network creates a safer breeding ecosystem.
               </p>
@@ -160,9 +147,7 @@ export default function AboutUs() {
                   />
                 </svg>
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Innovation
-              </h4>
+              <h4 className="text-xl font-semibold text-gray-900 mb-3">Innovation</h4>
               <p className="text-gray-600 leading-relaxed text-sm">
                 We use technology to solve real-world animal welfare issues.
               </p>
@@ -184,12 +169,10 @@ export default function AboutUs() {
                   />
                 </svg>
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Quality First
-              </h4>
+              <h4 className="text-xl font-semibold text-gray-900 mb-3">Quality First</h4>
               <p className="text-gray-600 leading-relaxed text-sm">
-                Every breeder is verified through health certifications and
-                responsible breeding practices.
+                Every breeder is verified through health certifications and responsible breeding
+                practices.
               </p>
             </div>
           </div>

@@ -1,11 +1,7 @@
 import React, { useRef } from "react";
 import "../stepComponents/stepbystepUI.css";
 
-export default function DocumentManager({
-  data,
-  updateDocuments,
-  removeDocument,
-}) {
+export default function DocumentManager({ data, updateDocuments, removeDocument }) {
   const vaccinationRef = useRef(null);
   const pedigreeRef = useRef(null);
   const dnaRef = useRef(null);
@@ -29,8 +25,7 @@ export default function DocumentManager({
         "text/plain",
         "text/rtf",
       ];
-      const validExtensions =
-        /\.(jpg|jpeg|png|gif|bmp|webp|pdf|doc|docx|txt|rtf)$/i;
+      const validExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|pdf|doc|docx|txt|rtf)$/i;
       const maxSize = 10 * 1024 * 1024; // 10MB
 
       if (file.size > maxSize) {
@@ -65,15 +60,13 @@ export default function DocumentManager({
 
   // Component for single file upload (Primary Certifications)
   const SingleDocumentUploadSection = ({ title, category, inputRef }) => {
-    const categoryFiles =
-      data.documents?.filter((f) => f.category === category) || [];
+    const categoryFiles = data.documents?.filter((f) => f.category === category) || [];
 
     // For single file categories, we should only have one file maximum
     // If there are multiple files due to data inconsistency, take only the first one
     const hasFile = categoryFiles.length > 0;
     const currentFile = hasFile ? categoryFiles[0] : null;
-    const fileName =
-      currentFile?.file?.name || currentFile?.name || "Unknown file";
+    const fileName = currentFile?.file?.name || currentFile?.name || "Unknown file";
 
     console.log(`📄 Single file section for ${category}:`, {
       hasFile,
@@ -89,10 +82,7 @@ export default function DocumentManager({
 
     const handleSingleFileUpload = (filesList) => {
       if (filesList.length > 0) {
-        console.log(
-          `🔄 Single file upload for ${category}:`,
-          filesList[0].name
-        );
+        console.log(`🔄 Single file upload for ${category}:`, filesList[0].name);
         // The updateDocuments function now handles single-file replacement automatically
         handleFiles([filesList[0]], category); // Only take the first file
       }
@@ -101,8 +91,7 @@ export default function DocumentManager({
     return (
       <div className="field">
         <label>
-          {title}{" "}
-          <span className="single-file-indicator">(Single file only)</span>
+          {title} <span className="single-file-indicator">(Single file only)</span>
         </label>
         <div className="documents-preview">
           {hasFile ? (
@@ -136,9 +125,7 @@ export default function DocumentManager({
                     type="button"
                     className="remove-document-btn"
                     onClick={() => {
-                      console.log(
-                        `🗑️ Remove button clicked for: ${fileName} in ${category}`
-                      );
+                      console.log(`🗑️ Remove button clicked for: ${fileName} in ${category}`);
                       removeDocument(fileName, category);
                     }}
                   >
@@ -193,16 +180,12 @@ export default function DocumentManager({
 
   // Component for multiple file upload (Additional Health Tests)
   const MultipleDocumentUploadSection = ({ title, category, inputRef }) => {
-    const categoryFiles =
-      data.documents?.filter((f) => f.category === category) || [];
+    const categoryFiles = data.documents?.filter((f) => f.category === category) || [];
 
     return (
       <div className="field">
         <label>
-          {title}{" "}
-          <span className="multiple-file-indicator">
-            (Multiple files allowed)
-          </span>
+          {title} <span className="multiple-file-indicator">(Multiple files allowed)</span>
         </label>
         <div className="documents-preview">
           {categoryFiles.length > 0 ? (
@@ -210,10 +193,7 @@ export default function DocumentManager({
               {categoryFiles.map((f, index) => {
                 const fileName = f.file?.name || f.name || "Unknown file";
                 return (
-                  <div
-                    key={`${category}-${fileName}-${index}`}
-                    className="document-item has-file"
-                  >
+                  <div key={`${category}-${fileName}-${index}`} className="document-item has-file">
                     <div className="document-info">
                       <svg
                         className="document-icon"
@@ -312,10 +292,7 @@ export default function DocumentManager({
 
   // Check if any documents are required
   const hasAnyDocuments =
-    data.vaccinated ||
-    data.pedigree_certified ||
-    data.dna_tested ||
-    hasAdditionalHealthTests;
+    data.vaccinated || data.pedigree_certified || data.dna_tested || hasAdditionalHealthTests;
 
   return (
     <div className="step step-4">
@@ -337,8 +314,7 @@ export default function DocumentManager({
             </svg>
           </div>
           <p className="text-gray-500 text-center">
-            No certifications selected. Check the boxes above to enable document
-            uploads.
+            No certifications selected. Check the boxes above to enable document uploads.
           </p>
         </div>
       ) : (
@@ -348,9 +324,7 @@ export default function DocumentManager({
             <div className="document-category primary-certifications">
               <h4 className="category-title">
                 Primary Certifications
-                <span className="category-description">
-                  (Single file per certification)
-                </span>
+                <span className="category-description">(Single file per certification)</span>
               </h4>
               <div className="category-fields">
                 {data.vaccinated && (
@@ -383,9 +357,7 @@ export default function DocumentManager({
             <div className="document-category health-tests">
               <h4 className="category-title">
                 Additional Health Tests (Optional)
-                <span className="category-description">
-                  (Multiple files allowed per test type)
-                </span>
+                <span className="category-description">(Multiple files allowed per test type)</span>
               </h4>
               <div className="category-fields">
                 {(data.hip_elbow_tested ||

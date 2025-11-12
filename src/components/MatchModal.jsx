@@ -1,13 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-export default function MatchModal({
-  isOpen,
-  onClose,
-  selectedDog,
-  matches,
-  loading,
-}) {
+export default function MatchModal({ isOpen, onClose, selectedDog, matches, loading }) {
   if (!isOpen) return null;
 
   return (
@@ -22,12 +16,7 @@ export default function MatchModal({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -45,9 +34,7 @@ export default function MatchModal({
             </div>
           ) : matches.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-600">
-                No compatible matches found at this time.
-              </p>
+              <p className="text-gray-600">No compatible matches found at this time.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -75,9 +62,7 @@ export default function MatchModal({
                   </div>
 
                   <div className="p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">
-                      {match.name}
-                    </h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">{match.name}</h3>
                     <div className="text-sm text-gray-600 space-y-1 mb-4">
                       <p>{match.breed}</p>
                       <p>

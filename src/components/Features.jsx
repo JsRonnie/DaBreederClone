@@ -74,8 +74,7 @@ export default function Features() {
           </h2>
           <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto mb-8"></div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Simple tools that make finding the right breeding partner easy,
-            safe, and successful
+            Simple tools that make finding the right breeding partner easy, safe, and successful
           </p>
         </div>
 
@@ -96,12 +95,8 @@ export default function Features() {
                 </span>
               </div>
 
-              <h3 className="text-2xl font-medium text-gray-900 mb-4">
-                {feature.title}
-              </h3>
-              <p className="text-gray-600 leading-relaxed flex-grow">
-                {feature.desc}
-              </p>
+              <h3 className="text-2xl font-medium text-gray-900 mb-4">{feature.title}</h3>
+              <p className="text-gray-600 leading-relaxed flex-grow">{feature.desc}</p>
             </div>
           ))}
         </div>

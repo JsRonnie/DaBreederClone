@@ -4,13 +4,7 @@ import { Link } from "react-router-dom";
 function NavItem({ icon, label, onClick, active, danger, disabled, to }) {
   const baseClasses = `w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors ${
     disabled ? "text-slate-400 cursor-not-allowed" : "hover:bg-slate-100"
-  } ${
-    danger
-      ? "text-rose-600 hover:text-rose-700"
-      : active
-      ? "text-slate-900"
-      : "text-slate-700"
-  }`;
+  } ${danger ? "text-rose-600 hover:text-rose-700" : active ? "text-slate-900" : "text-slate-700"}`;
 
   if (to && !disabled) {
     return (
@@ -92,10 +86,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
                 </div>
                 <div className="font-medium text-slate-900">{user.name}</div>
                 {user.id && (
-                  <div
-                    className="text-[10px] text-slate-500 mt-0.5"
-                    title={user.id}
-                  >
+                  <div className="text-[10px] text-slate-500 mt-0.5" title={user.id}>
                     ID: {String(user.id).slice(0, 8)}…
                   </div>
                 )}
@@ -107,12 +98,8 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
                 ?
               </div>
               <div>
-                <div className="font-medium text-slate-900">
-                  You are signed out
-                </div>
-                <p className="text-slate-600">
-                  Please sign in to access your dashboard.
-                </p>
+                <div className="font-medium text-slate-900">You are signed out</div>
+                <p className="text-slate-600">Please sign in to access your dashboard.</p>
               </div>
             </div>
           )}
@@ -121,9 +108,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 
         {/* Main */}
         <div className="px-4">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
-            Main
-          </div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Main</div>
           <nav className="grid gap-1">
             <NavItem
               label="My Dogs"
@@ -177,12 +162,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
         <div className="mt-auto px-4 pb-6 absolute bottom-0 left-0 right-0">
           <NavItem label="Help" icon={<HelpIcon />} />
           {loggedIn ? (
-            <NavItem
-              label="Logout Account"
-              icon={<LogoutIcon />}
-              danger
-              onClick={onLogout}
-            />
+            <NavItem label="Logout Account" icon={<LogoutIcon />} danger onClick={onLogout} />
           ) : (
             <p className="text-xs text-slate-500 px-3 py-2">
               Sign in from the top bar to unlock all features.
@@ -197,13 +177,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 // Icons (inline SVGs to avoid extra deps)
 function UserIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <circle cx="12" cy="7" r="3.5" />
       <path strokeLinecap="round" d="M4 20a8 8 0 0 1 16 0" />
     </svg>
@@ -211,13 +185,7 @@ function UserIcon() {
 }
 function ChatIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -229,13 +197,7 @@ function ChatIcon() {
 
 function CogIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -248,26 +210,14 @@ function CogIcon() {
 }
 function ChevronDownIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
     </svg>
   );
 }
 function HelpIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <circle cx="12" cy="12" r="9" />
       <path
         strokeLinecap="round"
@@ -279,13 +229,7 @@ function HelpIcon() {
 }
 function LogoutIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -302,13 +246,7 @@ function LogoutIcon() {
 
 function HeartIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -320,32 +258,16 @@ function HeartIcon() {
 
 function PasswordIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M7 11V7a5 5 0 0 1 10 0v4"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   );
 }
 
 function PlusIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <circle cx="12" cy="12" r="9" opacity=".15" />
       <path strokeLinecap="round" d="M12 7v10M7 12h10" />
     </svg>
@@ -354,13 +276,7 @@ function PlusIcon() {
 
 function PawIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="size-5"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <ellipse cx="9" cy="7" rx="1.5" ry="2" />
       <ellipse cx="15" cy="7" rx="1.5" ry="2" />
       <ellipse cx="6" cy="11" rx="1.5" ry="2" />

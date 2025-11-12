@@ -7,16 +7,12 @@ import Step2Health from "../stepComponents/Step2Health";
 import Step3Traits from "../stepComponents/Step3Traits";
 import DocumentManager from "../components/DocumentManager";
 import supabase from "../lib/supabaseClient";
+import { listDogDocuments, mapDogDocumentsToForm, removeDocumentsByIds } from "../lib/dogDocuments";
 
 export default function DogEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    dog,
-    photoUrl,
-    loading: profileLoading,
-    error: profileError,
-  } = useDogProfile(id);
+  const { dog, photoUrl, loading: profileLoading, error: profileError } = useDogProfile(id);
   const form = useFormData();
   const [initializing, setInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,74 +88,10 @@ export default function DogEditPage() {
       // Fetch initial documents and populate form
       const fetchInitialDocuments = async () => {
         try {
-          const { data: docs, error } = await supabase
-            .from("dog_documents")
-            .select("*")
-            .eq("dog_id", id);
-
-          if (!error && docs) {
+          const docs = await listDogDocuments(id);
+          if (docs) {
             setInitialDocuments(docs);
-
-            // Convert database documents to form format
-            // For Primary Certifications (single file only), take only the first document per category
-            // For Additional Health Tests (multiple files allowed), take all documents
-            const primaryCertificationCategories = [
-              "pedigree",
-              "dna",
-              "vaccination",
-            ];
-            const categorizedDocs = {};
-
-            // Group documents by category
-            docs.forEach((doc) => {
-              const category = doc.category || "misc";
-              if (!categorizedDocs[category]) {
-                categorizedDocs[category] = [];
-              }
-              categorizedDocs[category].push(doc);
-            });
-
-            // Process documents according to their category constraints
-            const formDocuments = [];
-            Object.entries(categorizedDocs).forEach(
-              ([category, categoryDocs]) => {
-                if (primaryCertificationCategories.includes(category)) {
-                  // For primary certifications, only take the first (most recent) document
-                  // Sort by ID descending to get the most recent
-                  const sortedDocs = categoryDocs.sort((a, b) => b.id - a.id);
-                  const doc = sortedDocs[0];
-                  formDocuments.push({
-                    name: doc.file_name,
-                    category: category,
-                    storage_path: doc.storage_path,
-                    file_size_bytes: doc.file_size_bytes,
-                    content_type: doc.content_type,
-                    isExisting: true,
-                  });
-
-                  // Log if there were multiple files for single-file category
-                  if (categoryDocs.length > 1) {
-                    console.warn(
-                      `Multiple files found for single-file category '${category}'. Using most recent file:`,
-                      doc.file_name
-                    );
-                  }
-                } else {
-                  // For health tests and other categories, take all documents
-                  categoryDocs.forEach((doc) => {
-                    formDocuments.push({
-                      name: doc.file_name,
-                      category: category,
-                      storage_path: doc.storage_path,
-                      file_size_bytes: doc.file_size_bytes,
-                      content_type: doc.content_type,
-                      isExisting: true,
-                    });
-                  });
-                }
-              }
-            );
-
+            const formDocuments = mapDogDocumentsToForm(docs);
             // Use setFormData to populate all fields at once including existing documents
             form.setFormData({
               name: dog.name || "",
@@ -274,36 +206,15 @@ export default function DogEditPage() {
               .eq("dog_id", id);
 
             if (!error && currentDocs) {
-              const initialDocIds = new Set(
-                initialDocuments.map((doc) => doc.id)
-              );
-              const newDocs = currentDocs.filter(
-                (doc) => !initialDocIds.has(doc.id)
-              );
+              const initialDocIds = new Set(initialDocuments.map((doc) => doc.id));
+              const newDocs = currentDocs.filter((doc) => !initialDocIds.has(doc.id));
 
               if (newDocs.length > 0) {
-                console.log(
-                  "🗑️ Cleanup on unmount - removing unsaved documents:",
-                  newDocs.length
-                );
-
-                for (const doc of newDocs) {
-                  try {
-                    await supabase.storage
-                      .from("documents")
-                      .remove([doc.file_path]);
-
-                    await supabase
-                      .from("dog_documents")
-                      .delete()
-                      .eq("id", doc.id);
-                  } catch (deleteError) {
-                    console.warn(
-                      "Failed to cleanup document on unmount:",
-                      doc.file_name,
-                      deleteError
-                    );
-                  }
+                console.log("🗑️ Cleanup on unmount - removing unsaved documents:", newDocs.length);
+                try {
+                  await removeDocumentsByIds(newDocs.map((d) => d.id));
+                } catch (err) {
+                  console.warn("Failed batch cleanup on unmount:", err);
                 }
               }
             }
@@ -347,20 +258,13 @@ export default function DogEditPage() {
         }
 
         // Combine existing documents and new documents from form
-        const existingCategories = new Set(
-          existingDocs?.map((doc) => doc.category) || []
-        );
+        const existingCategories = new Set(existingDocs?.map((doc) => doc.category) || []);
         const newDocumentCategories = new Set(
           form.data.documents?.map((doc) => doc.category) || []
         );
-        const allCategories = new Set([
-          ...existingCategories,
-          ...newDocumentCategories,
-        ]);
+        const allCategories = new Set([...existingCategories, ...newDocumentCategories]);
 
-        const missingCategories = requiredCategories.filter(
-          (cat) => !allCategories.has(cat)
-        );
+        const missingCategories = requiredCategories.filter((cat) => !allCategories.has(cat));
 
         if (missingCategories.length > 0) {
           const categoryNames = {
@@ -369,9 +273,7 @@ export default function DogEditPage() {
             dna: "DNA Test Results",
             health: "Health Certificates",
           };
-          const missingNames = missingCategories
-            .map((cat) => categoryNames[cat])
-            .join(", ");
+          const missingNames = missingCategories.map((cat) => categoryNames[cat]).join(", ");
           throw new Error(`Please upload documents for: ${missingNames}`);
         }
       }
@@ -387,13 +289,8 @@ export default function DogEditPage() {
         console.log("✅ Dog profile updated successfully");
 
         // Update initial documents to current state to prevent cleanup
-        const { data: updatedDocs } = await supabase
-          .from("dog_documents")
-          .select("*")
-          .eq("dog_id", id);
-        if (updatedDocs) {
-          setInitialDocuments(updatedDocs);
-        }
+        const updatedDocs = await listDogDocuments(id);
+        if (updatedDocs) setInitialDocuments(updatedDocs);
 
         setUploadProgress(100); // All done
         setSaveSuccess(true);
@@ -409,10 +306,7 @@ export default function DogEditPage() {
     } catch (error) {
       console.error("❌ Failed to save changes:", error);
       setUploadProgress(0);
-      showToastMessage(
-        `Failed to update dog profile: ${error.message}`,
-        "error"
-      );
+      showToastMessage(`Failed to update dog profile: ${error.message}`, "error");
       // Don't navigate on error, let user see the error and try again
     } finally {
       // Only set saving to false after success message is shown
@@ -442,22 +336,10 @@ export default function DogEditPage() {
 
         if (newDocs.length > 0) {
           console.log("🗑️ Cleaning up unsaved documents:", newDocs.length);
-
-          // Delete new documents from storage and database
-          for (const doc of newDocs) {
-            try {
-              // Delete from storage
-              await supabase.storage.from("documents").remove([doc.file_path]);
-
-              // Delete from database
-              await supabase.from("dog_documents").delete().eq("id", doc.id);
-            } catch (deleteError) {
-              console.warn(
-                "Failed to cleanup document:",
-                doc.file_name,
-                deleteError
-              );
-            }
+          try {
+            await removeDocumentsByIds(newDocs.map((d) => d.id));
+          } catch (err) {
+            console.warn("Failed batch cleanup:", err);
           }
         }
       }
@@ -498,12 +380,8 @@ export default function DogEditPage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Profile Not Found
-          </h1>
-          <p className="text-gray-600 mb-6">
-            The dog profile you're trying to edit doesn't exist.
-          </p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h1>
+          <p className="text-gray-600 mb-6">The dog profile you're trying to edit doesn't exist.</p>
           <button
             onClick={() => navigate("/my-dog")}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -527,12 +405,7 @@ export default function DogEditPage() {
                   onClick={handleCancel}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -542,12 +415,8 @@ export default function DogEditPage() {
                   </svg>
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Edit {dog.name}'s Profile
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    Update your dog's information
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900">Edit {dog.name}'s Profile</h1>
+                  <p className="text-sm text-gray-500">Update your dog's information</p>
                 </div>
               </div>
             </div>
@@ -559,9 +428,7 @@ export default function DogEditPage() {
           {/* Basic Information & Photo */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Basic Information & Photo
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Basic Information & Photo</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Update your dog's basic details and profile photo
               </p>
@@ -594,18 +461,11 @@ export default function DogEditPage() {
           {/* Health & Verification */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Health & Verification
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Update health records and certifications
-              </p>
+              <h2 className="text-lg font-semibold text-gray-900">Health & Verification</h2>
+              <p className="text-sm text-gray-500 mt-1">Update health records and certifications</p>
             </div>
             <div className="px-6 py-6">
-              <Step2Health
-                data={form.data}
-                updateCheckbox={form.updateCheckbox}
-              />
+              <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
 
               {/* Conditional Documents Section */}
               {(form.data.vaccinated ||
@@ -618,12 +478,9 @@ export default function DogEditPage() {
                 form.data.thyroid_tested) && (
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <div className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Required Documents
-                    </h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Required Documents</h3>
                     <p className="text-sm text-gray-500">
-                      Please upload the following documents for the
-                      certifications you've checked:
+                      Please upload the following documents for the certifications you've checked:
                     </p>
                     <div className="mt-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <div className="flex">
@@ -639,8 +496,7 @@ export default function DogEditPage() {
                           />
                         </svg>
                         <span>
-                          Documents are required for checked certifications
-                          before saving.
+                          Documents are required for checked certifications before saving.
                         </span>
                       </div>
                     </div>
@@ -678,14 +534,9 @@ export default function DogEditPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">
-                  Changes saved successfully!
-                </h3>
+                <h3 className="text-sm font-medium text-green-800">Changes saved successfully!</h3>
                 <div className="mt-2 text-sm text-green-700">
-                  <p>
-                    Your dog's profile has been updated and all files have been
-                    uploaded.
-                  </p>
+                  <p>Your dog's profile has been updated and all files have been uploaded.</p>
                 </div>
               </div>
             </div>
@@ -712,9 +563,7 @@ export default function DogEditPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                  Error saving changes
-                </h3>
+                <h3 className="text-sm font-medium text-red-800">Error saving changes</h3>
                 <div className="mt-2 text-sm text-red-700">
                   <p>{form.error.message || "An unexpected error occurred"}</p>
                 </div>
@@ -734,10 +583,10 @@ export default function DogEditPage() {
                     {uploadProgress < 30
                       ? "Validating..."
                       : uploadProgress < 80
-                      ? "Updating profile..."
-                      : uploadProgress < 100
-                      ? "Uploading files..."
-                      : "Finalizing..."}
+                        ? "Updating profile..."
+                        : uploadProgress < 100
+                          ? "Uploading files..."
+                          : "Finalizing..."}
                   </span>
                   <span>{uploadProgress}%</span>
                 </div>

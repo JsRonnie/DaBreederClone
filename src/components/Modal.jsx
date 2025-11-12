@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export default function Modal({
-  open,
-  onClose,
-  children,
-  widthClass = "max-w-3xl",
-}) {
+export default function Modal({ open, onClose, children, widthClass = "max-w-3xl" }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef(null);
@@ -55,8 +50,7 @@ export default function Modal({
           const prevTabIndex = main.getAttribute("tabindex");
           if (!prevTabIndex) main.setAttribute("tabindex", "-1");
           main.focus();
-          if (!prevTabIndex)
-            setTimeout(() => main.removeAttribute("tabindex"), 0);
+          if (!prevTabIndex) setTimeout(() => main.removeAttribute("tabindex"), 0);
         }
       }
     }
@@ -65,12 +59,7 @@ export default function Modal({
   if (!isVisible) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className={`fixed inset-0 z-50`}
-      aria-hidden={!open}
-      inert={!open}
-    >
+    <div ref={containerRef} className={`fixed inset-0 z-50`} aria-hidden={!open} inert={!open}>
       <div
         className={`absolute inset-0 bg-black/40 backdrop-blur-md transition-all duration-300 ease-in-out ${
           isAnimating ? "opacity-100" : "opacity-0"
@@ -80,9 +69,7 @@ export default function Modal({
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
           className={`w-full ${widthClass} bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden transform transition-all duration-300 ease-in-out ${
-            isAnimating
-              ? "scale-100 opacity-100 translate-y-0"
-              : "scale-95 opacity-0 translate-y-4"
+            isAnimating ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-4"
           }`}
           role="dialog"
         >

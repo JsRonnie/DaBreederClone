@@ -63,10 +63,7 @@ export default function useDogDocuments(dogId) {
       }
 
       // Delete from database
-      const { error: dbError } = await supabase
-        .from("dog_documents")
-        .delete()
-        .eq("id", documentId);
+      const { error: dbError } = await supabase.from("dog_documents").delete().eq("id", documentId);
 
       if (dbError) throw dbError;
 

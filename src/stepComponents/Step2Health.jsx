@@ -34,9 +34,7 @@ export default function Step2Health({ data, updateCheckbox }) {
 
       {/* Optional Additional Health Tests */}
       <div className="check-block">
-        <h4 className="check-section-title">
-          Additional Health Tests (Optional)
-        </h4>
+        <h4 className="check-section-title">Additional Health Tests (Optional)</h4>
         <label className="check-item">
           <input
             type="checkbox"

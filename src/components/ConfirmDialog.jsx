@@ -33,11 +33,7 @@ export default function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[90]">
       {/* Backdrop: subtle darken, no heavy blur */}
-      <div
-        className="absolute inset-0 bg-black/10"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black/10" onClick={onClose} aria-hidden="true" />
 
       {/* Centered modal */}
       <div className="relative z-[91] flex min-h-full items-center justify-center p-4">
@@ -51,12 +47,7 @@ export default function ConfirmDialog({
             className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
             onClick={onClose}
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -67,13 +58,9 @@ export default function ConfirmDialog({
           </button>
 
           {/* Content */}
-          <h3 className="text-base font-semibold text-slate-900 pr-6">
-            {title}
-          </h3>
+          <h3 className="text-base font-semibold text-slate-900 pr-6">{title}</h3>
           {message ? (
-            <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">
-              {message}
-            </p>
+            <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">{message}</p>
           ) : null}
 
           {/* Actions */}

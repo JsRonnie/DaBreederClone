@@ -137,18 +137,20 @@
 
 .gender-pill.male {
   color: #2563eb; /* blue */
-  background: rgba(37,99,235,0.08);
+  background: rgba(37, 99, 235, 0.08);
 }
 .gender-pill.female {
   color: #db2777; /* pink */
-  background: rgba(219,39,119,0.08);
+  background: rgba(219, 39, 119, 0.08);
 }
 .gender-pill.unknown {
   color: #64748b;
-  background: rgba(99,115,129,0.06);
+  background: rgba(99, 115, 129, 0.06);
 }
 
-.gender-icon { display: none; }
+.gender-icon {
+  display: none;
+}
 
 .capitalize {
   text-transform: capitalize;

@@ -23,9 +23,7 @@ export default function HomePage() {
     } else {
       // This will be handled by the parent Layout component's auth modal
       // For now, we'll just trigger the auth modal in the parent
-      window.dispatchEvent(
-        new CustomEvent("openAuthModal", { detail: { mode: "signup" } })
-      );
+      window.dispatchEvent(new CustomEvent("openAuthModal", { detail: { mode: "signup" } }));
     }
   };
 

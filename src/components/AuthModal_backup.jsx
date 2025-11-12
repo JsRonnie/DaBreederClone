@@ -3,13 +3,7 @@ import Modal from "./Modal";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
 
-export default function AuthModal({
-  open,
-  mode = "signin",
-  onClose,
-  onSwitch,
-  onAuthSuccess,
-}) {
+export default function AuthModal({ open, mode = "signin", onClose, onSwitch, onAuthSuccess }) {
   const isSignUp = mode === "signup";
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1200
@@ -57,8 +51,7 @@ export default function AuthModal({
       avatarUrl:
         meta.avatar_url ||
         meta.avatarUrl ||
-        "https://api.dicebear.com/9.x/initials/svg?seed=" +
-          encodeURIComponent(user.email || "U"),
+        "https://api.dicebear.com/9.x/initials/svg?seed=" + encodeURIComponent(user.email || "U"),
     };
   }
 
@@ -98,9 +91,7 @@ export default function AuthModal({
 
         if (!data.session) {
           // Email confirmation required
-          setInfoMsg(
-            "Check your email to confirm your account before logging in."
-          );
+          setInfoMsg("Check your email to confirm your account before logging in.");
           return;
         }
 
@@ -117,8 +108,7 @@ export default function AuthModal({
           password,
         });
         if (error) throw error;
-        if (!data.session)
-          throw new Error("Login failed: no session returned.");
+        if (!data.session) throw new Error("Login failed: no session returned.");
 
         const appUser = toAppUser(data.session);
         if (appUser) {
@@ -168,18 +158,13 @@ export default function AuthModal({
       const origin =
         (import.meta.env && import.meta.env.VITE_SITE_URL) ||
         (typeof window !== "undefined" ? window.location.origin : "");
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        forgotPasswordEmail,
-        {
-          redirectTo: origin ? `${origin}/change-password` : undefined,
-        }
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: origin ? `${origin}/change-password` : undefined,
+      });
 
       if (error) throw error;
 
-      setInfoMsg(
-        "Password reset email sent! Please check your inbox and follow the instructions."
-      );
+      setInfoMsg("Password reset email sent! Please check your inbox and follow the instructions.");
       setForgotPasswordEmail("");
     } catch (error) {
       console.error("Error sending password reset email:", error);
@@ -224,12 +209,9 @@ export default function AuthModal({
 
               {showForgotPassword && !isSignUp && (
                 <div className="text-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    Reset Password
-                  </h3>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Reset Password</h3>
                   <p className="text-sm text-slate-600">
-                    Enter your email address and we'll send you a link to reset
-                    your password.
+                    Enter your email address and we'll send you a link to reset your password.
                   </p>
                 </div>
               )}
@@ -239,17 +221,13 @@ export default function AuthModal({
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!loading && !forgotPasswordLoading) {
-                    showForgotPassword && !isSignUp
-                      ? handleForgotPassword(e)
-                      : handlePrimary();
+                    showForgotPassword && !isSignUp ? handleForgotPassword(e) : handlePrimary();
                   }
                 }}
               >
                 {showForgotPassword && !isSignUp ? (
                   <div>
-                    <label className="text-sm font-medium text-slate-700">
-                      Email Address
-                    </label>
+                    <label className="text-sm font-medium text-slate-700">Email Address</label>
                     <input
                       className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter your email"
@@ -263,9 +241,7 @@ export default function AuthModal({
                   <React.Fragment>
                     {isSignUp && (
                       <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Name
-                        </label>
+                        <label className="text-sm font-medium text-slate-700">Name</label>
                         <input
                           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Enter your name"
@@ -275,9 +251,7 @@ export default function AuthModal({
                       </div>
                     )}
                     <div>
-                      <label className="text-sm font-medium text-slate-700">
-                        Email address
-                      </label>
+                      <label className="text-sm font-medium text-slate-700">Email address</label>
                       <input
                         className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter your email"
@@ -289,9 +263,7 @@ export default function AuthModal({
                     </div>
                     <div>
                       <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium text-slate-700">
-                          Password
-                        </label>
+                        <label className="text-sm font-medium text-slate-700">Password</label>
                         {!isSignUp && (
                           <button
                             type="button"
@@ -312,17 +284,13 @@ export default function AuthModal({
                           type={showPassword ? "text" : "password"}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          autoComplete={
-                            isSignUp ? "new-password" : "current-password"
-                          }
+                          autoComplete={isSignUp ? "new-password" : "current-password"}
                         />
                         <button
                           type="button"
                           className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-slate-400 hover:text-slate-600 transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
-                          aria-label={
-                            showPassword ? "Hide password" : "Show password"
-                          }
+                          aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                           {showPassword ? (
                             <svg
@@ -366,8 +334,7 @@ export default function AuthModal({
 
                 {isSignUp && !showForgotPassword && (
                   <label className="mt-1 flex items-center gap-2 text-xs text-slate-600">
-                    <input type="checkbox" className="size-4 accent-blue-600" />
-                    I agree to the{" "}
+                    <input type="checkbox" className="size-4 accent-blue-600" />I agree to the{" "}
                     <a href="#" className="underline">
                       terms & policy
                     </a>
@@ -399,12 +366,12 @@ export default function AuthModal({
                       ? "Sending…"
                       : "Send Reset Email"
                     : loading
-                    ? isSignUp
-                      ? "Signing up…"
-                      : "Logging in…"
-                    : isSignUp
-                    ? "Signup"
-                    : "Login"}
+                      ? isSignUp
+                        ? "Signing up…"
+                        : "Logging in…"
+                      : isSignUp
+                        ? "Signup"
+                        : "Login"}
                 </button>
 
                 {showForgotPassword && !isSignUp && (

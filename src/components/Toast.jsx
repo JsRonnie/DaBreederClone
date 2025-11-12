@@ -12,10 +12,7 @@ export default function Toast() {
       if (!message) return;
       setToast({ message, type });
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(
-        () => setToast(null),
-        detail.duration || 3500
-      );
+      timerRef.current = setTimeout(() => setToast(null), detail.duration || 3500);
     }
     window.addEventListener("toast", onToast);
     return () => {
@@ -30,10 +27,10 @@ export default function Toast() {
     toast.type === "success"
       ? "bg-emerald-600"
       : toast.type === "error"
-      ? "bg-rose-600"
-      : toast.type === "warning"
-      ? "bg-amber-600"
-      : "bg-slate-800";
+        ? "bg-rose-600"
+        : toast.type === "warning"
+          ? "bg-amber-600"
+          : "bg-slate-800";
 
   return (
     <div

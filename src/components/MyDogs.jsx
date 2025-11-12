@@ -1,644 +1,88 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
-import { safeGetUser } from "../lib/auth";
+import { removeAllDocumentsForDog } from "../lib/dogDocuments";
 import ConfirmDialog from "./ConfirmDialog";
 import "./DogCard.css";
 import "../pages/FindMatchPage.css";
-import { createCache } from "../lib/cache";
-import { getCookie, setCookie } from "../utils/cookies";
+import useDogs from "../hooks/useDogs";
+import LoadingState from "./LoadingState";
+import ErrorMessage from "./ErrorMessage";
 
-// Lightweight module-level cache so data survives unmount/remounts within the app session.
-// Keyed by userId to keep per-user results separate. We store it on globalThis so
-// it persists across HMR / module reloads during development and is not reinitialized
-// on every import.
-const GLOBAL_DOG_CACHE = (globalThis.__DB_GLOBAL_DOG_CACHE__ =
-  globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
-// Global invalidation timestamp; when set (> lastFetch), MyDogs will refresh once
-if (typeof globalThis.__DB_DOGS_INVALIDATE_TS__ !== "number") {
-  globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
-}
+// Component now relies on central useDogs hook for data, caching, and invalidation.
 
-// Persistent cache (localStorage) with TTL for dog lists keyed by userId
-const PERSIST_DOGS = createCache("dogs-cache", {
-  storage: "localStorage",
-  defaultTTL: 15 * 60 * 1000, // 15 minutes
-});
-
-export default function MyDogs({ dogs = [], onAddDog, userId }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  // Initialize from module cache so remounting the component shows data immediately
-  const [mine, setMine] = useState(() => {
-    try {
-      return (GLOBAL_DOG_CACHE[userId] && GLOBAL_DOG_CACHE[userId].dogs) || [];
-    } catch {
-      return [];
-    }
-  });
-  const [uid, setUid] = useState(userId || null);
-  const [forceRefresh, setForceRefresh] = useState(0);
-  // Removed focus-based auto refresh to avoid unwanted reloads when navigating back
-
-  // Confirmation dialog state
+export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
+  const { dogs, loading, error, refetch, setDogs } = useDogs({ userId });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     dogId: null,
     dogName: "",
   });
 
-  // Keep internal uid in sync with prop
-  useEffect(() => {
-    setUid(userId || null);
-  }, [userId]);
-
-  // Function to force refresh data (useful after adding a dog)
-  // Removed unused refreshData function to fix compile error
-
-  const displayDogs = useMemo(() => {
-    if (dogs.length > 0) return dogs;
-    return mine;
-  }, [dogs, mine]);
-
-  // Use a ref to track if we're currently loading to prevent multiple simultaneous loads
-  const loadingRef = useRef(false);
-  // Use a ref so we can mutate without triggering re-renders. Initialize from the
-  // module-level cache (if present) so that unmounting the component doesn't lose
-  // already-fetched dog lists when the user navigates away and back.
-  const dataCache = useRef(
-    GLOBAL_DOG_CACHE[userId] || {
-      dogs: [],
-      lastFetch: 0,
-      userId: userId || null,
-    }
+  // If parent passes explicit dogs list, prefer it (e.g., for testing scenarios)
+  const displayDogs = useMemo(
+    () =>
+      overrideDogs.length
+        ? overrideDogs
+        : dogs.map((d) => ({
+            ...d,
+            age: d.age_years != null ? `${d.age_years} years` : "—",
+          })),
+    [overrideDogs, dogs]
   );
 
-  // Keep dataCache in sync when uid changes so we reuse cached results for the
-  // newly-set user id immediately.
-  useEffect(() => {
-    try {
-      // Try persistent cache first
-      const persisted = uid ? PERSIST_DOGS.get(uid) : null;
-      if (persisted && Array.isArray(persisted)) {
-        dataCache.current = {
-          dogs: persisted,
-          lastFetch: Date.now(),
-          userId: uid || null,
-        };
-        GLOBAL_DOG_CACHE[uid] = { ...dataCache.current };
-      } else {
-        dataCache.current = GLOBAL_DOG_CACHE[uid] || {
-          dogs: [],
-          lastFetch: 0,
-          userId: uid || null,
-        };
-      }
-      if (
-        Array.isArray(dataCache.current.dogs) &&
-        dataCache.current.dogs.length > 0
-      ) {
-        setMine(dataCache.current.dogs);
-      }
-    } catch {
-      // ignore
-    }
-  }, [uid]);
+  const showDeleteConfirmation = useCallback((dogId, dogName) => {
+    setConfirmDialog({ isOpen: true, dogId, dogName });
+  }, []);
+  const closeDeleteConfirmation = useCallback(() => {
+    setConfirmDialog({ isOpen: false, dogId: null, dogName: "" });
+  }, []);
 
-  const requestIdRef = useRef(0);
-
-  useEffect(() => {
-    async function load() {
-      // Each invocation gets a unique request id; only the latest one is allowed to commit results.
-      const myReqId = ++requestIdRef.current;
-      // Prevent multiple simultaneous loads. If another load is in progress,
-      // wait (poll) up to 2s for it to finish and then re-check. This avoids
-      // starting overlapping queries that can race and clear state.
-      if (loadingRef.current) {
-        console.log("� Load already in progress, waiting for it to finish...");
-        const start = Date.now();
-        while (loadingRef.current && Date.now() - start < 2000) {
-          await new Promise((r) => setTimeout(r, 100));
-        }
-        // If the prior load completed, proceed with this load (it will become the latest request).
-      }
-
-      console.log("�🐕 MyDogs: Starting load...", {
-        uid,
-        cacheLastFetch: dataCache.current.lastFetch,
-        cacheLength: dataCache.current.dogs.length,
-        forceRefresh,
-      });
-
-      const now = Date.now();
-      const timeSinceLastFetch = now - dataCache.current.lastFetch;
-      const desiredUserId = userId || uid;
-      const invalidateTs = Number(globalThis.__DB_DOGS_INVALIDATE_TS__ || 0);
-
-      // Check cache - if we have recent data for the same user, use it
-      if (
-        dataCache.current.userId === desiredUserId &&
-        timeSinceLastFetch < 15 * 60 * 1000 && // extend cache tolerance to 15 minutes
-        forceRefresh === 0 &&
-        invalidateTs <= (dataCache.current.lastFetch || 0) &&
-        (dataCache.current.dogs.length > 0 || dataCache.current.lastFetch > 0)
-      ) {
-        console.log("🔄 Using cached data");
-        if (requestIdRef.current === myReqId) {
-          setMine(dataCache.current.dogs);
-          setLoading(false);
-        }
-        return;
-      }
-
-      loadingRef.current = true;
-      setLoading(true);
-      setError("");
-      try {
-        // Prefer an explicit `userId` prop if available; fall back to internal uid.
-        let effectiveUserId = userId || uid;
-        // If neither prop nor state provide a uid, try cookie then auth
-        if (!effectiveUserId) {
-          // Cookie can help restore last user quickly on reloads
-          try {
-            const cookieUid = getCookie("mydogs_user");
-            if (cookieUid) effectiveUserId = cookieUid;
-          } catch {
-            /* noop */
-          }
-          console.log("🔍 No uid provided by prop/state, checking auth...");
-          const { data: u, error: uErr } = await safeGetUser();
-          if (uErr) {
-            console.warn("Auth getUser error:", uErr);
-            // Only treat certain token errors as fatal. Don't clear previously-fetched
-            // data here — that can cause the UI to empty when the auth system is
-            // briefly revalidating tokens (e.g. after a background tab switch).
-            const msg = (uErr.message || "").toLowerCase();
-            if (
-              msg.includes("invalid refresh token") ||
-              msg.includes("refresh token not found")
-            ) {
-              try {
-                // Best-effort cleanup of any stale session
-                await supabase.auth.signOut();
-              } catch (sErr) {
-                console.warn("Failed to sign out during token cleanup:", sErr);
-              }
-              setError("Session expired. Please sign in again.");
-              // do not aggressively clear cache here — just set loading false and bail
-              setLoading(false);
-              loadingRef.current = false;
-              return;
-            }
-            // For other auth/getUser errors, continue and allow fallback to provided uid (if any)
-            // but surface a warning.
-          }
-          effectiveUserId = u?.user?.id || null;
-          // Only update internal uid when a prop wasn't explicitly provided.
-          if (!userId) setUid(effectiveUserId);
-          console.log("👤 Got user ID from auth:", effectiveUserId);
-        }
-        if (!effectiveUserId) {
-          console.log("❌ No user ID available");
-          // If there's cached data for a previous user session, keep showing it briefly
-          // instead of immediately clearing the UI. But we still stop further querying.
-          if (requestIdRef.current === myReqId) {
-            const cached = dataCache.current?.dogs || [];
-            if (cached.length > 0) {
-              setMine(cached);
-            } else {
-              setMine([]);
-            }
-            // update module cache as well
-            GLOBAL_DOG_CACHE[effectiveUserId] = {
-              dogs: dataCache.current?.dogs || [],
-              lastFetch: dataCache.current?.lastFetch || now,
-              userId: effectiveUserId,
-            };
-            setLoading(false);
-          }
-          return;
-        }
-
-        console.log("📊 Querying dogs for user:", effectiveUserId);
-        try {
-          setCookie("mydogs_user", effectiveUserId, { days: 30 });
-        } catch {
-          /* noop */
-        }
-        let { data, error: qErr } = await supabase
-          .from("dogs")
-          // Select all columns to avoid errors if some optional columns (like image_url) don't exist yet
-          .select("*")
-          .eq("user_id", effectiveUserId)
-          // Order by id to be robust even if created_at isn't present yet
-          .order("id", { ascending: false });
-
-        // If ordering by id fails (column not found), try created_at, then no order
-        if (qErr) {
-          const em = (qErr.message || qErr.details || "").toLowerCase();
-          if (/42703|column|does not exist/.test(em) && /\bid\b/.test(em)) {
-            const alt = await supabase
-              .from("dogs")
-              .select("*")
-              .eq("user_id", effectiveUserId)
-              .order("created_at", { ascending: false });
-            if (!alt.error) {
-              data = alt.data;
-              qErr = null;
-            } else {
-              const alt2 = await supabase
-                .from("dogs")
-                .select("*")
-                .eq("user_id", effectiveUserId);
-              data = alt2.data;
-              qErr = alt2.error;
-            }
-          }
-        }
-
-        // Log raw result for debugging when users report empty lists
-        console.log(
-          "📈 Query completed. raw data (typeof):",
-          typeof data,
-          Array.isArray(data),
-          "len:",
-          data?.length,
-          data,
-          "error:",
-          qErr
-        );
-        if (qErr) {
-          const msg = (qErr.message || "").toLowerCase();
-          // If user_id column doesn't exist, fall back to showing all dogs (dev-friendly)
-          if (msg.includes("user_id") && msg.includes("does not exist")) {
-            // Try to show all dogs with sensible ordering fallback
-            let fb = await supabase.from("dogs").select("*").order("id", {
-              ascending: false,
-            });
-            if (fb.error) {
-              const em2 = (
-                fb.error.message ||
-                fb.error.details ||
-                ""
-              ).toLowerCase();
-              if (/id/.test(em2)) {
-                const fb2 = await supabase
-                  .from("dogs")
-                  .select("*")
-                  .order("created_at", { ascending: false });
-                fb = fb2.error ? await supabase.from("dogs").select("*") : fb2;
-              }
-            }
-            if (fb.error) throw fb.error;
-            data = fb.data;
-            setError(
-              "Note: 'user_id' column missing. Showing all dogs. Add a user_id uuid column to filter per-user."
-            );
-          } else if (
-            msg.includes("permission denied") ||
-            msg.includes("not allowed")
-          ) {
-            throw new Error(
-              "Permission denied when reading dogs. If Row Level Security is ON, add select policy: user_id = auth.uid()."
-            );
-          } else {
-            throw qErr;
-          }
-        }
-        // Only the latest request should commit results.
-        if (requestIdRef.current !== myReqId) return;
-        let processedDogs = [];
-        try {
-          console.log(
-            "🔧 Mapping raw rows to processedDogs...",
-            (data || []).length
-          );
-          processedDogs = (data || []).map((d) => ({
-            id: d.id,
-            name:
-              typeof d.name === "string"
-                ? d.name
-                : d.name
-                ? String(d.name)
-                : "Unnamed",
-            breed:
-              typeof d.breed === "string"
-                ? d.breed
-                : d.breed
-                ? String(d.breed)
-                : "Unknown",
-            age:
-              d.age_years && typeof d.age_years === "number"
-                ? `${d.age_years} years`
-                : d.age_years && !isNaN(Number(d.age_years))
-                ? `${Number(d.age_years)} years`
-                : "—",
-            sex:
-              d.gender && typeof d.gender === "string"
-                ? d.gender[0].toUpperCase() + d.gender.slice(1)
-                : "—",
-            // Accept either image_url (raw DB row) or image (already-normalized)
-            image: d.image || d.image_url || "/heroPup.jpg",
-            hidden: d.hidden || false,
-          }));
-        } catch (mapErr) {
-          console.error(
-            "❌ Error processing dog rows:",
-            mapErr,
-            "raw data:",
-            data
-          );
-          // Fallback: if rows exist but mapping failed, try a simpler pass-through
-          if (Array.isArray(data) && data.length > 0) {
-            processedDogs = data.map((d, i) => ({
-              id: d.id ?? `row-${i}`,
-              name: (d.name && String(d.name)) || `Dog ${i + 1}`,
-              breed: (d.breed && String(d.breed)) || "Unknown",
-              age: (d.age_years && `${d.age_years} years`) || "—",
-              sex: (d.gender && String(d.gender)) || "—",
-              image: d.image || d.image_url || "/heroPup.jpg",
-              hidden: !!d.hidden,
-            }));
-          }
-        }
-
-        console.log(
-          "✅ Processed dogs (before set):",
-          processedDogs.length,
-          processedDogs.slice(0, 3)
-        );
-        // Force a shallow copy when setting state to avoid any reference quirk
-        const newDogs = Array.isArray(processedDogs)
-          ? [...processedDogs]
-          : processedDogs;
-        setMine(newDogs);
-        console.log("🔁 mine state set (shallow copy applied)");
-        dataCache.current = {
-          dogs: newDogs,
-          lastFetch: now,
-          userId: effectiveUserId,
-        };
-        // Also persist to the module-level cache so remounts can reuse it
-        try {
-          GLOBAL_DOG_CACHE[effectiveUserId] = { ...dataCache.current };
-          // Persist to localStorage-backed cache for reloads/new tabs
-          PERSIST_DOGS.set(String(effectiveUserId), newDogs);
-          // Clear global invalidation on successful refresh
-          globalThis.__DB_DOGS_INVALIDATE_TS__ = 0;
-        } catch (e) {
-          // Non-fatal if writing to module cache fails for any reason
-          console.warn("Failed to persist to GLOBAL_DOG_CACHE:", e);
-        }
-      } catch (e) {
-        console.error("💥 Load error:", e);
-        setError(e.message || "Failed to load your dogs");
-        // Do not clear previously-cached dogs here; that can cause the UI to
-        // flash an empty state when transient errors occur (e.g., network/auth).
-        // Keep dataCache.current as-is so the UI can continue displaying last-known data.
-      } finally {
-        if (requestIdRef.current === myReqId) {
-          setLoading(false);
-          loadingRef.current = false;
-        }
-      }
-    }
-
-    load();
-    // Safety timeout so UI doesn't appear stuck if something unforeseen happens
-    const t = setTimeout(() => {
-      // Only the latest request should be able to toggle loading via timeout.
-      setLoading(false);
-    }, 6000);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [uid, userId, forceRefresh]); // load only on explicit triggers
-
-  // Intentionally removed auto refetch on focus/visibility to preserve cached list when navigating back.
-
-  // Debug: log displayDogs whenever it changes to see what will render
-  useEffect(() => {
-    console.log(
-      "🖥️ displayDogs changed: len=",
-      displayDogs.length,
-      displayDogs.slice(0, 5)
-    );
-  }, [displayDogs]);
-
-  // Function to show confirmation dialog
-  function showDeleteConfirmation(dogId, dogName) {
-    console.log("🗑️ Delete button clicked:", { dogId, dogName });
-    setConfirmDialog({
-      isOpen: true,
-      dogId,
-      dogName,
-    });
-    console.log("✅ Confirm dialog state updated");
-  }
-
-  // Function to close confirmation dialog
-  function closeDeleteConfirmation() {
-    console.log("🚪 Closing confirmation dialog");
-    setConfirmDialog({
-      isOpen: false,
-      dogId: null,
-      dogName: "",
-    });
-    console.log("✅ Dialog closed");
-  }
-
-  async function handleDeleteDog() {
-    console.log("🚨 Delete confirmation clicked");
-    console.log(
-      "📋 Full dialog state:",
-      JSON.stringify(confirmDialog, null, 2)
-    );
-
+  const handleDeleteDog = useCallback(async () => {
     const { dogId, dogName } = confirmDialog;
-    console.log("� Extracted values:", { dogId, dogName, type: typeof dogId });
-
-    if (!dogId) {
-      console.error("❌ No dogId found in dialog state!");
-      closeDeleteConfirmation();
-      return;
-    }
-
+    if (!dogId) return closeDeleteConfirmation();
     try {
-      setError("");
-      console.log(`🗑️ Deleting dog with ID: ${dogId}`);
-
-      // Step 1: Get associated documents before deleting
-      console.log("📄 Fetching dog documents...");
-      const { data: documents, error: docFetchError } = await supabase
-        .from("dog_documents")
-        // We store storage_path (and file_name) in dog_documents
-        .select("id, storage_path, file_name, category")
-        .eq("dog_id", dogId);
-
-      if (docFetchError) {
-        console.warn("⚠️ Could not fetch documents:", docFetchError);
-      }
-
-      // Step 2: Delete files from storage (photos and documents)
-      console.log("🗂️ Deleting storage files...");
-
-      // Delete all photos for this dog (they're stored in dogId/ folder)
-      const { data: photoList, error: PHOTO_LIST_ERROR } =
-        await supabase.storage.from("dog-photos").list(`${dogId}`);
-
-      if (photoList && photoList.length > 0) {
-        const photoPaths = photoList.map((file) => `${dogId}/${file.name}`);
-        console.log(`📸 Deleting ${photoPaths.length} photos:`, photoPaths);
-        const { error: photoDelError } = await supabase.storage
-          .from("dog-photos")
-          .remove(photoPaths);
-        if (photoDelError) {
-          console.warn("⚠️ Could not delete some photos:", photoDelError);
-        }
-      }
-
-      // Delete document files (stored under 'dog-photos' bucket with storage_path)
-      if (documents && documents.length > 0) {
-        const docPaths = documents
-          .map((doc) => doc.storage_path || doc.file_path || null) // fallback if older column existed
-          .filter(Boolean);
-        if (docPaths.length > 0) {
-          console.log(`📋 Deleting ${docPaths.length} documents:`, docPaths);
-          let docDelError = null;
-          // Primary bucket where we store both photos and documents
-          const primary = await supabase.storage
-            .from("dog-photos")
-            .remove(docPaths);
-          docDelError = primary.error || null;
-          if (docDelError) {
-            const msg = (docDelError.message || "").toLowerCase();
-            // Fallback: some projects may have used a separate 'documents' bucket
-            if (msg.includes("bucket") && msg.includes("not found")) {
-              const fallback = await supabase.storage
-                .from("documents")
-                .remove(docPaths);
-              if (fallback.error) {
-                console.warn(
-                  "⚠️ Could not delete some documents from fallback bucket:",
-                  fallback.error
-                );
-              }
-            } else {
-              console.warn("⚠️ Could not delete some documents:", docDelError);
-            }
-          }
-        }
-      }
-
-      // Step 3: Delete document records from database
-      console.log("🗄️ Deleting document records...");
-      const { error: docRecordError } = await supabase
-        .from("dog_documents")
-        .delete()
-        .eq("dog_id", dogId);
-
-      if (docRecordError) {
-        console.warn("⚠️ Could not delete document records:", docRecordError);
-      }
-
-      // Step 4: Finally delete the dog record
-      console.log("🐕 Deleting dog record...");
-      const { error: delErr } = await supabase
-        .from("dogs")
-        .delete()
-        .eq("id", dogId);
-      if (delErr) {
-        console.error("❌ Supabase delete error:", delErr);
-        throw delErr;
-      }
-
-      console.log(
-        `✅ Successfully deleted dog and all associated files: ${dogName}`
-      );
-
-      // Update local state to remove the deleted dog
-      setMine((prev) => {
-        const filtered = prev.filter((d) => d.id !== dogId);
-        console.log(
-          `🔄 Updated local dogs: ${prev.length} → ${filtered.length}`
-        );
-        return filtered;
-      });
-
-      // Force refresh to reload data immediately after deletion
-      dataCache.current = { dogs: [], lastFetch: 0, userId: null }; // Reset cache
+      // Remove all documents (storage + DB)
+      await removeAllDocumentsForDog(dogId);
+      // Delete dog record
+      const { error: delErr } = await supabase.from("dogs").delete().eq("id", dogId);
+      if (delErr) throw delErr;
+      // Optimistically update list
+      setDogs((prev) => prev.filter((d) => d.id !== dogId));
       try {
         globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
-      } catch {
-        /* noop */
+      } catch (err) {
+        // non-fatal: global invalidation not supported
+        void err;
       }
-      setForceRefresh((prev) => prev + 1);
-
-      // Close the dialog
-      console.log("🚪 Closing dialog...");
       closeDeleteConfirmation();
-
-      // Show success message
-      setTimeout(() => {
-        alert(`${dogName}'s profile has been successfully deleted.`);
-      }, 100);
-
-      // Nudge a refetch shortly after to ensure UI stays in sync
-      setTimeout(() => setForceRefresh((v) => v + 1), 300);
+      setTimeout(() => alert(`${dogName}'s profile deleted.`), 50);
+      // Soft refetch to ensure consistency
+      setTimeout(() => refetch(), 250);
     } catch (e) {
-      console.error("❌ Delete error:", e);
-      setError(e.message || "Failed to delete dog");
+      console.error("Delete dog failed", e);
+      alert(e.message || "Failed to delete dog");
       closeDeleteConfirmation();
     }
-  }
+  }, [confirmDialog, closeDeleteConfirmation, refetch, setDogs]);
 
-  // Function to toggle hidden status of a dog
-  async function handleToggleHidden(dogId, dogName, currentHiddenStatus) {
-    try {
-      setError("");
-      console.log(`👁️ Toggling hidden status for ${dogName} (ID: ${dogId})`);
-
-      const newHiddenStatus = !currentHiddenStatus;
-
-      // Update the database
-      const { error: updateError } = await supabase
-        .from("dogs")
-        .update({ hidden: newHiddenStatus })
-        .eq("id", dogId);
-
-      if (updateError) {
-        console.error("❌ Supabase update error:", updateError);
-        throw updateError;
+  const handleToggleHidden = useCallback(
+    async (dogId, dogName, currentHidden) => {
+      try {
+        const { error: updErr } = await supabase
+          .from("dogs")
+          .update({ hidden: !currentHidden })
+          .eq("id", dogId);
+        if (updErr) throw updErr;
+        setDogs((prev) => prev.map((d) => (d.id === dogId ? { ...d, hidden: !currentHidden } : d)));
+        setTimeout(() => alert(`${dogName}'s profile ${!currentHidden ? "hidden" : "shown"}.`), 30);
+      } catch (e) {
+        console.error("Toggle hidden failed", e);
+        alert(e.message || "Failed to toggle visibility");
       }
-
-      console.log(
-        `✅ Successfully ${
-          newHiddenStatus ? "hidden" : "shown"
-        } ${dogName}'s profile`
-      );
-
-      // Update local state
-      setMine((prev) => {
-        const updated = prev.map((d) =>
-          d.id === dogId ? { ...d, hidden: newHiddenStatus } : d
-        );
-        console.log(`🔄 Updated local dog status for ${dogName}`);
-        return updated;
-      });
-
-      // Show success message
-      setTimeout(() => {
-        alert(
-          `${dogName}'s profile has been ${
-            newHiddenStatus ? "hidden" : "shown"
-          }.`
-        );
-      }, 100);
-    } catch (e) {
-      console.error("❌ Toggle hidden error:", e);
-      setError(e.message || "Failed to update dog visibility");
-    }
-  }
+    },
+    [setDogs]
+  );
 
   return (
     <div className="find-match-container">
@@ -653,10 +97,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
       {/* Main Content */}
       <div className="content-section">
         {loading ? (
-          <div className="loading-state-modern">
-            <div className="loading-spinner-modern"></div>
-            <p>Loading your dogs...</p>
-          </div>
+          <LoadingState message="Loading your dogs..." minHeight={140} />
         ) : displayDogs.length === 0 ? (
           <div className="empty-state-modern">
             <div className="empty-state-icon">
@@ -676,8 +117,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
             </div>
             <h3 className="empty-state-title">No dogs yet</h3>
             <p className="empty-state-description">
-              Add your first dog to get started with breeding matches and
-              connect with other dog owners.
+              Add your first dog to get started with breeding matches and connect with other dog
+              owners.
             </p>
 
             {userId && (
@@ -691,12 +132,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                 onClick={onAddDog}
                 className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50"
               >
-                <svg
-                  className="w-6 h-6 mr-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -710,41 +146,21 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
 
               <div className="text-center">
                 <p className="text-sm text-gray-500 mt-2">
-                  🐾 Start building your dog's profile and find the perfect
-                  match!
+                  🐾 Start building your dog's profile and find the perfect match!
                 </p>
               </div>
             </div>
 
             {error && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600 mb-2">{error}</p>
-                <div className="flex gap-2 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => window.location.reload()}
-                    className="text-xs text-red-700 hover:text-red-900 underline"
-                  >
-                    Retry
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForceRefresh((v) => v + 1)}
-                    className="text-xs text-red-700 hover:text-red-900 underline"
-                  >
-                    Refresh
-                  </button>
-                </div>
+              <div className="mt-6">
+                <ErrorMessage message={error} onRetry={refetch} />
               </div>
             )}
           </div>
         ) : (
           <div className="matches-grid">
             {displayDogs.map((dog) => (
-              <div
-                key={dog.id}
-                className={`match-card ${dog.hidden ? "hidden-dog" : ""}`}
-              >
+              <div key={dog.id} className={`match-card ${dog.hidden ? "hidden-dog" : ""}`}>
                 {dog.hidden && <div className="match-rank">Hidden</div>}
 
                 <div className="card-image-wrapper">
@@ -763,9 +179,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                   <div className="match-details">
                     <div className="detail-item">
                       <span className="detail-label">Breed</span>
-                      <span className="detail-value capitalize">
-                        {dog.breed}
-                      </span>
+                      <span className="detail-value capitalize">{dog.breed}</span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Age</span>
@@ -777,27 +191,17 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                         <div
                           className={
                             "gender-pill " +
-                            ((dog.sex || dog.gender || "")
-                              .toString()
-                              .toLowerCase() === "male"
+                            ((dog.sex || dog.gender || "").toString().toLowerCase() === "male"
                               ? "male"
-                              : (dog.sex || dog.gender || "")
-                                  .toString()
-                                  .toLowerCase() === "female"
-                              ? "female"
-                              : "unknown")
+                              : (dog.sex || dog.gender || "").toString().toLowerCase() === "female"
+                                ? "female"
+                                : "unknown")
                           }
                         >
                           {(() => {
                             const g = (dog.sex || dog.gender || "").toString();
-                            const label = g
-                              ? g[0].toUpperCase() + g.slice(1).toLowerCase()
-                              : "—";
-                            return (
-                              <span className="gender-label">
-                                {label.toLowerCase()}
-                              </span>
-                            );
+                            const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "—";
+                            return <span className="gender-label">{label.toLowerCase()}</span>;
                           })()}
                         </div>
                       </span>
@@ -810,12 +214,8 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
                     </Link>
 
                     <button
-                      onClick={() =>
-                        handleToggleHidden(dog.id, dog.name, dog.hidden)
-                      }
-                      className={
-                        dog.hidden ? "view-profile-btn" : "contact-btn"
-                      }
+                      onClick={() => handleToggleHidden(dog.id, dog.name, dog.hidden)}
+                      className={dog.hidden ? "view-profile-btn" : "contact-btn"}
                     >
                       {dog.hidden ? "Show" : "Hide"}
                     </button>
@@ -842,9 +242,7 @@ export default function MyDogs({ dogs = [], onAddDog, userId }) {
         onClose={closeDeleteConfirmation}
         onConfirm={handleDeleteDog}
         title="Delete Dog Profile"
-        message={`Are you sure you want to delete ${confirmDialog.dogName}'s profile?
-
-This action cannot be undone and will permanently remove all information, photos, and documents for this dog.`}
+        message={`Are you sure you want to delete ${confirmDialog.dogName}'s profile?\n\nThis action cannot be undone and will permanently remove all information, photos, and documents for this dog.`}
         confirmText="Delete"
         cancelText="Cancel"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"

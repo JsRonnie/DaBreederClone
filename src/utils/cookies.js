@@ -19,8 +19,7 @@ export function setCookie(name, value, options = {}) {
     expires, // Date or string
   } = options;
 
-  let cookie =
-    encodeURIComponent(name) + "=" + encodeURIComponent(String(value));
+  let cookie = encodeURIComponent(name) + "=" + encodeURIComponent(String(value));
 
   if (typeof maxAge === "number") cookie += `; Max-Age=${Math.floor(maxAge)}`;
   if (days && !expires && !maxAge) {
@@ -61,10 +60,7 @@ export function deleteCookie(name, options = {}) {
   if (typeof document === "undefined") return;
   const { path = "/", domain } = options;
   // Set expiration in the past
-  let cookie =
-    encodeURIComponent(name) +
-    "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=" +
-    path;
+  let cookie = encodeURIComponent(name) + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=" + path;
   if (domain) cookie += `; Domain=${domain}`;
   document.cookie = cookie;
 }

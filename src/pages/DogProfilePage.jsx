@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import supabase from "../lib/supabaseClient";
 import "./FindMatchPage.css"; // reuse shared loading styles
+import LoadingState from "../components/LoadingState";
 
 export default function DogProfilePage() {
   const { id } = useParams();
@@ -25,12 +26,7 @@ export default function DogProfilePage() {
   const isOwner = currentUser && dog && currentUser.id === dog.user_id;
 
   if (loading) {
-    return (
-      <div className="loading-state" style={{ minHeight: 140 }}>
-        <div className="loading-spinner" />
-        <p>Loading profile...</p>
-      </div>
-    );
+    return <LoadingState message="Loading profile..." minHeight={140} />;
   }
 
   if (error || !dog) {
@@ -52,12 +48,9 @@ export default function DogProfilePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Profile Not Found
-          </h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dog profile you're looking for doesn't exist or has been
-            removed.
+            The dog profile you're looking for doesn't exist or has been removed.
           </p>
           <button
             onClick={() => {
@@ -74,9 +67,7 @@ export default function DogProfilePage() {
             }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            {location.state?.fromFindMatch
-              ? "Back to Find Match"
-              : "Back to Dashboard"}
+            {location.state?.fromFindMatch ? "Back to Find Match" : "Back to Dashboard"}
           </button>
         </div>
       </div>
@@ -106,12 +97,7 @@ export default function DogProfilePage() {
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -121,12 +107,8 @@ export default function DogProfilePage() {
                   </svg>
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {dog.name}
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    {dog.breed || "Breed not specified"}
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900">{dog.name}</h1>
+                  <p className="text-sm text-gray-500">{dog.breed || "Breed not specified"}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -135,12 +117,7 @@ export default function DogProfilePage() {
                     onClick={() => navigate(`/dog/${id}/edit`)}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -206,21 +183,15 @@ export default function DogProfilePage() {
                     <div className="space-y-3">
                       <div>
                         <dt className="text-sm text-gray-500">Gender</dt>
-                        <dd className="text-base text-gray-900 font-medium">
-                          {dog.gender || "—"}
-                        </dd>
+                        <dd className="text-base text-gray-900 font-medium">{dog.gender || "—"}</dd>
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500">Size</dt>
-                        <dd className="text-base text-gray-900 font-medium">
-                          {dog.size || "—"}
-                        </dd>
+                        <dd className="text-base text-gray-900 font-medium">{dog.size || "—"}</dd>
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500">Color</dt>
-                        <dd className="text-base text-gray-900 font-medium">
-                          {dog.color || "—"}
-                        </dd>
+                        <dd className="text-base text-gray-900 font-medium">{dog.color || "—"}</dd>
                       </div>
                     </div>
                   </div>
@@ -260,29 +231,21 @@ export default function DogProfilePage() {
           {/* Dog Characteristics */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Dog Characteristics
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Dog Characteristics</h2>
             </div>
             <div className="px-6 py-6">
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Activity Level</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.activity_level || "—"}
-                  </dd>
+                  <dd className="text-sm text-gray-900 font-medium">{dog.activity_level || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Sociability</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.sociability || "—"}
-                  </dd>
+                  <dd className="text-sm text-gray-900 font-medium">{dog.sociability || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Trainability</dt>
-                  <dd className="text-sm text-gray-900 font-medium">
-                    {dog.trainability || "—"}
-                  </dd>
+                  <dd className="text-sm text-gray-900 font-medium">{dog.trainability || "—"}</dd>
                 </div>
               </div>
             </div>
@@ -291,9 +254,7 @@ export default function DogProfilePage() {
           {/* Health & Verification */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Health & Verification
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Health & Verification</h2>
             </div>
             <div className="px-6 py-6">
               <div className="space-y-4">
@@ -302,11 +263,7 @@ export default function DogProfilePage() {
                   <dd className="flex items-center">
                     {dog.vaccinated ? (
                       <div className="flex items-center text-green-600">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -317,11 +274,7 @@ export default function DogProfilePage() {
                       </div>
                     ) : (
                       <div className="flex items-center text-gray-400">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -338,11 +291,7 @@ export default function DogProfilePage() {
                   <dd className="flex items-center">
                     {dog.dna_tested ? (
                       <div className="flex items-center text-green-600">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -353,11 +302,7 @@ export default function DogProfilePage() {
                       </div>
                     ) : (
                       <div className="flex items-center text-gray-400">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -374,11 +319,7 @@ export default function DogProfilePage() {
                   <dd className="flex items-center">
                     {dog.pedigree_certified ? (
                       <div className="flex items-center text-green-600">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -389,11 +330,7 @@ export default function DogProfilePage() {
                       </div>
                     ) : (
                       <div className="flex items-center text-gray-400">
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             fillRule="evenodd"
                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"

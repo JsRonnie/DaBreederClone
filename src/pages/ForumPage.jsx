@@ -1,17 +1,15 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { FaRegCommentDots, FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import supabase from "../lib/supabaseClient";
+import { uploadFileToBucket } from "../lib/storage";
 import { safeGetUser } from "../lib/auth";
 import { fetchThreads, toggleThreadVote } from "../lib/forum";
 import "./FindMatchPage.css";
 import { getCookie, setCookie } from "../utils/cookies";
+import LoadingState from "../components/LoadingState";
+import ErrorMessage from "../components/ErrorMessage";
 
 // Module-level cache to survive unmounts and brief auth revalidations between tab switches
 const GLOBAL_FORUM_CACHE = (globalThis.__DB_GLOBAL_FORUM_CACHE__ =
@@ -25,9 +23,7 @@ export default function ForumPage() {
   const { user, loading } = React.useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [threads, setThreads] = useState(
-    () => GLOBAL_FORUM_CACHE.threads || []
-  );
+  const [threads, setThreads] = useState(() => GLOBAL_FORUM_CACHE.threads || []);
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState("");
@@ -69,17 +65,13 @@ export default function ForumPage() {
       // Fetch display names for posters
       let enriched = rows;
       try {
-        const ids = [
-          ...new Set((rows || []).map((r) => r.user_id).filter(Boolean)),
-        ];
+        const ids = [...new Set((rows || []).map((r) => r.user_id).filter(Boolean))];
         if (ids.length) {
           const { data: profiles } = await supabase
             .from("users")
             .select("id, name, avatar_url")
             .in("id", ids);
-          const map = Object.fromEntries(
-            (profiles || []).map((p) => [p.id, p])
-          );
+          const map = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
           enriched = rows.map((r) => ({
             ...r,
             author: map[r.user_id] || null,
@@ -91,11 +83,7 @@ export default function ForumPage() {
       // If server returned 0 rows but we have a non-empty cache and the user is not yet authenticated,
       // keep showing the cached list to avoid a confusing empty flash after a tab switch.
       const isUnauthed = !user && loading !== false;
-      if (
-        enriched.length === 0 &&
-        (GLOBAL_FORUM_CACHE.threads || []).length &&
-        isUnauthed
-      ) {
+      if (enriched.length === 0 && (GLOBAL_FORUM_CACHE.threads || []).length && isUnauthed) {
         setThreads(GLOBAL_FORUM_CACHE.threads);
         lastLoadedAtRef.current = GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now();
       } else {
@@ -111,9 +99,7 @@ export default function ForumPage() {
       if (user) {
         try {
           const ids = (rows || []).map((r) => r.id).filter(Boolean);
-          const map = await (
-            await import("../lib/forum")
-          ).getMyThreadVotes(ids);
+          const map = await (await import("../lib/forum")).getMyThreadVotes(ids);
           setMyVotes(map || {});
         } catch {
           setMyVotes({});
@@ -180,78 +166,65 @@ export default function ForumPage() {
         }
       )
       // New thread inserted elsewhere
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "threads" },
-        () => {
-          load();
-        }
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "threads" }, () => {
+        load();
+      })
       // Comment insert/delete should adjust thread comment counts in the list
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "comments" },
-        (payload) => {
-          const op = payload?.eventType || payload?.event;
-          const n = payload?.new;
-          const o = payload?.old;
-          const threadId = n?.thread_id ?? o?.thread_id;
-          if (!threadId) return;
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, (payload) => {
+        const op = payload?.eventType || payload?.event;
+        const n = payload?.new;
+        const o = payload?.old;
+        const threadId = n?.thread_id ?? o?.thread_id;
+        if (!threadId) return;
+        setThreads((prev) =>
+          prev.map((t) => {
+            if (t.id !== threadId) return t;
+            const cur = t.comments_count ?? 0;
+            if (op === "INSERT") return { ...t, comments_count: cur + 1 };
+            if (op === "DELETE") return { ...t, comments_count: Math.max(0, cur - 1) };
+            return t;
+          })
+        );
+      })
+      // (comment updates handled on thread pages)
+      // Fallback: react to votes directly so counts change instantly even if DB triggers are missing
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, (payload) => {
+        const op = payload?.eventType || payload?.event;
+        const n = payload?.new;
+        const o = payload?.old;
+        const threadId = n?.thread_id ?? o?.thread_id;
+        const oldVal = o?.value ?? null;
+        const newVal = n?.value ?? null;
+
+        // Thread-level vote deltas
+        if (threadId) {
           setThreads((prev) =>
             prev.map((t) => {
               if (t.id !== threadId) return t;
-              const cur = t.comments_count ?? 0;
-              if (op === "INSERT") return { ...t, comments_count: cur + 1 };
-              if (op === "DELETE")
-                return { ...t, comments_count: Math.max(0, cur - 1) };
-              return t;
+              let ups = t.upvotes_count ?? 0;
+              let downs = t.downvotes_count ?? 0;
+              if (op === "INSERT") {
+                if (newVal === 1) ups += 1;
+                else if (newVal === -1) downs += 1;
+              } else if (op === "UPDATE") {
+                if (oldVal === 1 && newVal === -1) {
+                  ups = Math.max(0, ups - 1);
+                  downs += 1;
+                } else if (oldVal === -1 && newVal === 1) {
+                  downs = Math.max(0, downs - 1);
+                  ups += 1;
+                }
+              } else if (op === "DELETE") {
+                if (oldVal === 1) ups = Math.max(0, ups - 1);
+                else if (oldVal === -1) downs = Math.max(0, downs - 1);
+              }
+              return { ...t, upvotes_count: ups, downvotes_count: downs };
             })
           );
         }
-      )
-      // (comment updates handled on thread pages)
-      // Fallback: react to votes directly so counts change instantly even if DB triggers are missing
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        (payload) => {
-          const op = payload?.eventType || payload?.event;
-          const n = payload?.new;
-          const o = payload?.old;
-          const threadId = n?.thread_id ?? o?.thread_id;
-          const oldVal = o?.value ?? null;
-          const newVal = n?.value ?? null;
 
-          // Thread-level vote deltas
-          if (threadId) {
-            setThreads((prev) =>
-              prev.map((t) => {
-                if (t.id !== threadId) return t;
-                let ups = t.upvotes_count ?? 0;
-                let downs = t.downvotes_count ?? 0;
-                if (op === "INSERT") {
-                  if (newVal === 1) ups += 1;
-                  else if (newVal === -1) downs += 1;
-                } else if (op === "UPDATE") {
-                  if (oldVal === 1 && newVal === -1) {
-                    ups = Math.max(0, ups - 1);
-                    downs += 1;
-                  } else if (oldVal === -1 && newVal === 1) {
-                    downs = Math.max(0, downs - 1);
-                    ups += 1;
-                  }
-                } else if (op === "DELETE") {
-                  if (oldVal === 1) ups = Math.max(0, ups - 1);
-                  else if (oldVal === -1) downs = Math.max(0, downs - 1);
-                }
-                return { ...t, upvotes_count: ups, downvotes_count: downs };
-              })
-            );
-          }
-
-          // comment-level deltas are handled on thread pages
-        }
-      )
+        // comment-level deltas are handled on thread pages
+      })
       .subscribe();
 
     return () => {
@@ -323,23 +296,15 @@ export default function ForumPage() {
       if (postType === "image") {
         const file = imageFile || form.image?.files?.[0];
         if (!file) throw new Error("Please choose an image file");
-        // Upload to 'thread-images' bucket
         const path = `${authUser.id}/${Date.now()}_${file.name}`;
-        const up = await supabase.storage
-          .from("thread-images")
-          .upload(path, file, { upsert: false, contentType: file.type });
-        if (up.error) {
-          if (/Bucket not found/i.test(up.error.message || "")) {
-            throw new Error(
-              "Image storage bucket not found. Please create the 'thread-images' bucket (supabase/sql/storage_thread_images.sql) and try again."
-            );
-          }
-          throw up.error;
-        }
-        const { data: pub } = supabase.storage
-          .from("thread-images")
-          .getPublicUrl(path);
-        image_url = pub?.publicUrl || null;
+        const { publicUrl } = await uploadFileToBucket({
+          bucket: "thread-images",
+          path,
+          file,
+          upsert: false,
+          contentType: file.type,
+        });
+        image_url = publicUrl;
         if (!image_url)
           throw new Error(
             "Could not get a public URL for the uploaded image; check storage policy"
@@ -359,18 +324,7 @@ export default function ForumPage() {
         .insert([payload])
         .select("id")
         .maybeSingle();
-      if (error) {
-        // Friendly guidance if DB hasn't been migrated with image_url
-        if (
-          postType === "image" &&
-          (error.code === "42703" || /image_url/.test(error.message))
-        ) {
-          throw new Error(
-            "Image posts are not enabled yet. Please apply the database migration that adds threads.image_url (supabase/sql/forum_core_schema.sql), or switch to a Text post."
-          );
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.id) {
         // Notify success, then navigate
@@ -430,9 +384,7 @@ export default function ForumPage() {
 
   async function vote(threadId, value) {
     if (!user) {
-      window.dispatchEvent(
-        new CustomEvent("openAuthModal", { detail: { mode: "signin" } })
-      );
+      window.dispatchEvent(new CustomEvent("openAuthModal", { detail: { mode: "signin" } }));
       return;
     }
     if (votingMap[threadId]) return;
@@ -477,10 +429,8 @@ export default function ForumPage() {
         prev.map((t) => {
           if (t.id !== threadId) return t;
           const zeroFromServer =
-            (updated.upvotes_count ?? 0) === 0 &&
-            (updated.downvotes_count ?? 0) === 0;
-          const hadNonZero =
-            (t.upvotes_count ?? 0) + (t.downvotes_count ?? 0) > 0;
+            (updated.upvotes_count ?? 0) === 0 && (updated.downvotes_count ?? 0) === 0;
+          const hadNonZero = (t.upvotes_count ?? 0) + (t.downvotes_count ?? 0) > 0;
           if (zeroFromServer && hadNonZero) return t; // keep optimistic if server hasn't aggregated yet
           return {
             ...t,
@@ -571,7 +521,7 @@ export default function ForumPage() {
         </div>
       </div>
 
-      {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+      {error && <ErrorMessage message={error} />}
 
       {/* Create Post Modal */}
       {showCreateModal && (
@@ -651,10 +601,7 @@ export default function ForumPage() {
 
                 {/* Title */}
                 <div className="grid gap-1">
-                  <label
-                    className="text-xs text-slate-600"
-                    htmlFor="modal-title"
-                  >
+                  <label className="text-xs text-slate-600" htmlFor="modal-title">
                     Title
                   </label>
                   <input
@@ -667,10 +614,7 @@ export default function ForumPage() {
 
                 {postType === "text" ? (
                   <div className="grid gap-1">
-                    <label
-                      className="text-xs text-slate-600"
-                      htmlFor="modal-body"
-                    >
+                    <label className="text-xs text-slate-600" htmlFor="modal-body">
                       Body (optional)
                     </label>
                     <textarea
@@ -682,10 +626,7 @@ export default function ForumPage() {
                   </div>
                 ) : (
                   <div className="grid gap-2">
-                    <label
-                      className="text-xs text-slate-600"
-                      htmlFor="modal-image"
-                    >
+                    <label className="text-xs text-slate-600" htmlFor="modal-image">
                       Image
                     </label>
                     {/* Dropzone-like area */}
@@ -701,9 +642,7 @@ export default function ForumPage() {
                         />
                       ) : (
                         <>
-                          <span>
-                            Drag and drop an image here, or click to select
-                          </span>
+                          <span>Drag and drop an image here, or click to select</span>
                           <span className="text-xs text-slate-500">
                             PNG, JPG, GIF (per your rules)
                           </span>
@@ -786,10 +725,7 @@ export default function ForumPage() {
       {/* Inline post removed — modal is primary. */}
 
       {listLoading && threads.length === 0 ? (
-        <div className="loading-state" style={{ minHeight: 140 }}>
-          <div className="loading-spinner" />
-          <p>Loading forum...</p>
-        </div>
+        <LoadingState message="Loading forum..." minHeight={140} />
       ) : (
         <ul className="grid gap-3">
           {threads.map((t) => {
@@ -805,8 +741,7 @@ export default function ForumPage() {
                 tabIndex={0}
                 onClick={() => navigate(`/thread/${t.id}`)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    navigate(`/thread/${t.id}`);
+                  if (e.key === "Enter" || e.key === " ") navigate(`/thread/${t.id}`);
                 }}
                 className="p-4 border border-slate-200 rounded-lg bg-white/60 hover:shadow-md transition-shadow cursor-pointer"
               >
@@ -815,22 +750,16 @@ export default function ForumPage() {
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <div className="truncate">
                       {t.author?.name ? (
-                        <span className="font-medium text-slate-800">
-                          {t.author.name}
-                        </span>
+                        <span className="font-medium text-slate-800">{t.author.name}</span>
                       ) : (
                         <span className="text-slate-500">Anonymous</span>
                       )}
                     </div>
-                    <span className="shrink-0">
-                      {new Date(t.created_at).toLocaleString()}
-                    </span>
+                    <span className="shrink-0">{new Date(t.created_at).toLocaleString()}</span>
                   </div>
 
                   {/* Title */}
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
-                    {t.title}
-                  </div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">{t.title}</div>
 
                   {/* Body excerpt or Image preview */}
                   {t.image_url ? (
@@ -843,9 +772,7 @@ export default function ForumPage() {
                       />
                     </div>
                   ) : excerpt ? (
-                    <p className="mt-1 text-sm text-slate-700 line-clamp-3">
-                      {excerpt}
-                    </p>
+                    <p className="mt-1 text-sm text-slate-700 line-clamp-3">{excerpt}</p>
                   ) : null}
 
                   {/* Bottom row: up/down votes and comments */}
@@ -866,10 +793,8 @@ export default function ForumPage() {
                       }`}
                       disabled={!!votingMap[t.id]}
                     >
-                      ▲{" "}
-                      <span className="tabular-nums">
-                        {t.upvotes_count ?? 0}
-                      </span>
+                      <FaArrowUp className="inline" />
+                      <span className="tabular-nums">{t.upvotes_count ?? 0}</span>
                     </button>
                     <button
                       aria-label="Downvote"
@@ -884,10 +809,8 @@ export default function ForumPage() {
                       }`}
                       disabled={!!votingMap[t.id]}
                     >
-                      ▼{" "}
-                      <span className="tabular-nums">
-                        {t.downvotes_count ?? 0}
-                      </span>
+                      <FaArrowDown className="inline" />
+                      <span className="tabular-nums">{t.downvotes_count ?? 0}</span>
                     </button>
                     <button
                       type="button"
@@ -899,10 +822,8 @@ export default function ForumPage() {
                       aria-label="Open thread comments"
                       title="Open comments"
                     >
-                      💬{" "}
-                      <span className="tabular-nums">
-                        {t.comments_count ?? 0}
-                      </span>
+                      <FaRegCommentDots className="inline" />
+                      <span className="tabular-nums">{t.comments_count ?? 0}</span>
                     </button>
                   </div>
                 </div>
@@ -912,9 +833,7 @@ export default function ForumPage() {
             );
           })}
           {!threads.length && (
-            <li className="text-slate-500">
-              No threads yet. Be the first to post.
-            </li>
+            <li className="text-slate-500">No threads yet. Be the first to post.</li>
           )}
         </ul>
       )}

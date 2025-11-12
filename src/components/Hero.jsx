@@ -7,10 +7,7 @@ export default function Hero({ onGetStarted }) {
       className="relative h-screen min-h-[600px] max-h-[900px] w-full overflow-hidden"
     >
       {/* Background image with better overlay */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[url('/heroPup.jpg')] bg-cover bg-center"
-      />
+      <div aria-hidden className="absolute inset-0 bg-[url('/heroPup.jpg')] bg-cover bg-center" />
       <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/50 to-black/30" />
 
       {/* Content */}
@@ -28,9 +25,8 @@ export default function Hero({ onGetStarted }) {
           </p>
 
           <p className="mt-6 text-white/95 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md">
-            Join our warm community of caring, responsible breeders and use our
-            smart matching system to create healthier, happier puppies with
-            love.
+            Join our warm community of caring, responsible breeders and use our smart matching
+            system to create healthier, happier puppies with love.
           </p>
 
           <div className="mt-12 space-y-6">

@@ -5,13 +5,7 @@ import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
 import { validatePassword } from "../utils/passwordRules";
 
-export default function AuthModal({
-  open,
-  mode = "signin",
-  onClose,
-  onSwitch,
-  onAuthSuccess,
-}) {
+export default function AuthModal({ open, mode = "signin", onClose, onSwitch, onAuthSuccess }) {
   const navigate = useNavigate();
   const isSignUp = mode === "signup";
   const [windowWidth, setWindowWidth] = useState(
@@ -58,8 +52,7 @@ export default function AuthModal({
       avatarUrl:
         meta.avatar_url ||
         meta.avatarUrl ||
-        "https://api.dicebear.com/9.x/initials/svg?seed=" +
-          encodeURIComponent(user.email || "U"),
+        "https://api.dicebear.com/9.x/initials/svg?seed=" + encodeURIComponent(user.email || "U"),
     };
   }
 
@@ -111,9 +104,7 @@ export default function AuthModal({
 
         if (!data.session) {
           // Email confirmation required
-          setInfoMsg(
-            "Check your email to confirm your account before logging in."
-          );
+          setInfoMsg("Check your email to confirm your account before logging in.");
           return;
         }
 
@@ -132,8 +123,7 @@ export default function AuthModal({
           password,
         });
         if (error) throw error;
-        if (!data.session)
-          throw new Error("Login failed: no session returned.");
+        if (!data.session) throw new Error("Login failed: no session returned.");
 
         const appUser = toAppUser(data.session);
         if (appUser) {
@@ -164,24 +154,22 @@ export default function AuthModal({
   // As a safety net: if Supabase reports SIGNED_IN while the modal is open,
   // auto-close and dispatch success once. This covers delayed session cases.
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && open && !didCompleteRef.current) {
-          const appUser = toAppUser(session);
-          if (appUser) {
-            try {
-              await upsertUserProfile(supabase, session.user);
-            } catch {
-              // ignore profile upsert errors here
-            }
-            onAuthSuccess?.(appUser);
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && open && !didCompleteRef.current) {
+        const appUser = toAppUser(session);
+        if (appUser) {
+          try {
+            await upsertUserProfile(supabase, session.user);
+          } catch {
+            // ignore profile upsert errors here
           }
-          onClose?.();
-          setLoading(false);
-          didCompleteRef.current = true;
+          onAuthSuccess?.(appUser);
         }
+        onClose?.();
+        setLoading(false);
+        didCompleteRef.current = true;
       }
-    );
+    });
     return () => sub.subscription.unsubscribe();
   }, [open, onAuthSuccess, onClose]);
 
@@ -231,9 +219,7 @@ export default function AuthModal({
               >
                 {isSignUp && (
                   <div>
-                    <label className="text-sm font-medium text-slate-700">
-                      Name
-                    </label>
+                    <label className="text-sm font-medium text-slate-700">Name</label>
                     <input
                       className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter your name"
@@ -243,9 +229,7 @@ export default function AuthModal({
                   </div>
                 )}
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
-                    Email address
-                  </label>
+                  <label className="text-sm font-medium text-slate-700">Email address</label>
                   <input
                     className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your email"
@@ -257,9 +241,7 @@ export default function AuthModal({
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-slate-700">
-                      Password
-                    </label>
+                    <label className="text-sm font-medium text-slate-700">Password</label>
                     {!isSignUp && (
                       <button
                         type="button"
@@ -285,17 +267,13 @@ export default function AuthModal({
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      autoComplete={
-                        isSignUp ? "new-password" : "current-password"
-                      }
+                      autoComplete={isSignUp ? "new-password" : "current-password"}
                     />
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-slate-400 hover:text-slate-600 transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
                         // Eye slash icon (password visible - click to hide)
@@ -382,8 +360,8 @@ export default function AuthModal({
                       ? "Signing up…"
                       : "Logging in…"
                     : isSignUp
-                    ? "Sign Up"
-                    : "Login"}
+                      ? "Sign Up"
+                      : "Login"}
                 </button>
 
                 <p className="text-sm text-slate-700 text-center">

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { FaArrowLeft, FaRegCommentDots, FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { useParams } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
 import ConfirmDialog from "../components/ConfirmDialog";
+import LoadingState from "../components/LoadingState";
+import ErrorMessage from "../components/ErrorMessage";
 import {
   fetchThreadWithComments,
   toggleThreadVote,
@@ -31,9 +34,7 @@ export default function ThreadPage() {
     id: null,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [commentSort, setCommentSort] = useState(
-    () => getCookie("thread_comment_sort") || "new"
-  ); // best | hot | new | old
+  const [commentSort, setCommentSort] = useState(() => getCookie("thread_comment_sort") || "new"); // best | hot | new | old
   const [showComposer, setShowComposer] = useState(false);
   const [votingThread, setVotingThread] = useState(false);
   const [votingComments, setVotingComments] = useState({});
@@ -68,17 +69,13 @@ export default function ThreadPage() {
       }));
       // attach commenter profiles
       try {
-        const ids = [
-          ...new Set((withMyVotes || []).map((c) => c.user_id).filter(Boolean)),
-        ];
+        const ids = [...new Set((withMyVotes || []).map((c) => c.user_id).filter(Boolean))];
         if (ids.length) {
           const { data: profiles } = await supabase
             .from("users")
             .select("id, name, avatar_url")
             .in("id", ids);
-          const map = Object.fromEntries(
-            (profiles || []).map((p) => [p.id, p])
-          );
+          const map = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
           withMyVotes = (withMyVotes || []).map((c) => ({
             ...c,
             author: map[c.user_id] || null,
@@ -153,24 +150,47 @@ export default function ThreadPage() {
         }
       )
       // Fallback: listen on votes directly to compute live deltas
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        (payload) => {
-          const op = payload?.eventType || payload?.event;
-          const n = payload?.new;
-          const o = payload?.old;
-          const vThreadId = n?.thread_id ?? o?.thread_id;
-          const commentId = n?.comment_id ?? o?.comment_id;
-          const oldVal = o?.value ?? null;
-          const newVal = n?.value ?? null;
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, (payload) => {
+        const op = payload?.eventType || payload?.event;
+        const n = payload?.new;
+        const o = payload?.old;
+        const vThreadId = n?.thread_id ?? o?.thread_id;
+        const commentId = n?.comment_id ?? o?.comment_id;
+        const oldVal = o?.value ?? null;
+        const newVal = n?.value ?? null;
 
-          // Thread-level deltas (only for current thread)
-          if (vThreadId && String(vThreadId) === String(threadId)) {
-            setThread((prev) => {
-              if (!prev) return prev;
-              let ups = prev.upvotes_count ?? 0;
-              let downs = prev.downvotes_count ?? 0;
+        // Thread-level deltas (only for current thread)
+        if (vThreadId && String(vThreadId) === String(threadId)) {
+          setThread((prev) => {
+            if (!prev) return prev;
+            let ups = prev.upvotes_count ?? 0;
+            let downs = prev.downvotes_count ?? 0;
+            if (op === "INSERT") {
+              if (newVal === 1) ups += 1;
+              else if (newVal === -1) downs += 1;
+            } else if (op === "UPDATE") {
+              if (oldVal === 1 && newVal === -1) {
+                ups = Math.max(0, ups - 1);
+                downs += 1;
+              } else if (oldVal === -1 && newVal === 1) {
+                downs = Math.max(0, downs - 1);
+                ups += 1;
+              }
+            } else if (op === "DELETE") {
+              if (oldVal === 1) ups = Math.max(0, ups - 1);
+              else if (oldVal === -1) downs = Math.max(0, downs - 1);
+            }
+            return { ...prev, upvotes_count: ups, downvotes_count: downs };
+          });
+        }
+
+        // Comment-level deltas (only for comments in current thread)
+        if (commentId) {
+          setComments((prev) =>
+            prev.map((c) => {
+              if (c.id !== commentId) return c;
+              let ups = c.upvotes_count ?? 0;
+              let downs = c.downvotes_count ?? 0;
               if (op === "INSERT") {
                 if (newVal === 1) ups += 1;
                 else if (newVal === -1) downs += 1;
@@ -186,38 +206,11 @@ export default function ThreadPage() {
                 if (oldVal === 1) ups = Math.max(0, ups - 1);
                 else if (oldVal === -1) downs = Math.max(0, downs - 1);
               }
-              return { ...prev, upvotes_count: ups, downvotes_count: downs };
-            });
-          }
-
-          // Comment-level deltas (only for comments in current thread)
-          if (commentId) {
-            setComments((prev) =>
-              prev.map((c) => {
-                if (c.id !== commentId) return c;
-                let ups = c.upvotes_count ?? 0;
-                let downs = c.downvotes_count ?? 0;
-                if (op === "INSERT") {
-                  if (newVal === 1) ups += 1;
-                  else if (newVal === -1) downs += 1;
-                } else if (op === "UPDATE") {
-                  if (oldVal === 1 && newVal === -1) {
-                    ups = Math.max(0, ups - 1);
-                    downs += 1;
-                  } else if (oldVal === -1 && newVal === 1) {
-                    downs = Math.max(0, downs - 1);
-                    ups += 1;
-                  }
-                } else if (op === "DELETE") {
-                  if (oldVal === 1) ups = Math.max(0, ups - 1);
-                  else if (oldVal === -1) downs = Math.max(0, downs - 1);
-                }
-                return { ...c, upvotes_count: ups, downvotes_count: downs };
-              })
-            );
-          }
+              return { ...c, upvotes_count: ups, downvotes_count: downs };
+            })
+          );
         }
-      )
+      })
       .subscribe();
     return () => {
       try {
@@ -321,10 +314,7 @@ export default function ThreadPage() {
     [commentComparator]
   );
 
-  const sortedTree = useMemo(
-    () => sortTree(buildTree(comments)),
-    [comments, sortTree]
-  );
+  const sortedTree = useMemo(() => sortTree(buildTree(comments)), [comments, sortTree]);
 
   // collapse and comment share removed
 
@@ -343,17 +333,13 @@ export default function ThreadPage() {
       const { data, error } = await supabase
         .from("comments")
         .insert([{ body, thread_id: threadId, user_id: user.id }])
-        .select(
-          "id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count"
-        )
+        .select("id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count")
         .single();
       if (error) throw error;
       if (form && typeof form.reset === "function") form.reset();
       // Optimistically add at end and bump thread comment count
       setComments((prev) => [...prev, { ...data, my_vote: null }]);
-      setThread((t) =>
-        t ? { ...t, comments_count: (t.comments_count || 0) + 1 } : t
-      );
+      setThread((t) => (t ? { ...t, comments_count: (t.comments_count || 0) + 1 } : t));
       setShowComposer(false);
     } catch (err) {
       console.error(err);
@@ -410,9 +396,7 @@ export default function ThreadPage() {
       if (error) throw error;
       setComments((prev) => prev.filter((c) => c.id !== commentId));
       setThread((t) =>
-        t
-          ? { ...t, comments_count: Math.max(0, (t.comments_count || 1) - 1) }
-          : t
+        t ? { ...t, comments_count: Math.max(0, (t.comments_count || 1) - 1) } : t
       );
       setConfirmState({ open: false, type: null, id: null });
     } catch (err) {
@@ -439,9 +423,7 @@ export default function ThreadPage() {
   async function voteThread(val) {
     if (!currentUserId) {
       // prompt sign-in
-      window.dispatchEvent(
-        new CustomEvent("openAuthModal", { detail: { mode: "signin" } })
-      );
+      window.dispatchEvent(new CustomEvent("openAuthModal", { detail: { mode: "signin" } }));
       return;
     }
     if (votingThread) return;
@@ -481,10 +463,8 @@ export default function ThreadPage() {
       const t = await toggleThreadVote(threadId, val);
       setThread((prev) => {
         if (!prev) return prev;
-        const zeroFromServer =
-          (t.upvotes_count ?? 0) === 0 && (t.downvotes_count ?? 0) === 0;
-        const hadNonZero =
-          (prev.upvotes_count ?? 0) + (prev.downvotes_count ?? 0) > 0;
+        const zeroFromServer = (t.upvotes_count ?? 0) === 0 && (t.downvotes_count ?? 0) === 0;
+        const hadNonZero = (prev.upvotes_count ?? 0) + (prev.downvotes_count ?? 0) > 0;
         if (zeroFromServer && hadNonZero) {
           // Keep optimistic counts if server aggregation hasn't updated yet
           return { ...prev, my_vote: t.my_vote ?? myVote ?? null };
@@ -506,9 +486,7 @@ export default function ThreadPage() {
 
   async function voteComment(commentId, val) {
     if (!currentUserId) {
-      window.dispatchEvent(
-        new CustomEvent("openAuthModal", { detail: { mode: "signin" } })
-      );
+      window.dispatchEvent(new CustomEvent("openAuthModal", { detail: { mode: "signin" } }));
       return;
     }
     if (votingComments[commentId]) return;
@@ -549,10 +527,8 @@ export default function ThreadPage() {
       setComments((prev) =>
         prev.map((cm) => {
           if (cm.id !== commentId) return cm;
-          const zeroFromServer =
-            (c.upvotes_count ?? 0) === 0 && (c.downvotes_count ?? 0) === 0;
-          const hadNonZero =
-            (cm.upvotes_count ?? 0) + (cm.downvotes_count ?? 0) > 0;
+          const zeroFromServer = (c.upvotes_count ?? 0) === 0 && (c.downvotes_count ?? 0) === 0;
+          const hadNonZero = (cm.upvotes_count ?? 0) + (cm.downvotes_count ?? 0) > 0;
           const nextCounts =
             zeroFromServer && hadNonZero
               ? {
@@ -582,12 +558,9 @@ export default function ThreadPage() {
     return (
       <div className="max-w-3xl mx-auto px-4 py-6">
         {error ? (
-          <div className="text-red-600">{error}</div>
+          <ErrorMessage message={error} />
         ) : (
-          <div className="loading-state" style={{ minHeight: 140 }}>
-            <div className="loading-spinner" />
-            <p>Loading thread...</p>
-          </div>
+          <LoadingState message="Loading thread..." minHeight={140} />
         )}
       </div>
     );
@@ -595,17 +568,14 @@ export default function ThreadPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      {error && (
-        <div className="mb-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded px-3 py-2">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} />}
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => window.history.back()}
-          className="text-sm px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50"
+          className="text-sm px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 inline-flex items-center gap-2"
         >
-          ← Back to Forum
+          <FaArrowLeft className="text-sm" />
+          <span>Back to Forum</span>
         </button>
         {currentUserId && currentUserId === thread?.user_id && (
           <button
@@ -628,15 +598,11 @@ export default function ThreadPage() {
               <span className="text-slate-500">Anonymous</span>
             )}
           </div>
-          <span className="shrink-0">
-            {new Date(thread.created_at).toLocaleString()}
-          </span>
+          <span className="shrink-0">{new Date(thread.created_at).toLocaleString()}</span>
         </div>
 
         {/* Title */}
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">
-          {thread.title}
-        </h1>
+        <h1 className="mt-1 text-2xl font-semibold text-slate-900">{thread.title}</h1>
 
         {/* Body or Image */}
         {thread.image_url ? (
@@ -648,9 +614,7 @@ export default function ThreadPage() {
             />
           </div>
         ) : thread.body ? (
-          <p className="mt-2 whitespace-pre-wrap text-slate-700">
-            {thread.body}
-          </p>
+          <p className="mt-2 whitespace-pre-wrap text-slate-700">{thread.body}</p>
         ) : null}
 
         {/* Bottom row: votes and comments */}
@@ -665,7 +629,8 @@ export default function ThreadPage() {
             }`}
             disabled={votingThread}
           >
-            ▲ <span className="tabular-nums">{thread.upvotes_count ?? 0}</span>
+            <FaArrowUp className="inline" />{" "}
+            <span className="tabular-nums">{thread.upvotes_count ?? 0}</span>
           </button>
           <button
             aria-label="Downvote"
@@ -677,7 +642,7 @@ export default function ThreadPage() {
             }`}
             disabled={votingThread}
           >
-            ▼{" "}
+            <FaArrowDown className="inline" />
             <span className="tabular-nums">{thread.downvotes_count ?? 0}</span>
           </button>
           <button
@@ -686,18 +651,15 @@ export default function ThreadPage() {
               setShowComposer((v) => !v);
               setTimeout(() => {
                 const el = document.getElementById(composerId);
-                if (el)
-                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
               }, 0);
             }}
             className="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
             aria-label="Add a comment"
             title="Add a comment"
           >
-            💬{" "}
-            <span className="tabular-nums">
-              {thread.comments_count ?? comments.length}
-            </span>
+            <FaRegCommentDots className="inline" />
+            <span className="tabular-nums">{thread.comments_count ?? comments.length}</span>
           </button>
         </div>
       </div>
@@ -767,15 +729,10 @@ export default function ThreadPage() {
       <ul className="grid gap-3 mb-6">
         {sortedTree.map((c) => (
           <li key={c.id} className="">
-            <div
-              id={`c-${c.id}`}
-              className="p-3 border border-slate-100 rounded-lg bg-white"
-            >
+            <div id={`c-${c.id}`} className="p-3 border border-slate-100 rounded-lg bg-white">
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 {c.author?.name ? (
-                  <span className="font-medium text-slate-700">
-                    {c.author.name}
-                  </span>
+                  <span className="font-medium text-slate-700">{c.author.name}</span>
                 ) : null}
                 <span>{new Date(c.created_at).toLocaleString()}</span>
                 {/* collapse and share removed */}
@@ -790,9 +747,7 @@ export default function ThreadPage() {
                   </button>
                 )}
               </div>
-              <div className="mt-1 whitespace-pre-wrap text-slate-700">
-                {c.body}
-              </div>
+              <div className="mt-1 whitespace-pre-wrap text-slate-700">{c.body}</div>
               {/* Bottom row: up/down votes (like thread) */}
               <div className="mt-3 flex items-center gap-2 text-sm text-slate-700">
                 <button
@@ -805,7 +760,8 @@ export default function ThreadPage() {
                   }`}
                   disabled={!!votingComments[c.id]}
                 >
-                  ▲ <span className="tabular-nums">{c.upvotes_count ?? 0}</span>
+                  <FaArrowUp className="inline" />{" "}
+                  <span className="tabular-nums">{c.upvotes_count ?? 0}</span>
                 </button>
                 <button
                   aria-label="Downvote comment"
@@ -817,7 +773,7 @@ export default function ThreadPage() {
                   }`}
                   disabled={!!votingComments[c.id]}
                 >
-                  ▼{" "}
+                  <FaArrowDown className="inline" />
                   <span className="tabular-nums">{c.downvotes_count ?? 0}</span>
                 </button>
               </div>
@@ -836,15 +792,11 @@ export default function ThreadPage() {
                   >
                     <div className="flex items-center gap-3 text-xs text-slate-500">
                       {ch.author?.name ? (
-                        <span className="font-medium text-slate-700">
-                          {ch.author.name}
-                        </span>
+                        <span className="font-medium text-slate-700">{ch.author.name}</span>
                       ) : null}
                       <span>{new Date(ch.created_at).toLocaleString()}</span>
                     </div>
-                    <div className="mt-1 whitespace-pre-wrap text-slate-700">
-                      {ch.body}
-                    </div>
+                    <div className="mt-1 whitespace-pre-wrap text-slate-700">{ch.body}</div>
                     {/* Bottom row votes for reply */}
                     <div className="mt-3 flex items-center gap-2 text-sm text-slate-700">
                       <button
@@ -857,10 +809,8 @@ export default function ThreadPage() {
                         }`}
                         disabled={!!votingComments[ch.id]}
                       >
-                        ▲{" "}
-                        <span className="tabular-nums">
-                          {ch.upvotes_count ?? 0}
-                        </span>
+                        <FaArrowUp className="inline" />
+                        <span className="tabular-nums">{ch.upvotes_count ?? 0}</span>
                       </button>
                       <button
                         aria-label="Downvote reply"
@@ -872,10 +822,8 @@ export default function ThreadPage() {
                         }`}
                         disabled={!!votingComments[ch.id]}
                       >
-                        ▼{" "}
-                        <span className="tabular-nums">
-                          {ch.downvotes_count ?? 0}
-                        </span>
+                        <FaArrowDown className="inline" />
+                        <span className="tabular-nums">{ch.downvotes_count ?? 0}</span>
                       </button>
                     </div>
                   </div>
@@ -884,9 +832,7 @@ export default function ThreadPage() {
             )}
           </li>
         ))}
-        {!comments.length && (
-          <li className="text-slate-500">No comments yet.</li>
-        )}
+        {!comments.length && <li className="text-slate-500">No comments yet.</li>}
       </ul>
 
       {/* Removed standalone Add a comment button; use the comment icon in header */}
@@ -896,11 +842,7 @@ export default function ThreadPage() {
         isOpen={!!confirmState.open}
         onClose={() => setConfirmState({ open: false, type: null, id: null })}
         onConfirm={onConfirmDelete}
-        title={
-          confirmState.type === "thread"
-            ? "Delete this thread?"
-            : "Delete this comment?"
-        }
+        title={confirmState.type === "thread" ? "Delete this thread?" : "Delete this comment?"}
         message={
           confirmState.type === "thread"
             ? "This action cannot be undone and will permanently remove the thread."
@@ -912,8 +854,8 @@ export default function ThreadPage() {
               ? "Deleting…"
               : "Delete thread"
             : deletingComment[confirmState.id || ""]
-            ? "Deleting…"
-            : "Delete comment"
+              ? "Deleting…"
+              : "Delete comment"
         }
         confirmButtonClass="bg-rose-600 hover:bg-rose-700 text-white"
       />

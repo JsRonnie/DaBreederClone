@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import useFormData from "../hooks/useFormData";
 import Step1DogInfo from "../stepComponents/Step1DogInfo";
 import Step2Health from "../stepComponents/Step2Health";
@@ -70,20 +71,53 @@ export default function DogForm({ onSubmitted }) {
     }
   }, [form.data]);
 
-  const canNext = useMemo(() => {
-    switch (step) {
-      case 1:
-        return form.data.name.trim() !== "" && form.data.gender !== "";
-      case 2: // Traits & Physical Characteristics
-        return form.data.size !== "";
-      case 3: // Health & Verification (no required fields)
-        return true;
-      case 4: // documents optional
-        return true;
-      default:
-        return true;
+  // Validation helpers for required steps
+  const validateStep1 = (data) => {
+    const errors = {};
+    if (!data.name || !data.name.trim()) errors.name = "Dog name is required";
+    if (!data.gender) errors.gender = "Gender is required";
+    // Age (years only now) must be between 2 and 7
+    if (!data.age_years) {
+      errors.age_years = "Age (2-7 years) is required";
+    } else {
+      const yrs = parseInt(data.age_years, 10);
+      if (isNaN(yrs) || yrs < 2 || yrs > 7) {
+        errors.age_years = "Age must be a whole number between 2 and 7";
+      }
     }
+    if (!data.breed || !data.breed.trim()) errors.breed = "Breed is required";
+    return errors;
+  };
+
+  const validateStep2 = (data) => {
+    const errors = {};
+    if (!data.size) errors.size = "Size is required";
+    if (!data.weight_kg) {
+      errors.weight_kg = "Weight is required";
+    } else {
+      const w = parseFloat(data.weight_kg);
+      if (isNaN(w) || w < 1.5 || w > 91) {
+        errors.weight_kg = "Weight must be between 1.5 and 91 kg";
+      }
+    }
+    if (!data.coat_type) errors.coat_type = "Coat type is required";
+    if (!data.color) errors.color = "Color/markings are required";
+    if (!data.activity_level) errors.activity_level = "Activity level is required";
+    if (!data.sociability) errors.sociability = "Sociability is required";
+    if (!data.trainability) errors.trainability = "Trainability is required";
+    return errors;
+  };
+
+  const stepErrors = useMemo(() => {
+    if (step === 1) return validateStep1(form.data);
+    if (step === 2) return validateStep2(form.data);
+    return {};
   }, [step, form.data]);
+
+  const canNext = useMemo(() => {
+    if (step === 1 || step === 2) return Object.keys(stepErrors).length === 0;
+    return true;
+  }, [step, stepErrors]);
 
   const goNext = () => setStep((s) => Math.min(TOTAL_STEPS, s + 1));
   const goPrev = () => setStep((s) => Math.max(1, s - 1));
@@ -133,16 +167,15 @@ export default function DogForm({ onSubmitted }) {
         data={form.data}
         updateField={form.updateField}
         updatePhoto={form.updatePhoto}
+        errors={stepErrors}
       />
     );
   else if (step === 2)
     StepComponent = (
-      <Step3Traits data={form.data} updateField={form.updateField} />
+      <Step3Traits data={form.data} updateField={form.updateField} errors={stepErrors} />
     );
   else if (step === 3)
-    StepComponent = (
-      <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
-    );
+    StepComponent = <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />;
   else
     StepComponent = (
       <Step4Documents
@@ -188,12 +221,9 @@ export default function DogForm({ onSubmitted }) {
               </h3>
               <p className="step-section-description">
                 {step === 1 && "Tell us about your dog's basic details"}
-                {step === 2 &&
-                  "Help us understand your dog's personality and characteristics"}
-                {step === 3 &&
-                  "Share your dog's health information and medical history"}
-                {step === 4 &&
-                  "Upload documents and complete your dog's profile"}
+                {step === 2 && "Help us understand your dog's personality and characteristics"}
+                {step === 3 && "Share your dog's health information and medical history"}
+                {step === 4 && "Upload documents and complete your dog's profile"}
               </p>
             </div>
             {StepComponent}
@@ -203,38 +233,31 @@ export default function DogForm({ onSubmitted }) {
           <div className="modern-nav-bar">
             <button
               type="button"
-              className={
-                step === 1
-                  ? "modern-btn-secondary disabled"
-                  : "modern-btn-secondary"
-              }
+              className={step === 1 ? "modern-btn-secondary disabled" : "modern-btn-secondary"}
               disabled={step === 1}
               onClick={goPrev}
             >
-              ← Previous
+              <span className="inline-flex items-center gap-2">
+                <FaArrowLeft />
+                Previous
+              </span>
             </button>
             {step < TOTAL_STEPS && (
               <button
                 type="button"
-                className={
-                  !canNext
-                    ? "modern-btn-primary disabled"
-                    : "modern-btn-primary"
-                }
+                className={!canNext ? "modern-btn-primary disabled" : "modern-btn-primary"}
                 disabled={!canNext}
                 onClick={goNext}
               >
-                Next Step →
+                <span className="inline-flex items-center gap-2">
+                  Next Step <FaArrowRight />
+                </span>
               </button>
             )}
             {step === TOTAL_STEPS && (
               <button
                 type="submit"
-                className={
-                  form.submitting
-                    ? "modern-btn-primary disabled"
-                    : "modern-btn-primary"
-                }
+                className={form.submitting ? "modern-btn-primary disabled" : "modern-btn-primary"}
                 disabled={form.submitting}
               >
                 {form.submitting ? "Submitting..." : "Complete Registration"}

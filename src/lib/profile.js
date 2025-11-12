@@ -37,9 +37,7 @@ export async function upsertUserProfile(supabase, authUser) {
     avatar_url: targetAvatar,
   };
 
-  const { error } = await supabase
-    .from("users")
-    .upsert(payload, { onConflict: "id" });
+  const { error } = await supabase.from("users").upsert(payload, { onConflict: "id" });
   if (error) {
     // Not fatal for auth, but log it
     console.warn("Profile upsert failed:", error.message);

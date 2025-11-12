@@ -1,12 +1,21 @@
 import { useState, useCallback } from "react";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
+import { normalizeAge, whitelistPayload, coerceNumbers } from "../utils/form";
+import { DOG_ALLOWED_COLUMNS } from "../lib/dogs";
+import { uploadFileToBucket, listPathsUnder, deletePathsFromBucket } from "../lib/storage";
+import {
+  uploadDogDocument,
+  removeDocumentsByCategory,
+  removeDocumentsByIds,
+} from "../lib/dogDocuments";
 
 const initialData = {
   name: "",
   gender: "",
   breed: "",
   age: "", // UI uses `age`; we'll map to age_years on submit
+  // months removed from UI
   pedigree_certified: false,
   dna_tested: false,
   vaccinated: false,
@@ -43,11 +52,9 @@ export function useFormData() {
     if (e instanceof Error) return e;
     if (e && typeof e === "object") {
       // Prefer a message property if present
-      if (typeof e.message === "string" && e.message.length > 0)
-        return new Error(e.message);
+      if (typeof e.message === "string" && e.message.length > 0) return new Error(e.message);
       // Some Supabase errors include 'error' or 'msg' or other fields useful to show
-      if (typeof e.error === "string" && e.error.length > 0)
-        return new Error(e.error);
+      if (typeof e.error === "string" && e.error.length > 0) return new Error(e.error);
       try {
         return new Error(JSON.stringify(e));
       } catch {
@@ -57,14 +64,7 @@ export function useFormData() {
     return new Error(String(e));
   };
 
-  // Helper to extract a missing column name from Supabase schema-cache errors
-  const extractMissingColumn = (msg) => {
-    if (!msg || typeof msg !== "string") return null;
-    const m =
-      msg.match(/Could not find the '([^']+)' column/i) ||
-      msg.match(/column "([^"]+)" does not exist/i);
-    return m ? m[1] : null;
-  };
+  // (Removed compatibility helper for older DB schemas — project assumes migrated schema)
 
   const updateField = useCallback((field, value) => {
     setData((d) => ({ ...d, [field]: value }));
@@ -92,9 +92,7 @@ export function useFormData() {
     const singleFileCategories = ["pedigree", "dna", "vaccination"];
     const isSingleFileCategory = singleFileCategories.includes(category);
     console.log(
-      `📋 Category '${category}' is ${
-        isSingleFileCategory ? "single-file" : "multi-file"
-      } category`
+      `📋 Category '${category}' is ${isSingleFileCategory ? "single-file" : "multi-file"} category`
     );
 
     setData((d) => {
@@ -103,9 +101,7 @@ export function useFormData() {
       if (isSingleFileCategory) {
         // For single-file categories, replace all files in that category
         console.log(`🔄 Replacing single file for category: ${category}`);
-        const filtered = existing.filter(
-          (x) => (x.category || "misc") !== category
-        );
+        const filtered = existing.filter((x) => (x.category || "misc") !== category);
         const merged = [...filtered, ...newItems];
         console.log(
           "📋 Updated documents (single-file replacement):",
@@ -145,24 +141,17 @@ export function useFormData() {
   const removeDocument = useCallback((fileName, category = "misc") => {
     console.log("🗑️ Removing document:", { fileName, category });
     setData((d) => {
-      const beforeCount = (Array.isArray(d.documents) ? d.documents : [])
-        .length;
-      const filtered = (Array.isArray(d.documents) ? d.documents : []).filter(
-        (x) => {
-          const docFileName = x.file?.name || x.name;
-          const docCategory = x.category || "misc";
-          // Keep documents that DON'T match both fileName AND category
-          const shouldKeep = !(
-            docFileName === fileName && docCategory === category
-          );
-          if (!shouldKeep) {
-            console.log(
-              `🗑️ Removing document: ${docFileName} (${docCategory})`
-            );
-          }
-          return shouldKeep;
+      const beforeCount = (Array.isArray(d.documents) ? d.documents : []).length;
+      const filtered = (Array.isArray(d.documents) ? d.documents : []).filter((x) => {
+        const docFileName = x.file?.name || x.name;
+        const docCategory = x.category || "misc";
+        // Keep documents that DON'T match both fileName AND category
+        const shouldKeep = !(docFileName === fileName && docCategory === category);
+        if (!shouldKeep) {
+          console.log(`🗑️ Removing document: ${docFileName} (${docCategory})`);
         }
-      );
+        return shouldKeep;
+      });
       const afterCount = filtered.length;
       console.log(`📋 Documents count: ${beforeCount} → ${afterCount}`);
       console.log(
@@ -200,9 +189,7 @@ export function useFormData() {
           name: d.file?.name || d.name,
           category: d.category,
         })),
-        photo: data.photo
-          ? { name: data.photo.name, size: data.photo.size }
-          : null,
+        photo: data.photo ? { name: data.photo.name, size: data.photo.size } : null,
       });
 
       const src = { ...data };
@@ -210,167 +197,88 @@ export function useFormData() {
       delete src.documents;
       delete src.photo;
 
-      // Map UI age -> age_years if provided
-      if (
-        (src.age_years === "" || src.age_years === undefined) &&
-        src.age !== undefined &&
-        src.age !== ""
-      ) {
-        src.age_years = src.age;
-      }
+      // Map UI age (years only) -> age_years; fallback to legacy `age` field
+      const age = normalizeAge(src.age_years, src.age);
+      if (age.error) throw new Error(age.error);
+      if (age.age_years !== undefined) src.age_years = age.age_years;
+
+      // remove legacy UI-only fields
       delete src.age;
+      // months removed from UI; nothing to delete
 
       // Whitelist dog table columns to avoid unknown-column errors
-      const allowedDogColumns = new Set([
-        "user_id",
-        "name",
-        "gender",
-        "breed",
-        "age_years",
-        "size",
-        "weight_kg",
-        "pedigree_certified",
-        "dna_tested",
-        "vaccinated",
-        "hip_elbow_tested",
-        "heart_tested",
-        "eye_tested",
-        "genetic_panel",
-        "thyroid_tested",
-        "coat_type",
-        "color",
-        "activity_level",
-        "sociability",
-        "trainability",
-      ]);
-      const dogPayload = Object.fromEntries(
-        Object.entries(src).filter(([k]) => allowedDogColumns.has(k))
-      );
+      const dogPayload = whitelistPayload(src, DOG_ALLOWED_COLUMNS);
 
       // Attach user_id (requires authenticated session if RLS policies rely on it)
       try {
         const { data: userResult, error: userError } = await safeGetUser();
         console.log("🔐 Auth check result:", { userResult, userError });
         if (userError) {
-          throw new Error(
-            "Authentication check failed. Please sign in and try again."
-          );
+          throw new Error("Authentication check failed. Please sign in and try again.");
         } else if (userResult?.user) {
           dogPayload.user_id = userResult.user.id;
           console.log("👤 User authenticated:", userResult.user.id);
         } else {
           // Prevent inserting invisible records
-          throw new Error(
-            "You are not signed in. Please sign in to add a dog profile."
-          );
+          throw new Error("You are not signed in. Please sign in to add a dog profile.");
         }
       } catch (authCheckErr) {
         console.error("🚨 Auth check failed:", authCheckErr);
         throw authCheckErr;
       }
       // Convert numeric fields
-      if (dogPayload.weight_kg !== "" && dogPayload.weight_kg !== undefined)
-        dogPayload.weight_kg = Number(dogPayload.weight_kg);
-      if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined) {
-        dogPayload.age_years = Number(dogPayload.age_years);
-        // Validate age limit (25 years maximum)
-        if (dogPayload.age_years > 25) {
-          throw new Error(
-            "Age cannot exceed 25 years. Please enter a valid age."
-          );
+      const coerced = coerceNumbers(dogPayload, ["weight_kg", "age_years"]);
+      if (coerced.weight_kg !== undefined && coerced.weight_kg !== "") {
+        const w = Number(coerced.weight_kg);
+        if (Number.isFinite(w)) {
+          if (w < 1.5) throw new Error("Weight must be at least 1.5 kg.");
+          if (w > 91) throw new Error("Weight must not exceed 91 kg.");
         }
-        if (dogPayload.age_years < 0) {
+      }
+      if (coerced.age_years !== undefined) {
+        if (coerced.age_years > 25) {
+          throw new Error("Age cannot exceed 25 years. Please enter a valid age.");
+        }
+        if (coerced.age_years < 0) {
           throw new Error("Age cannot be negative. Please enter a valid age.");
         }
       }
 
-      // Try inserting; if Supabase complains about a missing column in the schema cache,
-      // iteratively strip the reported missing column and retry a few times. This handles
-      // cases where the client sends multiple obsolete columns.
-      let payload = { ...dogPayload };
-      let inserted = null;
-      let insertError = null;
-      const maxAttempts = 5;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const resp = await supabase
-          .from("dogs")
-          .insert(payload)
-          .select("id")
-          .single();
-        inserted = resp.data;
-        insertError = resp.error;
-        if (!insertError) break;
-        const missing = extractMissingColumn(
-          insertError.message || insertError.error || ""
-        );
-        if (!missing || !Object.prototype.hasOwnProperty.call(payload, missing))
-          break;
-        console.warn(
-          `Detected missing column '${missing}' during insert (attempt ${
-            attempt + 1
-          }); removing and retrying.`
-        );
-        delete payload[missing];
-      }
-
-      if (insertError) throw insertError;
-
-      const dogId = inserted.id;
+      // Insert new dog record (assumes DB schema is up-to-date)
+      const insertResp = await supabase.from("dogs").insert(coerced).select("id").single();
+      if (insertResp.error) throw insertResp.error;
+      const dogId = insertResp.data.id;
 
       // Upload main photo if provided, then update dogs.image_url
       if (data.photo) {
         const photoPath = `${dogId}/profile-${Date.now()}-${data.photo.name}`;
-        const { error: uploadPhotoError } = await supabase.storage
-          .from("dog-photos")
-          .upload(photoPath, data.photo, { upsert: false });
-        if (uploadPhotoError) {
-          if (
-            uploadPhotoError.message?.toLowerCase().includes("bucket") &&
-            uploadPhotoError.message.toLowerCase().includes("not found")
-          ) {
-            throw new Error(
-              "Upload failed: Bucket 'dog-photos' not found. Create it in Supabase Storage (make it public) or update the bucket name."
-            );
-          }
-          throw new Error(
-            `Photo upload failed for ${data.photo.name}: ${uploadPhotoError.message}`
-          );
-        }
-        // Get public URL (bucket should be public)
-        const { data: pub } = supabase.storage
-          .from("dog-photos")
-          .getPublicUrl(photoPath);
-        const imageUrl = pub?.publicUrl || null;
+        const { publicUrl: imageUrl } = await uploadFileToBucket({
+          bucket: "dog-photos",
+          path: photoPath,
+          file: data.photo,
+          upsert: false,
+        });
         if (imageUrl) {
           const { error: updError } = await supabase
             .from("dogs")
             .update({ image_url: imageUrl })
             .eq("id", dogId);
           if (updError) {
-            const msg = (updError.message || "").toLowerCase();
-            // If the DB doesn't yet have image_url, don't block the submission
-            if (msg.includes("image_url") && msg.includes("does not exist")) {
-              console.warn(
-                "dogs.image_url column missing; skipping storing of image URL. You can add it later and images will still be uploaded to Storage."
-              );
-            } else {
-              throw updError;
-            }
+            // Assume image_url exists; if update fails surface the error to the caller
+            throw updError;
           }
         }
 
         // Optional: also log the photo in dog_documents for completeness
-        const { error: docInsertErrorPhoto } = await supabase
-          .from("dog_documents")
-          .insert({
-            dog_id: dogId,
-            user_id: dogPayload.user_id,
-            file_name: data.photo.name,
-            storage_path: photoPath,
-            file_size_bytes: data.photo.size,
-            content_type: data.photo.type,
-            category: "photo",
-          });
+        const { error: docInsertErrorPhoto } = await supabase.from("dog_documents").insert({
+          dog_id: dogId,
+          user_id: dogPayload.user_id,
+          file_name: data.photo.name,
+          storage_path: photoPath,
+          file_size_bytes: data.photo.size,
+          content_type: data.photo.type,
+          category: "photo",
+        });
         if (docInsertErrorPhoto) throw docInsertErrorPhoto;
       }
 
@@ -380,50 +288,12 @@ export function useFormData() {
           const file = item?.file || item; // backward compatible if array had File objects
           if (!file?.name) continue;
           const category = item?.category || null;
-
-          // Determine file type for better organization
-          const isImage =
-            file.type?.startsWith("image/") ||
-            /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name);
-          const subfolder = isImage ? "images" : "documents";
-          const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_"); // Sanitize filename
-          const path = `${dogId}/${subfolder}/${Date.now()}-${sanitizedFileName}`;
-          const { error: uploadError } = await supabase.storage
-            .from("dog-photos")
-            .upload(path, file, { upsert: false });
-          if (uploadError) {
-            console.error("📤 Upload error for", file.name, ":", uploadError);
-            // Improve messaging for bucket not found vs permission
-            if (
-              uploadError.message?.toLowerCase().includes("bucket") &&
-              uploadError.message.toLowerCase().includes("not found")
-            ) {
-              throw new Error(
-                "Upload failed: Bucket 'dog-photos' not found. Create it in Supabase Storage (make it public) or update the bucket name."
-              );
-            }
-            throw new Error(
-              `Upload failed for ${file.name}: ${uploadError.message}`
-            );
-          }
-
-          const { error: docInsertError } = await supabase
-            .from("dog_documents")
-            .insert({
-              dog_id: dogId,
-              user_id: dogPayload.user_id, // pass same user id for RLS
-              file_name: file.name,
-              storage_path: path,
-              file_size_bytes: file.size,
-              content_type: file.type,
-              category: category,
-            });
-          if (docInsertError) throw docInsertError;
-          console.log(
-            `✅ Document uploaded successfully: ${file.name} (${
-              isImage ? "image" : "document"
-            })`
-          );
+          await uploadDogDocument({
+            dogId,
+            userId: dogPayload.user_id,
+            file,
+            category,
+          });
         }
       }
 
@@ -465,92 +335,38 @@ export function useFormData() {
         delete src.documents;
         delete src.photo;
 
-        // Map UI age -> age_years if provided
-        if (
-          (src.age_years === "" || src.age_years === undefined) &&
-          src.age !== undefined &&
-          src.age !== ""
-        ) {
-          src.age_years = src.age;
-        }
-        delete src.age;
+        // Map UI age (years only) -> age_years if provided
+        const age2 = normalizeAge(src.age_years, src.age);
+        if (age2.error) throw new Error(age2.error);
+        if (age2.age_years !== undefined) src.age_years = age2.age_years;
+        delete src.age; // legacy field
+        // months removed from UI
 
         // Whitelist dog table columns
-        const allowedDogColumns = new Set([
-          "name",
-          "gender",
-          "breed",
-          "age_years",
-          "size",
-          "weight_kg",
-          "pedigree_certified",
-          "dna_tested",
-          "vaccinated",
-          "hip_elbow_tested",
-          "heart_tested",
-          "eye_tested",
-          "genetic_panel",
-          "thyroid_tested",
-          "coat_type",
-          "color",
-          "activity_level",
-          "sociability",
-          "trainability",
-          "ear_type",
-          "tail_type",
-          "muzzle_shape",
-        ]);
-        const dogPayload = Object.fromEntries(
-          Object.entries(src).filter(([k]) => allowedDogColumns.has(k))
-        );
+        const dogPayload = whitelistPayload(src, DOG_ALLOWED_COLUMNS);
 
         // Convert numeric fields
-        if (dogPayload.weight_kg !== "" && dogPayload.weight_kg !== undefined)
-          dogPayload.weight_kg = Number(dogPayload.weight_kg);
-        if (dogPayload.age_years !== "" && dogPayload.age_years !== undefined) {
-          dogPayload.age_years = Number(dogPayload.age_years);
-          // Validate age limit (25 years maximum)
-          if (dogPayload.age_years > 25) {
-            throw new Error(
-              "Age cannot exceed 25 years. Please enter a valid age."
-            );
+        const coerced2 = coerceNumbers(dogPayload, ["weight_kg", "age_years"]);
+        if (coerced2.weight_kg !== undefined && coerced2.weight_kg !== "") {
+          const w2 = Number(coerced2.weight_kg);
+          if (Number.isFinite(w2)) {
+            if (w2 < 1.5) throw new Error("Weight must be at least 1.5 kg.");
+            if (w2 > 91) throw new Error("Weight must not exceed 91 kg.");
           }
-          if (dogPayload.age_years < 0) {
-            throw new Error(
-              "Age cannot be negative. Please enter a valid age."
-            );
+        }
+        if (coerced2.age_years !== undefined) {
+          if (coerced2.age_years > 25) {
+            throw new Error("Age cannot exceed 25 years. Please enter a valid age.");
+          }
+          if (coerced2.age_years < 0) {
+            throw new Error("Age cannot be negative. Please enter a valid age.");
           }
         }
 
         // Update the dog record
-        // Try updating; iteratively strip missing columns reported by the schema cache and retry
-        let payload = { ...dogPayload };
-        let updateError = null;
-        const maxAttempts = 5;
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const resp = await supabase
-            .from("dogs")
-            .update(payload)
-            .eq("id", dogId);
-          updateError = resp.error;
-          if (!updateError) break;
-          const missing = extractMissingColumn(
-            updateError.message || updateError.error || ""
-          );
-          if (
-            !missing ||
-            !Object.prototype.hasOwnProperty.call(payload, missing)
-          )
-            break;
-          console.warn(
-            `Detected missing column '${missing}' during update (attempt ${
-              attempt + 1
-            }); removing and retrying.`
-          );
-          delete payload[missing];
-        }
-
-        if (updateError) throw updateError;
+        // Update dog record (assumes DB schema is up-to-date)
+        const updResp = await supabase.from("dogs").update(coerced2).eq("id", dogId);
+        if (updResp.error) throw updResp.error;
 
         // Upload new photo if provided
         if (data.photo) {
@@ -558,36 +374,22 @@ export function useFormData() {
 
           // First, try to delete old photos for this dog to avoid clutter
           try {
-            const { data: oldPhotos, error: listError } = await supabase.storage
-              .from("dog-photos")
-              .list(`${dogId}`);
-
-            if (!listError && oldPhotos && oldPhotos.length > 0) {
-              const oldPaths = oldPhotos.map((file) => `${dogId}/${file.name}`);
+            const oldPaths = await listPathsUnder({ bucket: "dog-photos", prefix: `${dogId}` });
+            if (oldPaths.length) {
               console.log("🗑️ Cleaning up old photos:", oldPaths);
-              await supabase.storage.from("dog-photos").remove(oldPaths);
+              await deletePathsFromBucket({ bucket: "dog-photos", paths: oldPaths });
             }
           } catch (cleanupError) {
             console.warn("⚠️ Could not clean up old photos:", cleanupError);
-            // Continue with upload even if cleanup fails
           }
 
           const photoPath = `${dogId}/profile-${Date.now()}-${data.photo.name}`;
-          const { error: uploadPhotoError } = await supabase.storage
-            .from("dog-photos")
-            .upload(photoPath, data.photo, { upsert: false });
-
-          if (uploadPhotoError) {
-            throw new Error(
-              `Photo upload failed for ${data.photo.name}: ${uploadPhotoError.message}`
-            );
-          }
-
-          // Get public URL and update dogs.image_url
-          const { data: pub } = supabase.storage
-            .from("dog-photos")
-            .getPublicUrl(photoPath);
-          const imageUrl = pub?.publicUrl || null;
+          const { publicUrl: imageUrl } = await uploadFileToBucket({
+            bucket: "dog-photos",
+            path: photoPath,
+            file: data.photo,
+            upsert: false,
+          });
 
           if (imageUrl) {
             const { error: updError } = await supabase
@@ -618,9 +420,7 @@ export function useFormData() {
           console.log("�️ Checking for removed documents...");
 
           // Get current document names/categories from form
-          const currentDocuments = Array.isArray(data.documents)
-            ? data.documents
-            : [];
+          const currentDocuments = Array.isArray(data.documents) ? data.documents : [];
           console.log(
             "📋 Current documents in form:",
             currentDocuments.map((d) => ({
@@ -640,16 +440,11 @@ export function useFormData() {
               })
           );
 
-          console.log(
-            "📋 Current existing document keys:",
-            Array.from(currentDocSet)
-          );
+          console.log("📋 Current existing document keys:", Array.from(currentDocSet));
 
           // Find documents that were in initial but are not in current existing (i.e., removed)
           const removedDocuments = initialDocuments.filter((initialDoc) => {
-            const key = `${initialDoc.file_name}:${
-              initialDoc.category || "misc"
-            }`;
+            const key = `${initialDoc.file_name}:${initialDoc.category || "misc"}`;
             const isRemoved = !currentDocSet.has(key);
             if (isRemoved) {
               console.log(
@@ -659,57 +454,15 @@ export function useFormData() {
             return isRemoved;
           });
 
-          console.log(
-            `📋 Found ${removedDocuments.length} documents to remove from database`
-          );
+          console.log(`📋 Found ${removedDocuments.length} documents to remove from database`);
 
-          // Delete removed documents from database and storage
-          for (const removedDoc of removedDocuments) {
+          // Batch delete removed documents using helper
+          const removedIds = removedDocuments.map((d) => d.id).filter(Boolean);
+          if (removedIds.length) {
             try {
-              console.log(
-                `🗑️ Deleting document: ${removedDoc.file_name} (${removedDoc.category})`
-              );
-
-              // Delete from storage first
-              if (removedDoc.storage_path) {
-                const { error: storageError } = await supabase.storage
-                  .from("dog-photos")
-                  .remove([removedDoc.storage_path]);
-
-                if (storageError) {
-                  console.warn(
-                    `⚠️ Could not delete file from storage: ${removedDoc.storage_path}`,
-                    storageError
-                  );
-                } else {
-                  console.log(
-                    `✅ Deleted from storage: ${removedDoc.storage_path}`
-                  );
-                }
-              }
-
-              // Delete from database
-              const { error: dbError } = await supabase
-                .from("dog_documents")
-                .delete()
-                .eq("id", removedDoc.id);
-
-              if (dbError) {
-                console.warn(
-                  `⚠️ Could not delete document from database: ${removedDoc.file_name}`,
-                  dbError
-                );
-              } else {
-                console.log(
-                  `✅ Deleted from database: ${removedDoc.file_name}`
-                );
-              }
-            } catch (deleteError) {
-              console.warn(
-                `⚠️ Error deleting document ${removedDoc.file_name}:`,
-                deleteError
-              );
-              // Continue with other deletions even if one fails
+              await removeDocumentsByIds(removedIds);
+            } catch (err) {
+              console.warn("⚠️ Batch delete of removed documents failed:", err);
             }
           }
         }
@@ -719,20 +472,13 @@ export function useFormData() {
           console.log("📁 Uploading new documents:", data.documents.length);
 
           // Separate new files from existing documents
-          const newFiles = data.documents.filter(
-            (item) => item.file && !item.isExisting
-          );
-          const primaryCertificationCategories = [
-            "pedigree",
-            "dna",
-            "vaccination",
-          ];
+          const newFiles = data.documents.filter((item) => item.file && !item.isExisting);
+          const primaryCertificationCategories = ["pedigree", "dna", "vaccination"];
 
           console.log("📋 Processing documents for update:", {
             totalDocuments: data.documents.length,
             newFiles: newFiles.length,
-            existingDocs: data.documents.filter((item) => item.isExisting)
-              .length,
+            existingDocs: data.documents.filter((item) => item.isExisting).length,
           });
 
           for (const item of newFiles) {
@@ -742,16 +488,10 @@ export function useFormData() {
 
             // For single-file categories, remove existing files first
             if (primaryCertificationCategories.includes(category)) {
-              console.log(
-                `🗑️ Removing existing files for single-file category: ${category}`
-              );
-              const { error: deleteError } = await supabase
-                .from("dog_documents")
-                .delete()
-                .eq("dog_id", dogId)
-                .eq("category", category);
-
-              if (deleteError) {
+              console.log(`🗑️ Removing existing files for single-file category: ${category}`);
+              try {
+                await removeDocumentsByCategory(dogId, category);
+              } catch (deleteError) {
                 console.warn(
                   `Warning: Could not delete existing ${category} documents:`,
                   deleteError
@@ -759,38 +499,7 @@ export function useFormData() {
               }
             }
 
-            // Determine file type for better organization
-            const isImage =
-              file.type?.startsWith("image/") ||
-              /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name);
-            const subfolder = isImage ? "images" : "documents";
-            const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_"); // Sanitize filename
-            const path = `${dogId}/${subfolder}/${Date.now()}-${sanitizedFileName}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from("dog-photos")
-              .upload(path, file, { upsert: false });
-
-            if (uploadError) {
-              console.error("📤 Upload error for", file.name, ":", uploadError);
-              throw new Error(
-                `Upload failed for ${file.name}: ${uploadError.message}`
-              );
-            }
-
-            const { error: docInsertError } = await supabase
-              .from("dog_documents")
-              .insert({
-                dog_id: dogId,
-                user_id: userId,
-                file_name: file.name,
-                storage_path: path,
-                file_size_bytes: file.size,
-                content_type: file.type,
-                category: category,
-              });
-
-            if (docInsertError) throw docInsertError;
+            await uploadDogDocument({ dogId, userId, file, category });
             console.log(`✅ Document uploaded: ${file.name}`);
           }
         }

@@ -1,8 +1,7 @@
 import supabase from "./supabaseClient";
 
 // Capability cache so we don't repeatedly issue failing selects on older DBs
-let THREADS_HAS_IMAGE_URL = true;
-let THREADS_HAS_COUNTS = true; // upvotes_count, downvotes_count
+// Assumes database schema includes `threads.image_url` and denormalized count columns
 
 // Tiny helper to read the current authenticated user id
 async function getCurrentUserId() {
@@ -12,19 +11,19 @@ async function getCurrentUserId() {
 }
 
 // Fetch latest threads with vote counts
-export async function fetchThreads({
-  limit = 20,
-  from = 0,
-  sort = "new",
-} = {}) {
+export async function fetchThreads({ limit = 20, from = 0, sort = "new" } = {}) {
   // build query
-  // Prefer selecting optional columns if supported
-  const cols = ["id", "title", "body", "user_id", "created_at"];
-  if (THREADS_HAS_IMAGE_URL) cols.splice(3, 0, "image_url");
-  if (THREADS_HAS_COUNTS) {
-    cols.push("upvotes_count", "downvotes_count");
-  }
-  let selectCols = cols.join(", ");
+  // Select expected columns (image_url and counts are expected in migrated schema)
+  const selectCols = [
+    "id",
+    "title",
+    "body",
+    "image_url",
+    "user_id",
+    "created_at",
+    "upvotes_count",
+    "downvotes_count",
+  ].join(", ");
   let qb = supabase.from("threads").select(selectCols);
 
   // Map legacy and new sort keys to DB ordering (coarse ordering)
@@ -51,37 +50,13 @@ export async function fetchThreads({
       qb = qb.order("created_at", { ascending: false });
       break;
     case "least_popular":
-      qb = qb
-        .order("upvotes_count", { ascending: true })
-        .order("created_at", { ascending: true });
+      qb = qb.order("upvotes_count", { ascending: true }).order("created_at", { ascending: true });
       break;
     default:
       qb = qb.order("created_at", { ascending: false });
   }
 
-  let { data, error } = await qb.range(from, from + limit - 1);
-  // Fallback for older DBs missing optional columns
-  if (
-    error &&
-    (error.code === "42703" ||
-      /image_url|upvotes_count|downvotes_count/.test(error.message || ""))
-  ) {
-    // Update capability flags based on error
-    if (/image_url/.test(error.message || "")) THREADS_HAS_IMAGE_URL = false;
-    if (/upvotes_count|downvotes_count/.test(error.message || ""))
-      THREADS_HAS_COUNTS = false;
-    const retryCols = ["id", "title", "body", "user_id", "created_at"];
-    // Only include supported columns
-    if (THREADS_HAS_IMAGE_URL) retryCols.splice(3, 0, "image_url");
-    if (THREADS_HAS_COUNTS) retryCols.push("upvotes_count", "downvotes_count");
-    selectCols = retryCols.join(", ");
-    qb = supabase.from("threads").select(selectCols);
-    // If counts not available, avoid ordering by counts at the DB level
-    if (!THREADS_HAS_COUNTS && (sort === "best" || sort === "top")) {
-      qb = qb.order("created_at", { ascending: false });
-    }
-    ({ data, error } = await qb.range(from, from + limit - 1));
-  }
+  const { data, error } = await qb.range(from, from + limit - 1);
   if (error) throw error;
   let rows = data || [];
 
@@ -148,13 +123,9 @@ export async function fetchThreads({
       return new Date(b.created_at) - new Date(a.created_at);
     });
   } else if (sort === "new") {
-    rows = [...rows].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
+    rows = [...rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   } else if (sort === "old") {
-    rows = [...rows].sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    );
+    rows = [...rows].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }
 
   return rows;
@@ -162,40 +133,15 @@ export async function fetchThreads({
 
 // Fetch a single thread and its comments (with vote counts)
 export async function fetchThreadWithComments(threadId) {
-  // Try to include optional columns; adapt if missing
-  const baseCols = ["id", "title", "body", "user_id", "created_at"];
-  if (THREADS_HAS_IMAGE_URL) baseCols.splice(3, 0, "image_url");
-  if (THREADS_HAS_COUNTS) baseCols.push("upvotes_count", "downvotes_count");
-  let threadRes = await supabase
+  // Fetch single thread (expects migrated schema)
+  const threadRes = await supabase
     .from("threads")
-    .select(baseCols.join(", "))
+    .select("id, title, body, image_url, user_id, created_at, upvotes_count, downvotes_count")
     .eq("id", threadId)
     .single();
-  if (
-    threadRes.error &&
-    (threadRes.error.code === "42703" ||
-      /image_url|upvotes_count|downvotes_count/.test(
-        threadRes.error.message || ""
-      ))
-  ) {
-    if (/image_url/.test(threadRes.error.message || ""))
-      THREADS_HAS_IMAGE_URL = false;
-    if (/upvotes_count|downvotes_count/.test(threadRes.error.message || ""))
-      THREADS_HAS_COUNTS = false;
-    const retryCols = ["id", "title", "body", "user_id", "created_at"];
-    if (THREADS_HAS_IMAGE_URL) retryCols.splice(3, 0, "image_url");
-    if (THREADS_HAS_COUNTS) retryCols.push("upvotes_count", "downvotes_count");
-    threadRes = await supabase
-      .from("threads")
-      .select(retryCols.join(", "))
-      .eq("id", threadId)
-      .single();
-  }
   const commentsRes = await supabase
     .from("comments")
-    .select(
-      "id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count"
-    )
+    .select("id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
 
@@ -210,10 +156,7 @@ export async function fetchThreadWithComments(threadId) {
   // Fallback aggregation: recompute up/down from votes if denormalized counts are stale
   try {
     // Thread counts
-    const { data: tvotes } = await supabase
-      .from("votes")
-      .select("value")
-      .eq("thread_id", threadId);
+    const { data: tvotes } = await supabase.from("votes").select("value").eq("thread_id", threadId);
     if (tvotes && tvotes.length) {
       let up = 0,
         down = 0;
@@ -296,14 +239,13 @@ export async function getMyCommentVotes(threadId) {
     .is("thread_id", null)
     .in(
       "comment_id",
-      (
-        await supabase.from("comments").select("id").eq("thread_id", threadId)
-      ).data?.map((r) => r.id) || []
+      (await supabase.from("comments").select("id").eq("thread_id", threadId)).data?.map(
+        (r) => r.id
+      ) || []
     );
   if (error) return {};
   const map = {};
-  for (const row of data || [])
-    if (row.comment_id) map[row.comment_id] = row.value;
+  for (const row of data || []) if (row.comment_id) map[row.comment_id] = row.value;
   return map;
 }
 
@@ -324,10 +266,7 @@ export async function toggleThreadVote(threadId, value) {
   if (existing?.id) {
     if (existing.value === value) {
       // Same vote → remove (toggle off)
-      const { error: delErr } = await supabase
-        .from("votes")
-        .delete()
-        .eq("id", existing.id);
+      const { error: delErr } = await supabase.from("votes").delete().eq("id", existing.id);
       if (delErr) throw delErr;
     } else {
       // Different vote → flip
@@ -389,10 +328,7 @@ export async function toggleCommentVote(commentId, value) {
 
   if (existing?.id) {
     if (existing.value === value) {
-      const { error: delErr } = await supabase
-        .from("votes")
-        .delete()
-        .eq("id", existing.id);
+      const { error: delErr } = await supabase.from("votes").delete().eq("id", existing.id);
       if (delErr) throw delErr;
     } else {
       const { error: updErr } = await supabase
