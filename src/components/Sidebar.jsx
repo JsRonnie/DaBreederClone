@@ -1,24 +1,37 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { listContacts } from "../lib/chat";
 
-function NavItem({ icon, label, onClick, active, danger, disabled, to }) {
+function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) {
   const baseClasses = `w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors ${
     disabled ? "text-slate-400 cursor-not-allowed" : "hover:bg-slate-100"
   } ${danger ? "text-rose-600 hover:text-rose-700" : active ? "text-slate-900" : "text-slate-700"}`;
+  const showBadge = typeof badge === "number" ? badge > 0 : Boolean(badge);
+  const badgeValue = typeof badge === "number" ? badge : badge;
+
+  const content = (
+    <>
+      <span className="size-5 text-slate-900">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {showBadge && (
+        <span className="ml-auto inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+          {badgeValue}
+        </span>
+      )}
+    </>
+  );
 
   if (to && !disabled) {
     return (
       <Link to={to} onClick={onClick} className={baseClasses}>
-        <span className="size-5 text-slate-900">{icon}</span>
-        <span className="flex-1">{label}</span>
+        {content}
       </Link>
     );
   }
 
   return (
-    <button onClick={onClick} disabled={disabled} className={baseClasses}>
-      <span className="size-5 text-slate-900">{icon}</span>
-      <span className="flex-1">{label}</span>
+    <button type="button" onClick={onClick} disabled={disabled} className={baseClasses}>
+      {content}
     </button>
   );
 }
@@ -26,6 +39,8 @@ function NavItem({ icon, label, onClick, active, danger, disabled, to }) {
 export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
   const containerRef = useRef(null);
+  const [chatContacts, setChatContacts] = useState([]);
+  const chatCount = chatContacts.length;
 
   // When the sidebar closes, ensure no element inside remains focused
   useEffect(() => {
@@ -49,6 +64,45 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
       }
     }
   }, [open]);
+
+  // Load chats when user signs in
+  useEffect(() => {
+    if (!loggedIn) {
+      setChatContacts([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await listContacts();
+        if (!cancelled) setChatContacts(data || []);
+      } catch (err) {
+        console.error("Failed to load chats", err);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn]);
+
+  // Refresh list whenever the drawer opens
+  useEffect(() => {
+    if (!open || !loggedIn) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await listContacts();
+        if (!cancelled) setChatContacts(data || []);
+      } catch (err) {
+        console.error("Failed to refresh chats", err);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loggedIn]);
 
   return (
     <div
@@ -125,6 +179,14 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
             <NavItem
+              label="Chat"
+              icon={<MessageIcon />}
+              to="/chat"
+              disabled={!loggedIn}
+              onClick={onClose}
+              badge={chatCount}
+            />
+            <NavItem
               label="Forum"
               icon={<ChatIcon />}
               to="/forum"
@@ -139,6 +201,46 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
           </nav>
+          {loggedIn && (
+            <div className="mt-4">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
+                People you chat
+              </div>
+              {chatContacts.length === 0 ? (
+                <p className="px-3 text-xs text-slate-500">No conversations yet.</p>
+              ) : (
+                <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
+                  {chatContacts.map((contact) => (
+                    <li key={contact.id}>
+                      <Link
+                        to={`/chat/${contact.id}`}
+                        onClick={onClose}
+                        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+                      >
+                        <img
+                          src={contact.dog_image || "/shibaPor.jpg"}
+                          alt={contact.dog_name || "Conversation"}
+                          className="size-8 flex-shrink-0 rounded-full object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium text-slate-900">
+                            {contact.dog_name || "Conversation"}
+                          </div>
+                          {contact.last_message ? (
+                            <div className="truncate text-xs text-slate-500">
+                              {contact.last_message}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400">No messages yet</div>
+                          )}
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Settings */}
@@ -191,6 +293,19 @@ function ChatIcon() {
         strokeLinejoin="round"
         d="M21 8.25c0-1.243-1.007-2.25-2.25-2.25H5.25C4.007 6 3 7.007 3 8.25v7.5C3 17.993 4.007 19 5.25 19H9l3.75 3 3.75-3h2.25A2.25 2.25 0 0 0 21 15.75v-7.5Z"
       />
+    </svg>
+  );
+}
+
+function MessageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.5L5 19.5V7a2 2 0 0 1 2-2Z"
+      />
+      <path strokeLinecap="round" d="M8 10h8M8 13h5" />
     </svg>
   );
 }

@@ -2,21 +2,21 @@ import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
 import { calculateMatchScore } from "../utils/matchmaking";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./FindMatchPage.css";
 import { AuthContext } from "../context/AuthContext";
 import { createCache } from "../lib/cache";
 import { getCookie, setCookie } from "../utils/cookies";
 import useDogs from "../hooks/useDogs";
 import LoadingState from "../components/LoadingState";
+import { ensureContact } from "../lib/chat";
 
 // Shared invalidation timestamp is managed inside useDogs; keep usage here only for matches caching.
 
 export default function FindMatchPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user: authUser } = useContext(AuthContext);
-  // Mark as used for lint in case future enhancements need authUser
-  void authUser;
   // Debug logger for this page
   const FM_LOG = (...args) => console.log("🔎 [FindMatch]", ...args);
   const MATCHES_TTL = 15 * 60 * 1000; // 15 minutes
@@ -48,6 +48,7 @@ export default function FindMatchPage() {
   const [matchesLoading, setMatchesLoading] = useState(false);
   // Simplified loading UI (no long-load hints)
   const [error, setError] = useState(null);
+  const [contactingDogId, setContactingDogId] = useState(null);
   const matchesRequestIdRef = useRef(0);
   useEffect(() => {
     // Restore state if coming back from a profile page
@@ -249,10 +250,53 @@ export default function FindMatchPage() {
     }
   };
 
-  const handleContact = (match) => {
-    // For now, we'll show an alert with contact info
-    // In a real app, this would open a messaging system or show contact details
-    alert(`Contact ${match.name}'s owner through their profile page or messaging system.`);
+  const handleContact = async (match) => {
+    if (!authUser) {
+      alert("Please sign in to contact the owner.");
+      return;
+    }
+    if (!selectedDog) {
+      alert("Select one of your dogs before contacting a match.");
+      return;
+    }
+    let ownerId = match?.user_id || null;
+
+    setContactingDogId(match.id);
+    try {
+      if (!ownerId) {
+        const { data, error } = await supabase
+          .from("dogs")
+          .select("user_id")
+          .eq("id", match.id)
+          .maybeSingle();
+        if (error) throw error;
+        ownerId = data?.user_id || null;
+      }
+
+      if (!ownerId) {
+        throw new Error("Owner not available for this match. Please try another dog or refresh.");
+      }
+
+      const contactId = await ensureContact({
+        dogId: match.id,
+        dogName: match.name,
+        dogImage: match.image_url || null,
+        ownerId,
+      });
+      navigate(`/chat/${contactId}`, {
+        state: {
+          fromFindMatch: true,
+          selectedDogId: selectedDog.id,
+          contactedDogId: match.id,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to start contact", err);
+      const message = err?.message || "We couldn't open the chat. Please try again.";
+      alert(message);
+    } finally {
+      setContactingDogId(null);
+    }
   };
 
   return (
@@ -380,8 +424,12 @@ export default function FindMatchPage() {
                       >
                         View Profile
                       </Link>
-                      <button className="contact-btn" onClick={() => handleContact(match)}>
-                        Contact Owner
+                      <button
+                        className="contact-btn"
+                        onClick={() => handleContact(match)}
+                        disabled={contactingDogId === match.id}
+                      >
+                        {contactingDogId === match.id ? "Opening chat..." : "Contact Owner"}
                       </button>
                     </div>
                   </div>

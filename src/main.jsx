@@ -18,6 +18,7 @@ const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFound"));
 const ForumPage = lazy(() => import("./pages/ForumPage"));
 const ThreadPage = lazy(() => import("./pages/ThreadPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -38,6 +39,8 @@ createRoot(document.getElementById("root")).render(
               <Route path="change-password" element={<ChangePasswordPage />} />
               <Route path="forum" element={<ForumPage />} />
               <Route path="thread/:id" element={<ThreadPage />} />
+              <Route path="chat" element={<ChatPage />} />
+              <Route path="chat/:contactId" element={<ChatPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
