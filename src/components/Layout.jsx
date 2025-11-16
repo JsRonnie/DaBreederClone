@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import AuthModal from "../components/AuthModal";
@@ -14,6 +14,10 @@ export default function Layout() {
   const [authMode, setAuthMode] = useState("signin");
   const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if we're on a chat page
+  const isChatPage = location.pathname.startsWith("/chat");
 
   // Listen for auth modal events
   useEffect(() => {
@@ -80,7 +84,7 @@ export default function Layout() {
 
       <Toast />
 
-      <Footer />
+      {!isChatPage && <Footer />}
     </div>
   );
 }

@@ -32,6 +32,17 @@ function PaperclipIcon() {
   );
 }
 
+// Three dots menu icon
+function ThreeDotsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18 }}>
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
 // Simple chat UI page. Shows either list of contacts or active messages.
 // Route: /chat (contact list) or /chat/:contactId (specific thread)
 export default function ChatPage() {
@@ -55,6 +66,9 @@ export default function ChatPage() {
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const blobUrlsRef = useRef(new Set());
   const fileInputRef = useRef(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const textareaRef = useRef(null);
 
   // Activate contact when param changes
   useEffect(() => {
@@ -190,11 +204,39 @@ export default function ChatPage() {
       }
 
       setInput("");
+      // Reset textarea height after sending
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to send message");
     }
   };
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = "auto";
+
+    // Calculate line height (approximately 1.5em * font size)
+    const lineHeight = 1.5 * 15; // 0.9375rem * 16px = 15px
+    const maxHeight = lineHeight * 5; // 5 lines
+
+    // Set new height based on content, max 5 lines
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
+
+    // Show scrollbar only when content exceeds max height
+    if (textarea.scrollHeight > maxHeight) {
+      textarea.style.overflowY = "auto";
+    } else {
+      textarea.style.overflowY = "hidden";
+    }
+  }, [input]);
 
   const handleFile = (e) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -248,21 +290,56 @@ export default function ChatPage() {
     <div
       className="chat-contact-list"
       style={{
-        borderRight: "1px solid #e1e4ed",
-        padding: "1rem",
+        borderRight: "1px solid #e5e7eb",
+        padding: "1.5rem 1rem",
         overflowY: "auto",
         height: "100%",
         minHeight: 0,
-        background: "#ffffff",
+        background: "#fafafa",
       }}
     >
-      <h2 style={{ marginBottom: "1rem" }}>Chats</h2>
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .chat-contact-list {
+              border-right: none !important;
+              padding: 1rem !important;
+            }
+            .contact-list-title {
+              font-size: 1.125rem !important;
+            }
+          }
+        `}
+      </style>
+      <h2
+        className="contact-list-title"
+        style={{
+          marginBottom: "1.5rem",
+          fontSize: "1.25rem",
+          fontWeight: 600,
+          color: "#111827",
+          letterSpacing: "-0.025em",
+        }}
+      >
+        Messages
+      </h2>
       {contacts.length === 0 && (
-        <p style={{ opacity: 0.7 }}>No chats yet. Start one from a match card.</p>
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "#6b7280",
+            textAlign: "center",
+            marginTop: "3rem",
+          }}
+        >
+          No conversations yet.
+          <br />
+          Start chatting from a match!
+        </p>
       )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {contacts.map((c) => (
-          <li key={c.id} style={{ marginBottom: "0.5rem" }}>
+          <li key={c.id} style={{ marginBottom: "0.375rem" }}>
             <button
               onClick={() => {
                 openContact(c.id);
@@ -271,22 +348,35 @@ export default function ChatPage() {
               style={{
                 width: "100%",
                 textAlign: "left",
-                padding: "0.75rem",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                background: c.id === activeContactId ? "#eef5ff" : "white",
+                padding: "0.875rem 1rem",
+                border: "none",
+                borderRadius: 12,
+                background: c.id === activeContactId ? "#ffffff" : "transparent",
                 cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: c.id === activeContactId ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              }}
+              onMouseEnter={(e) => {
+                if (c.id !== activeContactId) {
+                  e.currentTarget.style.background = "#f3f4f6";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (c.id !== activeContactId) {
+                  e.currentTarget.style.background = "transparent";
+                }
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
+                    width: 48,
+                    height: 48,
                     borderRadius: "50%",
                     overflow: "hidden",
-                    background: "#f2f2f2",
+                    background: "#e5e7eb",
                     flexShrink: 0,
+                    border: "2px solid #ffffff",
                   }}
                 >
                   <img
@@ -295,10 +385,28 @@ export default function ChatPage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 </div>
-                <div>
-                  <strong>{c.dog_name || "Conversation"}</strong>
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
-                    {c.last_message ? truncatePreview(c.last_message) : "No messages yet"}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: "0.9375rem",
+                      color: "#111827",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    {c.dog_name || "Conversation"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: "#6b7280",
+                      lineHeight: "1.25",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.last_message ? truncatePreview(c.last_message, 50) : "No messages yet"}
                   </div>
                 </div>
               </div>
@@ -320,25 +428,53 @@ export default function ChatPage() {
           height: "100%",
           minHeight: 0,
           background: "#ffffff",
-          borderLeft: "1px solid #e1e4ed",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.75rem",
-            borderBottom: "1px solid #eee",
-            padding: "0.75rem 1rem",
+            gap: "0.875rem",
+            borderBottom: "1px solid #e5e7eb",
+            padding: "1rem 1.5rem",
+            background: "#ffffff",
           }}
         >
+          <button
+            onClick={() => navigate("/chat")}
+            className="mobile-back-button"
+            style={{
+              display: "none",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "0.5rem",
+              marginLeft: "-0.5rem",
+              color: "#374151",
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: 24, height: 24 }}
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
           <div
             style={{
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               borderRadius: "50%",
               overflow: "hidden",
-              background: "#f2f2f2",
+              background: "#e5e7eb",
+              border: "2px solid #f9fafb",
             }}
           >
             <img
@@ -347,7 +483,15 @@ export default function ChatPage() {
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           </div>
-          <h3 style={{ margin: 0, fontSize: "1.1rem" }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "1.0625rem",
+              fontWeight: 600,
+              color: "#111827",
+              letterSpacing: "-0.0125em",
+            }}
+          >
             {activeContact?.dog_name || "Conversation"}
           </h3>
         </div>
@@ -357,90 +501,233 @@ export default function ChatPage() {
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
-            padding: "1rem",
-            background: "#f8faff",
+            padding: "1.5rem",
+            background: "#fafafa",
             display: "flex",
             flexDirection: "column",
+            gap: "0.75rem",
           }}
+          className="messages-container"
         >
-          {loadingMessages && <p>Loading messages…</p>}
+          <style>
+            {`
+              @media (max-width: 768px) {
+                .messages-container {
+                  padding: 1rem !important;
+                }
+                .message-wrapper {
+                  max-width: 90% !important;
+                  gap: 0.375rem !important;
+                }
+                .message-bubble {
+                  font-size: 0.875rem !important;
+                  padding: 0.625rem 0.875rem !important;
+                }
+                .message-bubble img {
+                  max-width: 100% !important;
+                  width: 100% !important;
+                  height: auto !important;
+                }
+                .message-menu-button {
+                  width: 24px !important;
+                  height: 24px !important;
+                }
+              }
+            `}
+          </style>
+          {loadingMessages && (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#9ca3af",
+                fontSize: "0.875rem",
+                margin: "2rem 0",
+              }}
+            >
+              Loading messages…
+            </p>
+          )}
           {messages.map((m) => {
             const isOwn = currentUserId && m.sender_id === currentUserId;
             const attachments = m.message_attachments || [];
             const createdAt = m.created_at ? new Date(m.created_at) : null;
             const withinHour = createdAt ? Date.now() - createdAt.getTime() <= 3600000 : false;
             const canDelete = isOwn && !m.deleted_at && withinHour;
+            const isHovered = hoveredMessageId === m.id;
+            const isMenuOpen = openMenuId === m.id;
+
             return (
               <div
                 key={m.id}
+                onMouseEnter={() => setHoveredMessageId(m.id)}
+                onMouseLeave={() => setHoveredMessageId(null)}
+                className="message-wrapper"
                 style={{
-                  marginBottom: "0.75rem",
-                  maxWidth: "70%",
-                  padding: "0.6rem 0.8rem",
+                  marginBottom: "0.25rem",
+                  maxWidth: "65%",
                   alignSelf: isOwn ? "flex-end" : "flex-start",
-                  background: isOwn ? "#d1e7ff" : "#f5f5f5",
-                  borderRadius: 10,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.5rem",
+                  flexDirection: isOwn ? "row-reverse" : "row",
                 }}
               >
-                {m.deleted_at && <em style={{ opacity: 0.6 }}>Deleted</em>}
-                {!m.deleted_at && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {m.kind === "text" && <span>{m.content}</span>}
-                    {m.kind !== "text" && m.content && <span>{m.content}</span>}
-                    {attachments.length > 0 &&
-                      attachments.map((att) => {
-                        const url = attachmentUrls[att.id];
-                        const filename =
-                          att.original_name ||
-                          att.file_name ||
-                          (att.storage_path ? att.storage_path.split("/").pop() : "Attachment");
-                        const isImage = (att.mime_type || "").startsWith("image/");
-                        return (
-                          <div key={att.id}>
-                            {isImage && url ? (
-                              <img
-                                src={url}
-                                alt={filename}
-                                style={{ maxWidth: "240px", borderRadius: 8 }}
-                              />
-                            ) : (
-                              <a
-                                href={url || "#"}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                  color: "#1a56db",
-                                  textDecoration: url ? "underline" : "none",
-                                  pointerEvents: url ? "auto" : "none",
-                                }}
-                              >
-                                {url ? `Download ${filename}` : "Preparing attachment…"}
-                              </a>
-                            )}
-                          </div>
-                        );
-                      })}
-                    {m.kind !== "text" && attachments.length === 0 && (
-                      <em style={{ opacity: 0.7 }}>Attachment processing…</em>
-                    )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMessage(m.id)}
-                        style={{
-                          alignSelf: "flex-end",
-                          background: "transparent",
-                          border: "none",
-                          color: "#4b5563",
-                          fontSize: 12,
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                        }}
-                      >
-                        Delete
-                      </button>
+                <div
+                  className="message-bubble"
+                  style={{
+                    padding: "0.75rem 1rem",
+                    background: isOwn ? "#2563eb" : "#ffffff",
+                    color: isOwn ? "#ffffff" : "#111827",
+                    borderRadius: isOwn ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                    fontSize: "0.9375rem",
+                    lineHeight: "1.5",
+                    wordWrap: "break-word",
+                    flex: 1,
+                  }}
+                >
+                  {m.deleted_at && (
+                    <em style={{ opacity: 0.5, fontSize: "0.875rem" }}>Message deleted</em>
+                  )}
+                  {!m.deleted_at && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {m.kind === "text" && <span>{m.content}</span>}
+                      {m.kind !== "text" && m.content && <span>{m.content}</span>}
+                      {attachments.length > 0 &&
+                        attachments.map((att) => {
+                          const url = attachmentUrls[att.id];
+                          const filename =
+                            att.original_name ||
+                            att.file_name ||
+                            (att.storage_path ? att.storage_path.split("/").pop() : "Attachment");
+                          const isImage = (att.mime_type || "").startsWith("image/");
+                          return (
+                            <div key={att.id}>
+                              {isImage && url ? (
+                                <img
+                                  src={url}
+                                  alt={filename}
+                                  className="message-image"
+                                  style={{
+                                    maxWidth: "280px",
+                                    width: "100%",
+                                    height: "auto",
+                                    borderRadius: 12,
+                                    marginTop: "0.25rem",
+                                    display: "block",
+                                  }}
+                                />
+                              ) : (
+                                <a
+                                  href={url || "#"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: isOwn ? "#bfdbfe" : "#2563eb",
+                                    textDecoration: url ? "underline" : "none",
+                                    pointerEvents: url ? "auto" : "none",
+                                    fontSize: "0.875rem",
+                                  }}
+                                >
+                                  {url ? `📎 ${filename}` : "Preparing attachment…"}
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      {m.kind !== "text" && attachments.length === 0 && (
+                        <em style={{ opacity: 0.6, fontSize: "0.875rem" }}>
+                          Processing attachment…
+                        </em>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {canDelete && (isHovered || isMenuOpen) && (
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenuId(isMenuOpen ? null : m.id)}
+                      className="message-menu-button"
+                      style={{
+                        background: "#f3f4f6",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: 28,
+                        height: 28,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#6b7280",
+                        transition: "all 0.2s ease",
+                        marginTop: "0.5rem",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#e5e7eb";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f3f4f6";
+                      }}
+                    >
+                      <ThreeDotsIcon />
+                    </button>
+                    {isMenuOpen && (
+                      <>
+                        <div
+                          style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 10,
+                          }}
+                          onClick={() => setOpenMenuId(null)}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            right: isOwn ? 0 : "auto",
+                            left: isOwn ? "auto" : 0,
+                            marginTop: "0.25rem",
+                            background: "#ffffff",
+                            borderRadius: 8,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            minWidth: 120,
+                            zIndex: 20,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDeleteMessage(m.id);
+                              setOpenMenuId(null);
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "0.625rem 1rem",
+                              border: "none",
+                              background: "transparent",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              fontSize: "0.875rem",
+                              color: "#ef4444",
+                              transition: "background 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#fef2f2";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            Delete message
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -453,15 +740,56 @@ export default function ChatPage() {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "0.5rem",
-            padding: "0.75rem",
-            borderTop: "1px solid #eee",
+            gap: "0.75rem",
+            padding: "1rem 1.5rem",
+            borderTop: "1px solid #e5e7eb",
+            background: "#ffffff",
           }}
+          className="chat-input-form"
         >
+          <style>
+            {`
+              @media (max-width: 768px) {
+                .chat-input-form {
+                  padding: 0.75rem 1rem !important;
+                  gap: 0.5rem !important;
+                }
+                .chat-input-row {
+                  gap: 0.5rem !important;
+                }
+                .chat-textarea {
+                  font-size: 0.875rem !important;
+                  padding: 0.75rem !important;
+                }
+                .attach-button, .send-button {
+                  min-width: auto !important;
+                }
+                .attach-button {
+                  width: 40px !important;
+                  height: 40px !important;
+                  padding: 0.75rem !important;
+                }
+                .send-button {
+                  padding: 0.75rem 1rem !important;
+                  font-size: 0.875rem !important;
+                }
+              }
+            `}
+          </style>
           {pendingAttachments.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <span style={{ fontSize: 12, color: "#4b5563" }}>Ready to send</span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  color: "#6b7280",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.025em",
+                }}
+              >
+                Attachments
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                 {pendingAttachments.map((att) => {
                   const isImage = att.file.type.startsWith("image/");
                   return (
@@ -469,12 +797,12 @@ export default function ChatPage() {
                       key={att.id}
                       style={{
                         position: "relative",
-                        width: 72,
-                        height: 72,
-                        borderRadius: 8,
+                        width: 80,
+                        height: 80,
+                        borderRadius: 12,
                         overflow: "hidden",
-                        border: "1px solid #cbd5f5",
-                        background: "#eef4ff",
+                        border: "2px solid #e5e7eb",
+                        background: "#f9fafb",
                       }}
                     >
                       {isImage ? (
@@ -484,7 +812,19 @@ export default function ChatPage() {
                           style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         />
                       ) : (
-                        <div style={{ padding: "0.5rem", fontSize: 12, textAlign: "center" }}>
+                        <div
+                          style={{
+                            padding: "0.5rem",
+                            fontSize: "0.6875rem",
+                            textAlign: "center",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            height: "100%",
+                            color: "#6b7280",
+                            wordBreak: "break-all",
+                          }}
+                        >
                           {att.file.name}
                         </div>
                       )}
@@ -495,13 +835,25 @@ export default function ChatPage() {
                           position: "absolute",
                           top: 4,
                           right: 4,
-                          background: "rgba(0,0,0,0.6)",
+                          background: "rgba(0,0,0,0.75)",
                           color: "white",
                           border: "none",
                           borderRadius: "50%",
-                          width: 20,
-                          height: 20,
+                          width: 24,
+                          height: 24,
                           cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1rem",
+                          lineHeight: 1,
+                          transition: "background 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "rgba(0,0,0,0.9)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "rgba(0,0,0,0.75)";
                         }}
                       >
                         ×
@@ -512,12 +864,68 @@ export default function ChatPage() {
               </div>
             </div>
           )}
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input
+          <div
+            className="chat-input-row"
+            style={{ display: "flex", gap: "0.625rem", alignItems: "flex-end" }}
+          >
+            <style>
+              {`
+                .chat-textarea::-webkit-scrollbar {
+                  width: 6px;
+                }
+                .chat-textarea::-webkit-scrollbar-track {
+                  background: transparent;
+                }
+                .chat-textarea::-webkit-scrollbar-thumb {
+                  background: #d1d5db;
+                  border-radius: 10px;
+                }
+                .chat-textarea::-webkit-scrollbar-thumb:hover {
+                  background: #9ca3af;
+                }
+                .chat-textarea {
+                  scrollbar-width: thin;
+                  scrollbar-color: #d1d5db transparent;
+                }
+              `}
+            </style>
+            <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message"
-              style={{ flex: 1, padding: "0.6rem", border: "1px solid #ccc", borderRadius: 6 }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend(e);
+                }
+              }}
+              placeholder="Type a message..."
+              rows={1}
+              className="chat-textarea"
+              style={{
+                flex: 1,
+                padding: "0.875rem 1rem",
+                border: "2px solid #e5e7eb",
+                borderRadius: 24,
+                fontSize: "0.9375rem",
+                outline: "none",
+                transition: "border-color 0.2s ease",
+                background: "#fafafa",
+                resize: "none",
+                overflowY: "hidden", // Hide scrollbar initially
+                lineHeight: "1.5",
+                fontFamily: "inherit",
+                minHeight: "auto",
+                maxHeight: "7.5em", // 5 lines (1.5em line-height * 5)
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#2563eb";
+                e.currentTarget.style.background = "#ffffff";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e5e7eb";
+                e.currentTarget.style.background = "#fafafa";
+              }}
             />
             <input
               ref={fileInputRef}
@@ -530,29 +938,61 @@ export default function ChatPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach file"
+              className="attach-button"
               style={{
-                padding: "0.6rem",
+                padding: "0.875rem",
                 background: "#f3f4f6",
-                color: "#374151",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
+                color: "#6b7280",
+                border: "none",
+                borderRadius: "50%",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                transition: "all 0.2s ease",
+                width: 44,
+                height: 44,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#e5e7eb";
+                e.currentTarget.style.color = "#374151";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.color = "#6b7280";
               }}
             >
               <PaperclipIcon />
             </button>
             <button
               type="submit"
+              disabled={!input.trim() && pendingAttachments.length === 0}
+              className="send-button"
               style={{
-                padding: "0.6rem 1.2rem",
-                background: "#2563eb",
+                padding: "0.875rem 1.5rem",
+                background:
+                  !input.trim() && pendingAttachments.length === 0 ? "#d1d5db" : "#2563eb",
                 color: "white",
                 border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
+                borderRadius: 24,
+                cursor:
+                  !input.trim() && pendingAttachments.length === 0 ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: "0.9375rem",
+                transition: "all 0.2s ease",
+                minWidth: 80,
+              }}
+              onMouseEnter={(e) => {
+                if (input.trim() || pendingAttachments.length > 0) {
+                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.transform = "scale(1.02)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (input.trim() || pendingAttachments.length > 0) {
+                  e.currentTarget.style.background = "#2563eb";
+                  e.currentTarget.style.transform = "scale(1)";
+                }
               }}
             >
               Send
@@ -567,13 +1007,36 @@ export default function ChatPage() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "300px 1fr",
-        height: "calc(100vh - 60px)",
-        background: "#f6f8fc",
-        paddingBottom: "2.5rem",
-        overflowY: "auto",
+        gridTemplateColumns: "320px 1fr",
+        height: "calc(100vh - 56px)", // 56px navbar height (h-14)
+        background: "#fafafa",
+        overflow: "hidden",
       }}
+      className="chat-page-container"
     >
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .chat-page-container {
+              grid-template-columns: 1fr !important;
+            }
+            .chat-contact-list {
+              display: ${contactId ? "none" : "block"} !important;
+            }
+            .chat-thread {
+              display: ${contactId ? "flex" : "none"} !important;
+            }
+            .mobile-back-button {
+              display: flex !important;
+            }
+          }
+          @media (min-width: 769px) {
+            .mobile-back-button {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
       {renderContactList()}
       {contactId ? (
         renderMessages()
@@ -581,12 +1044,57 @@ export default function ChatPage() {
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            borderLeft: "1px solid #eee",
+            background: "#ffffff",
+            padding: "3rem",
           }}
         >
-          <p style={{ color: "#666" }}>Select a conversation to start chatting.</p>
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
+              background: "#f3f4f6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#9ca3af"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: 40, height: 40 }}
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <h3
+            style={{
+              fontSize: "1.125rem",
+              fontWeight: 600,
+              color: "#111827",
+              marginBottom: "0.5rem",
+            }}
+          >
+            No conversation selected
+          </h3>
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: "0.9375rem",
+              textAlign: "center",
+              maxWidth: "320px",
+            }}
+          >
+            Choose a conversation from the list to start chatting.
+          </p>
         </div>
       )}
     </div>
