@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import useChat from "../hooks/useChat";
 import { createSignedAttachmentUrl } from "../lib/chat";
+import useDogs from "../hooks/useDogs";
 
 // Helper: truncate long preview messages for contact list
 function truncatePreview(text, max = 80) {
@@ -69,6 +70,9 @@ export default function ChatPage() {
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const textareaRef = useRef(null);
+
+  // Fetch user's dogs using the hook
+  const { dogs: userDogs } = useDogs();
 
   // Activate contact when param changes
   useEffect(() => {
@@ -338,87 +342,186 @@ export default function ChatPage() {
         </p>
       )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {contacts.map((c) => (
-          <li key={c.id} style={{ marginBottom: "0.375rem" }}>
-            <button
-              onClick={() => {
-                openContact(c.id);
-                navigate(`/chat/${c.id}`);
-              }}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "0.875rem 1rem",
-                border: "none",
-                borderRadius: 12,
-                background: c.id === activeContactId ? "#ffffff" : "transparent",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                boxShadow: c.id === activeContactId ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              }}
-              onMouseEnter={(e) => {
-                if (c.id !== activeContactId) {
-                  e.currentTarget.style.background = "#f3f4f6";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (c.id !== activeContactId) {
-                  e.currentTarget.style.background = "transparent";
-                }
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    overflow: "hidden",
-                    background: "#e5e7eb",
-                    flexShrink: 0,
-                    border: "2px solid #ffffff",
-                  }}
-                >
-                  <img
-                    src={c.dog_image || "/shibaPor.jpg"}
-                    alt={c.dog_name || "Dog"}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
+        {contacts.map((c) => {
+          // Determine the correct perspective based on current user
+          // If current user is the contact's owner_id (the person contacted),
+          // then dog_id is actually THEIR dog, and my_dog_id is the OTHER dog
+          const isOwner = c.owner_id === currentUserId;
+
+          let myDogForContact = null;
+          let otherDogName = "";
+          let otherDogImage = "";
+
+          if (isOwner) {
+            // User is the owner (was contacted), so flip the perspective
+            myDogForContact =
+              userDogs && userDogs.length > 0 && c.dog_id
+                ? userDogs.find((d) => d.id === c.dog_id)
+                : null;
+            otherDogName = c.my_dog_name || "Dog";
+            otherDogImage = c.my_dog_image || "/shibaPor.jpg";
+          } else {
+            // User is the initiator, use normal perspective
+            myDogForContact =
+              userDogs && userDogs.length > 0 && c.my_dog_id
+                ? userDogs.find((d) => d.id === c.my_dog_id)
+                : null;
+            otherDogName = c.dog_name || "Dog";
+            otherDogImage = c.dog_image || "/shibaPor.jpg";
+          }
+
+          return (
+            <li key={c.id} style={{ marginBottom: "0.375rem" }}>
+              <button
+                onClick={() => {
+                  openContact(c.id);
+                  navigate(`/chat/${c.id}`);
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.875rem 1rem",
+                  border: "none",
+                  borderRadius: 12,
+                  background: c.id === activeContactId ? "#ffffff" : "transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: c.id === activeContactId ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                }}
+                onMouseEnter={(e) => {
+                  if (c.id !== activeContactId) {
+                    e.currentTarget.style.background = "#f3f4f6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (c.id !== activeContactId) {
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                  {/* Overlapping dog avatars in contact list */}
                   <div
                     style={{
-                      fontWeight: 600,
-                      fontSize: "0.9375rem",
-                      color: "#111827",
-                      marginBottom: "0.25rem",
+                      position: "relative",
+                      width: myDogForContact ? 52 : 36,
+                      height: 36,
+                      flexShrink: 0,
                     }}
                   >
-                    {c.dog_name || "Conversation"}
+                    {/* My dog avatar (front) - show first if exists */}
+                    {myDogForContact && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          background: "#e5e7eb",
+                          border: "2px solid #ffffff",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                          zIndex: 1,
+                        }}
+                      >
+                        <img
+                          src={myDogForContact.image || "/shibaPor.jpg"}
+                          alt={myDogForContact.name || "My Dog"}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Other dog avatar (back or standalone) */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        background: "#e5e7eb",
+                        border: "2px solid #ffffff",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      <img
+                        src={otherDogImage}
+                        alt={otherDogName}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.8125rem",
-                      color: "#6b7280",
-                      lineHeight: "1.25",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {c.last_message ? truncatePreview(c.last_message, 50) : "No messages yet"}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.9375rem",
+                        color: "#111827",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {myDogForContact
+                        ? `${myDogForContact.name} & ${otherDogName}`
+                        : otherDogName || "Conversation"}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.8125rem",
+                        color: "#6b7280",
+                        lineHeight: "1.25",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.last_message ? truncatePreview(c.last_message, 50) : "No messages yet"}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          </li>
-        ))}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 
   const renderMessages = () => {
     const activeContact = contacts.find((c) => c.id === activeContactId);
+
+    // Determine the correct perspective based on current user
+    const isOwner = activeContact?.owner_id === currentUserId;
+
+    let myDog = null;
+    let otherDog = { name: "Dog", image: "/shibaPor.jpg" };
+
+    if (isOwner) {
+      // User is the owner (was contacted), so flip the perspective
+      myDog =
+        userDogs && userDogs.length > 0 && activeContact?.dog_id
+          ? userDogs.find((d) => d.id === activeContact.dog_id)
+          : null;
+      otherDog = {
+        name: activeContact?.my_dog_name || "Dog",
+        image: activeContact?.my_dog_image || "/shibaPor.jpg",
+      };
+    } else {
+      // User is the initiator, use normal perspective
+      myDog =
+        userDogs && userDogs.length > 0 && activeContact?.my_dog_id
+          ? userDogs.find((d) => d.id === activeContact.my_dog_id)
+          : null;
+      otherDog = {
+        name: activeContact?.dog_name || "Dog",
+        image: activeContact?.dog_image || "/shibaPor.jpg",
+      };
+    }
+
     return (
       <div
         className="chat-thread"
@@ -467,33 +570,74 @@ export default function ChatPage() {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              overflow: "hidden",
-              background: "#e5e7eb",
-              border: "2px solid #f9fafb",
-            }}
-          >
-            <img
-              src={activeContact?.dog_image || "/shibaPor.jpg"}
-              alt={activeContact?.dog_name || "Dog"}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+
+          {/* Overlapping dog avatars */}
+          <div style={{ position: "relative", width: myDog ? 56 : 44, height: 44, flexShrink: 0 }}>
+            {/* My dog (front) - show first if exists */}
+            {myDog && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  background: "#e5e7eb",
+                  border: "3px solid #ffffff",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  zIndex: 1,
+                }}
+              >
+                <img
+                  src={myDog.image || "/shibaPor.jpg"}
+                  alt={myDog.name || "My Dog"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            )}
+
+            {/* Other dog (back or standalone) */}
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "#e5e7eb",
+                border: "3px solid #ffffff",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <img
+                src={otherDog.image}
+                alt={otherDog.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
           </div>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "1.0625rem",
-              fontWeight: 600,
-              color: "#111827",
-              letterSpacing: "-0.0125em",
-            }}
-          >
-            {activeContact?.dog_name || "Conversation"}
-          </h3>
+
+          {/* Dog names */}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "1.0625rem",
+                fontWeight: 600,
+                color: "#111827",
+                letterSpacing: "-0.0125em",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {myDog ? `${myDog.name} & ${otherDog.name}` : otherDog.name}
+            </h3>
+          </div>
         </div>
         <div
           ref={messagesContainerRef}

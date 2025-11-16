@@ -277,12 +277,46 @@ export default function FindMatchPage() {
         throw new Error("Owner not available for this match. Please try another dog or refresh.");
       }
 
-      const contactId = await ensureContact({
-        dogId: match.id,
-        dogName: match.name,
-        dogImage: match.image_url || null,
-        ownerId,
-      });
+      // Check if a conversation already exists between these two dogs (in either direction)
+      const { data: existingContacts, error: searchError } = await supabase
+        .from("contacts")
+        .select("*")
+        .or(
+          `and(my_dog_id.eq.${selectedDog.id},dog_id.eq.${match.id}),and(my_dog_id.eq.${match.id},dog_id.eq.${selectedDog.id})`
+        );
+
+      if (searchError) {
+        console.error("Error checking for existing contact:", searchError);
+      }
+
+      let contactId;
+
+      // If conversation exists, just navigate to it (don't update anything)
+      if (existingContacts && existingContacts.length > 0) {
+        contactId = existingContacts[0].id;
+        console.log("Found existing conversation, navigating to it:", contactId);
+      } else {
+        // Create ONE shared contact that both users can see
+        contactId = await ensureContact({
+          dogId: match.id,
+          dogName: match.name,
+          dogImage: match.image_url || null,
+          ownerId,
+        });
+
+        // Update the contact with the selected dog info
+        await supabase
+          .from("contacts")
+          .update({
+            my_dog_id: selectedDog.id,
+            my_dog_name: selectedDog.name,
+            my_dog_image: selectedDog.image_url || null,
+          })
+          .eq("id", contactId);
+
+        console.log("Successfully created contact:", contactId);
+      }
+
       navigate(`/chat/${contactId}`, {
         state: {
           fromFindMatch: true,

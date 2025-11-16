@@ -40,7 +40,8 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
   const containerRef = useRef(null);
   const [chatContacts, setChatContacts] = useState([]);
-  const chatCount = chatContacts.length;
+  // Count contacts with messages (last_message_at exists) as potential unread
+  const unreadCount = chatContacts.filter((c) => c.last_message_at).length;
 
   // When the sidebar closes, ensure no element inside remains focused
   useEffect(() => {
@@ -184,7 +185,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               to="/chat"
               disabled={!loggedIn}
               onClick={onClose}
-              badge={chatCount}
+              badge={unreadCount}
             />
             <NavItem
               label="Forum"
