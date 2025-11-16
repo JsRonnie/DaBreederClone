@@ -214,7 +214,11 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to send message");
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: "Failed to send message", type: "error" },
+        })
+      );
     }
   };
 
@@ -286,7 +290,11 @@ export default function ChatPage() {
       await deleteMessage(messageId);
     } catch (err) {
       console.error(err);
-      alert("Unable to delete this message right now.");
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: "Unable to delete this message right now", type: "error" },
+        })
+      );
     }
   };
 

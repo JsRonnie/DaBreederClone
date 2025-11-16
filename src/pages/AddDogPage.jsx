@@ -1,5 +1,4 @@
 import DogForm from "./DogForm";
-import { FaArrowLeft } from "react-icons/fa";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import "./FindMatchPage.css";
@@ -18,10 +17,6 @@ export default function AddDogPage() {
     navigate("/my-dog");
   };
 
-  const goBack = () => {
-    navigate("/my-dog");
-  };
-
   return (
     <div className="find-match-container">
       {/* Header Section */}
@@ -34,16 +29,6 @@ export default function AddDogPage() {
 
       {/* Main Content */}
       <div className="content-section">
-        <div style={{ marginBottom: "2rem" }}>
-          <button
-            type="button"
-            onClick={goBack}
-            className="modern-btn-back inline-flex items-center gap-2"
-          >
-            <FaArrowLeft />
-            <span>Back to My Dogs</span>
-          </button>
-        </div>
         <DogForm onSubmitted={handleSubmitted} />
       </div>
     </div>

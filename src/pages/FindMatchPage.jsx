@@ -29,21 +29,26 @@ export default function FindMatchPage() {
   const { dogs: myDogs, loading: dogsLoading } = useDogs();
   const userDogs = useMemo(
     () =>
-      (myDogs || []).map((d) => ({
-        id: d.id,
-        name: d.name,
-        breed: d.breed,
-        gender: d.sex || d.gender || null,
-        sex: d.sex || d.gender || null,
-        image_url: d.image || null,
-        hidden: !!d.hidden,
-        user_id: d.user_id,
-      })),
+      (myDogs || [])
+        .filter((d) => d.is_visible !== false) // Only show visible dogs
+        .map((d) => ({
+          id: d.id,
+          name: d.name,
+          breed: d.breed,
+          gender: d.sex || d.gender || null,
+          sex: d.sex || d.gender || null,
+          image_url: d.image || null,
+          hidden: !!d.hidden,
+          is_visible: d.is_visible ?? true,
+          user_id: d.user_id,
+        })),
     [myDogs]
   );
   const [selectedDog, setSelectedDog] = useState(null);
   const selectedDogIdRef = useRef(null);
   const [potentialMatches, setPotentialMatches] = useState([]);
+  const [allMatches, setAllMatches] = useState([]); // Store all matches
+  const [displayCount, setDisplayCount] = useState(3); // How many to show
   // Split loading states so selecting a dog doesn't reload the dog grid/card
   const [matchesLoading, setMatchesLoading] = useState(false);
   // Simplified loading UI (no long-load hints)
@@ -72,14 +77,18 @@ export default function FindMatchPage() {
         const stateMatches = location.state?.potentialMatches;
         if (Array.isArray(stateMatches) && stateMatches.length > 0) {
           FM_LOG("restore: potentialMatches from state", stateMatches.length);
-          setPotentialMatches(stateMatches);
+          setAllMatches(stateMatches);
+          setPotentialMatches(stateMatches.slice(0, 3));
+          setDisplayCount(3);
           setMatchesLoading(false);
         } else {
           try {
             const cached = matchesCache.current.get(`matches:${savedSelectedDog.id}`);
             if (Array.isArray(cached) && cached.length > 0) {
               FM_LOG("restore: potentialMatches from cache", cached.length);
-              setPotentialMatches(cached);
+              setAllMatches(cached);
+              setPotentialMatches(cached.slice(0, 3));
+              setDisplayCount(3);
               setMatchesLoading(false);
             }
           } catch (err) {
@@ -127,7 +136,7 @@ export default function FindMatchPage() {
     FM_LOG("matches: fetching for dog", { id: dog.id, userId: user?.id });
 
     // Try a robust query sequence that adapts to schema and RLS
-    function buildQuery({ genderField, includeHidden, orderBy, includeUserId }) {
+    function buildQuery({ genderField, includeHidden, orderBy, includeUserId, includeVisible }) {
       let q = supabase.from("dogs").select("*").limit(200);
       if (orderBy) q = q.order(orderBy, { ascending: false });
       // Exclude same gender if we have both the column and a value on selected dog
@@ -139,6 +148,8 @@ export default function FindMatchPage() {
       if (includeUserId && user?.id) q = q.neq("user_id", user.id);
       // Only show visible/public dogs when possible
       if (includeHidden) q = q.eq("hidden", false);
+      // Only show dogs that are visible in matches (not hidden by owner)
+      if (includeVisible) q = q.eq("is_visible", true);
       return q;
     }
 
@@ -149,12 +160,22 @@ export default function FindMatchPage() {
         includeHidden: true,
         orderBy: null,
         includeUserId: true,
+        includeVisible: true,
       };
       for (let i = 0; i < 8; i++) {
         const res = await buildQuery(opts);
         const resp = await res;
         if (!resp.error) return resp;
         const em = (resp.error.message || resp.error.details || "").toLowerCase();
+        // Remove is_visible filter if column missing
+        if (
+          opts.includeVisible &&
+          /is_visible/.test(em) &&
+          /does not exist|42703|column/.test(em)
+        ) {
+          opts.includeVisible = false;
+          continue;
+        }
         // Remove hidden filter if column missing
         if (opts.includeHidden && /hidden/.test(em) && /does not exist|42703|column/.test(em)) {
           opts.includeHidden = false;
@@ -192,6 +213,7 @@ export default function FindMatchPage() {
         includeHidden: false,
         orderBy: null,
         includeUserId: false,
+        includeVisible: true, // Still try to filter by visibility
       });
     }
 
@@ -200,7 +222,9 @@ export default function FindMatchPage() {
     const cached = matchesCache.current.get(`matches:${dog.id}`);
     if (cached && Array.isArray(cached) && cached.length > 0) {
       FM_LOG("matches: using cached", cached.length);
-      setPotentialMatches(cached);
+      setAllMatches(cached); // Store all matches
+      setPotentialMatches(cached.slice(0, 3)); // Show first 3
+      setDisplayCount(3); // Reset display count
       setMatchesLoading(false);
       return;
     }
@@ -229,15 +253,17 @@ export default function FindMatchPage() {
         score: calculateMatchScore(dog, match),
       }))
       .filter((match) => match.score > 0) // Only show compatible matches
-      .sort((a, b) => b.score - a.score) // Sort by score descending
-      .slice(0, 3); // Get top 3 matches only
+      .sort((a, b) => b.score - a.score); // Sort by score descending
+
     FM_LOG("matches: scored", {
       total: rows.length,
       shown: scoredMatches.length,
       top: scoredMatches.map((m) => ({ id: m.id, score: m.score })).slice(0, 3),
     });
     if (matchesRequestIdRef.current === myReq) {
-      setPotentialMatches(scoredMatches);
+      setAllMatches(scoredMatches); // Store all matches
+      setPotentialMatches(scoredMatches.slice(0, 3)); // Show first 3
+      setDisplayCount(3); // Reset display count
       try {
         matchesCache.current.set(`matches:${dog.id}`, scoredMatches);
       } catch (err) {
@@ -252,11 +278,19 @@ export default function FindMatchPage() {
 
   const handleContact = async (match) => {
     if (!authUser) {
-      alert("Please sign in to contact the owner.");
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: "Please sign in to contact the owner", type: "warning" },
+        })
+      );
       return;
     }
     if (!selectedDog) {
-      alert("Select one of your dogs before contacting a match.");
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: "Select one of your dogs before contacting a match", type: "warning" },
+        })
+      );
       return;
     }
     let ownerId = match?.user_id || null;
@@ -327,10 +361,20 @@ export default function FindMatchPage() {
     } catch (err) {
       console.error("Failed to start contact", err);
       const message = err?.message || "We couldn't open the chat. Please try again.";
-      alert(message);
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message, type: "error" },
+        })
+      );
     } finally {
       setContactingDogId(null);
     }
+  };
+
+  const handleViewMore = () => {
+    const newCount = displayCount + 3;
+    setDisplayCount(newCount);
+    setPotentialMatches(allMatches.slice(0, newCount));
   };
 
   return (
@@ -414,62 +458,81 @@ export default function FindMatchPage() {
           )}
 
           {!matchesLoading && potentialMatches.length > 0 && (
-            <div className="matches-grid">
-              {potentialMatches.map((match, index) => (
-                <div key={match.id} className="match-card">
-                  <div className="match-rank">#{index + 1}</div>
-                  <div className="match-score">{match.score}% Match</div>
+            <>
+              <div className="matches-grid">
+                {potentialMatches.map((match, index) => (
+                  <div key={match.id} className="match-card">
+                    <div className="match-rank">#{index + 1}</div>
+                    <div className="match-score">{match.score}% Match</div>
 
-                  <div className="card-image-wrapper">
-                    <img
-                      src={match.image_url || "/shibaPor.jpg"}
-                      alt={match.name}
-                      className="match-image"
-                      loading="lazy"
-                    />
-                  </div>
-
-                  <div className="card-content">
-                    <h3 className="match-name">{match.name}</h3>
-                    <div className="match-details">
-                      <div className="detail-item">
-                        <span className="detail-label">Breed</span>
-                        <span className="detail-value capitalize">{match.breed}</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Age</span>
-                        <span className="detail-value">{match.age_years} years old</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Gender</span>
-                        <span className="detail-value capitalize">{match.gender}</span>
-                      </div>
+                    <div className="card-image-wrapper">
+                      <img
+                        src={match.image_url || "/shibaPor.jpg"}
+                        alt={match.name}
+                        className="match-image"
+                        loading="lazy"
+                      />
                     </div>
 
-                    <div className="card-actions">
-                      <Link
-                        to={`/dog/${match.id}`}
-                        state={{
-                          fromFindMatch: true,
-                          selectedDog: selectedDog,
-                          potentialMatches: potentialMatches,
-                        }}
-                        className="view-profile-btn"
-                      >
-                        View Profile
-                      </Link>
-                      <button
-                        className="contact-btn"
-                        onClick={() => handleContact(match)}
-                        disabled={contactingDogId === match.id}
-                      >
-                        {contactingDogId === match.id ? "Opening chat..." : "Contact Owner"}
-                      </button>
+                    <div className="card-content">
+                      <h3 className="match-name">{match.name}</h3>
+                      <div className="match-details">
+                        <div className="detail-item">
+                          <span className="detail-label">Breed</span>
+                          <span className="detail-value capitalize">{match.breed}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Age</span>
+                          <span className="detail-value">{match.age_years} years old</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Gender</span>
+                          <span className="detail-value capitalize">{match.gender}</span>
+                        </div>
+                      </div>
+
+                      <div className="card-actions">
+                        <Link
+                          to={`/dog/${match.id}`}
+                          state={{
+                            fromFindMatch: true,
+                            selectedDog: selectedDog,
+                            potentialMatches: potentialMatches,
+                          }}
+                          className="view-profile-btn"
+                        >
+                          View Profile
+                        </Link>
+                        <button
+                          className="contact-btn"
+                          onClick={() => handleContact(match)}
+                          disabled={contactingDogId === match.id}
+                        >
+                          {contactingDogId === match.id ? "Opening chat..." : "Contact Owner"}
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* View More button */}
+              {displayCount < allMatches.length && (
+                <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
+                  <button
+                    className="primary-btn"
+                    onClick={handleViewMore}
+                    style={{
+                      padding: "0.75rem 2rem",
+                      fontSize: "1rem",
+                      fontWeight: "500",
+                    }}
+                  >
+                    View More
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}

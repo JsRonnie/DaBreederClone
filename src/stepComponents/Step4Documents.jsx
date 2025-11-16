@@ -47,10 +47,13 @@ export default function Step4Documents({ data, updateDocuments, removeDocument }
     });
 
     if (validFiles.length !== files.length) {
-      alert(
-        `${
-          files.length - validFiles.length
-        } file(s) were skipped due to invalid type or size. Please upload images or documents under 10MB.`
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: {
+            message: `${files.length - validFiles.length} file(s) were skipped due to invalid type or size. Please upload images or documents under 10MB.`,
+            type: "warning",
+          },
+        })
       );
     }
 

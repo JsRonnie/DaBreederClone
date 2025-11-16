@@ -18,6 +18,7 @@ function mapDogRow(row) {
     sex: row.gender || row.sex || null,
     image: row.image || row.image_url || null,
     hidden: !!row.hidden,
+    is_visible: row.is_visible ?? true,
     user_id: row.user_id,
   };
 }
@@ -201,11 +202,66 @@ export default function useDogs(options = {}) {
     };
   }, [userId, cacheKey, load, dogs]);
 
+  const toggleDogVisibility = useCallback(
+    async (dogId, isVisible) => {
+      try {
+        const { error: updateError } = await supabase
+          .from("dogs")
+          .update({ is_visible: isVisible })
+          .eq("id", dogId);
+
+        if (updateError) throw updateError;
+
+        // Optimistically update the local state
+        setDogs((prev) => prev.map((d) => (d.id === dogId ? { ...d, is_visible: isVisible } : d)));
+
+        // Update cache
+        if (DOGS_CACHE[cacheKey]) {
+          DOGS_CACHE[cacheKey].dogs = DOGS_CACHE[cacheKey].dogs.map((d) =>
+            d.id === dogId ? { ...d, is_visible: isVisible } : d
+          );
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error toggling dog visibility:", err);
+        return { success: false, error: err };
+      }
+    },
+    [cacheKey]
+  );
+
+  const deleteDog = useCallback(
+    async (dogId) => {
+      try {
+        const { error: deleteError } = await supabase.from("dogs").delete().eq("id", dogId);
+
+        if (deleteError) throw deleteError;
+
+        // Optimistically update the local state
+        setDogs((prev) => prev.filter((d) => d.id !== dogId));
+
+        // Update cache
+        if (DOGS_CACHE[cacheKey]) {
+          DOGS_CACHE[cacheKey].dogs = DOGS_CACHE[cacheKey].dogs.filter((d) => d.id !== dogId);
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error deleting dog:", err);
+        return { success: false, error: err };
+      }
+    },
+    [cacheKey]
+  );
+
   return {
     dogs,
     loading,
     error,
     refetch: () => load(true),
+    toggleDogVisibility,
+    deleteDog,
     // also expose setDogs for UI-level optimistic updates if needed
     setDogs,
   };

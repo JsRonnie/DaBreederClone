@@ -12,12 +12,13 @@ import ErrorMessage from "./ErrorMessage";
 // Component now relies on central useDogs hook for data, caching, and invalidation.
 
 export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
-  const { dogs, loading, error, refetch, setDogs } = useDogs({ userId });
+  const { dogs, loading, error, refetch, setDogs, toggleDogVisibility } = useDogs({ userId });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     dogId: null,
     dogName: "",
   });
+  const [togglingVisibility, setTogglingVisibility] = useState({});
 
   // If parent passes explicit dogs list, prefer it (e.g., for testing scenarios)
   const displayDogs = useMemo(
@@ -56,32 +57,50 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         void err;
       }
       closeDeleteConfirmation();
-      setTimeout(() => alert(`${dogName}'s profile deleted.`), 50);
+      // Show toast notification
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: `${dogName}'s profile deleted successfully`, type: "success" },
+        })
+      );
       // Soft refetch to ensure consistency
       setTimeout(() => refetch(), 250);
     } catch (e) {
       console.error("Delete dog failed", e);
-      alert(e.message || "Failed to delete dog");
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: { message: e.message || "Failed to delete dog", type: "error" },
+        })
+      );
       closeDeleteConfirmation();
     }
   }, [confirmDialog, closeDeleteConfirmation, refetch, setDogs]);
 
-  const handleToggleHidden = useCallback(
-    async (dogId, dogName, currentHidden) => {
-      try {
-        const { error: updErr } = await supabase
-          .from("dogs")
-          .update({ hidden: !currentHidden })
-          .eq("id", dogId);
-        if (updErr) throw updErr;
-        setDogs((prev) => prev.map((d) => (d.id === dogId ? { ...d, hidden: !currentHidden } : d)));
-        setTimeout(() => alert(`${dogName}'s profile ${!currentHidden ? "hidden" : "shown"}.`), 30);
-      } catch (e) {
-        console.error("Toggle hidden failed", e);
-        alert(e.message || "Failed to toggle visibility");
+  const handleToggleMatchVisibility = useCallback(
+    async (dogId, dogName, currentVisibility) => {
+      setTogglingVisibility((prev) => ({ ...prev, [dogId]: true }));
+      const newVisibility = currentVisibility === false;
+      const result = await toggleDogVisibility(dogId, newVisibility);
+      setTogglingVisibility((prev) => ({ ...prev, [dogId]: false }));
+
+      if (result.success) {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: {
+              message: `${dogName} is now ${newVisibility ? "visible" : "hidden"} in Find Match`,
+              type: "success",
+            },
+          })
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { message: "Failed to update visibility. Please try again.", type: "error" },
+          })
+        );
       }
     },
-    [setDogs]
+    [toggleDogVisibility]
   );
 
   return (
@@ -160,8 +179,11 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         ) : (
           <div className="matches-grid">
             {displayDogs.map((dog) => (
-              <div key={dog.id} className={`match-card ${dog.hidden ? "hidden-dog" : ""}`}>
-                {dog.hidden && <div className="match-rank">Hidden</div>}
+              <div
+                key={dog.id}
+                className={`match-card ${dog.is_visible === false ? "hidden-dog" : ""}`}
+              >
+                {dog.is_visible === false && <div className="match-rank">Hidden from Matches</div>}
 
                 <div className="card-image-wrapper">
                   <img
@@ -214,10 +236,21 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
                     </Link>
 
                     <button
-                      onClick={() => handleToggleHidden(dog.id, dog.name, dog.hidden)}
-                      className={dog.hidden ? "view-profile-btn" : "contact-btn"}
+                      onClick={() =>
+                        handleToggleMatchVisibility(dog.id, dog.name, dog.is_visible ?? true)
+                      }
+                      disabled={togglingVisibility[dog.id]}
+                      className={dog.is_visible !== false ? "contact-btn" : "view-profile-btn"}
+                      style={{
+                        opacity: togglingVisibility[dog.id] ? 0.6 : 1,
+                        cursor: togglingVisibility[dog.id] ? "not-allowed" : "pointer",
+                      }}
                     >
-                      {dog.hidden ? "Show" : "Hide"}
+                      {togglingVisibility[dog.id]
+                        ? "Processing..."
+                        : dog.is_visible !== false
+                          ? "Hide from Matches"
+                          : "Show in Matches"}
                     </button>
                   </div>
 

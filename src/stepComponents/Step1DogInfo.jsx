@@ -182,6 +182,7 @@ const allBreeds = [
 
   // Toy & Companion Dogs
   "Affenpinscher",
+  "Aspin",
   "Bichon Frise",
   "Bolognese",
   "Boston Terrier",
@@ -266,120 +267,125 @@ export default function Step1DogInfo({
 
   return (
     <div className="step step-1">
-      <div className="field">
-        <label htmlFor="dog-name">
-          Dog Name {errors.name && <span style={{ color: "#ef4444" }}>*</span>}
-        </label>
-        <input
-          id="dog-name"
-          type="text"
-          className="text-input"
-          value={data.name || ""}
-          onChange={(e) => updateField("name", e.target.value)}
-          placeholder="Enter dog name"
-        />
-        {/* Suppress required notification; red * on label indicates required */}
-      </div>
-
-      <div className="field">
-        <label htmlFor="dog-gender">
-          Gender {errors.gender && <span style={{ color: "#ef4444" }}>*</span>}
-        </label>
-        <select
-          id="dog-gender"
-          className="select-input"
-          value={data.gender || ""}
-          onChange={(e) => updateField("gender", e.target.value)}
-        >
-          <option value="">Select gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-        </select>
-        {/* Suppress required notification; red * on label indicates required */}
-      </div>
-
-      <div className="field">
-        <label htmlFor="dog-age-years">
-          Age (Years){errors.age_years && <span style={{ color: "#ef4444" }}> *</span>}
-        </label>
-        <input
-          id="dog-age-years"
-          type="number"
-          min="2"
-          max="7"
-          step="1"
-          className="text-input"
-          value={data.age_years || ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "") return updateField("age_years", "");
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n >= 2 && n <= 7) updateField("age_years", String(n));
-          }}
-          placeholder="Enter dog age"
-        />
-        {/* Show only non-required validation messages (e.g., range/format) */}
-        {errors.age_years && !/required/i.test(errors.age_years) && (
-          <div className="field-error">{errors.age_years}</div>
-        )}
-      </div>
-
-      <div className="field">
-        <label htmlFor="dog-breed">
-          Breed {errors.breed && <span style={{ color: "#ef4444" }}>*</span>}
-        </label>
-        <div className="breed-input-container" ref={breedContainerRef}>
+      {/* Two-column layout for Dog Name and Gender */}
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="dog-name">
+            Dog Name {errors.name && <span style={{ color: "#ef4444" }}>*</span>}
+          </label>
           <input
-            id="dog-breed"
+            id="dog-name"
             type="text"
             className="text-input"
-            placeholder={data.breed ? "" : "Enter your dog breed"}
-            value={data.breed && !breedSearch ? data.breed : breedSearch}
-            onChange={(e) => {
-              setBreedSearch(e.target.value);
-              setShowBreedDropdown(true);
-              if (data.breed && e.target.value !== "") {
-                updateField("breed", "");
-              }
-            }}
-            onFocus={() => {
-              setShowBreedDropdown(true);
-              if (data.breed) {
-                setBreedSearch("");
-                updateField("breed", "");
-              }
-            }}
-            style={{
-              color: "#000000",
-            }}
+            value={data.name || ""}
+            onChange={(e) => updateField("name", e.target.value)}
+            placeholder="Enter dog name"
           />
-          {showBreedDropdown && (
-            <div className="breed-dropdown">
-              {filteredBreeds.length > 0 ? (
-                <>
-                  {filteredBreeds.slice(0, 10).map((breed) => (
-                    <button
-                      key={breed}
-                      type="button"
-                      className="breed-option"
-                      onClick={() => handleBreedSelect(breed)}
-                    >
-                      {breed}
-                    </button>
-                  ))}
-                  {filteredBreeds.length > 10 && (
-                    <div className="breed-more-results">
-                      ... and {filteredBreeds.length - 10} more results. Keep typing to narrow down.
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="breed-no-results">No breeds found matching "{breedSearch}"</div>
-              )}
-            </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="dog-gender">
+            Gender {errors.gender && <span style={{ color: "#ef4444" }}>*</span>}
+          </label>
+          <select
+            id="dog-gender"
+            className="select-input"
+            value={data.gender || ""}
+            onChange={(e) => updateField("gender", e.target.value)}
+          >
+            <option value="" disabled>
+              Select gender
+            </option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Two-column layout for Age and Breed */}
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="dog-age-years">
+            Age (Years){errors.age_years && <span style={{ color: "#ef4444" }}> *</span>}
+          </label>
+          <input
+            id="dog-age-years"
+            type="number"
+            min="2"
+            max="7"
+            step="1"
+            className="text-input"
+            value={data.age_years || ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "") return updateField("age_years", "");
+              const n = parseInt(v, 10);
+              if (!isNaN(n) && n >= 2 && n <= 7) updateField("age_years", String(n));
+            }}
+            placeholder="Enter dog age"
+          />
+          {errors.age_years && !/required/i.test(errors.age_years) && (
+            <div className="field-error">{errors.age_years}</div>
           )}
         </div>
-        {/* Suppress required notification; red * on label indicates required */}
+
+        <div className="field">
+          <label htmlFor="dog-breed">
+            Breed {errors.breed && <span style={{ color: "#ef4444" }}>*</span>}
+          </label>
+          <div className="breed-input-container" ref={breedContainerRef}>
+            <input
+              id="dog-breed"
+              type="text"
+              className="text-input"
+              placeholder={data.breed ? "" : "Enter your dog breed"}
+              value={data.breed && !breedSearch ? data.breed : breedSearch}
+              onChange={(e) => {
+                setBreedSearch(e.target.value);
+                setShowBreedDropdown(true);
+                if (data.breed && e.target.value !== "") {
+                  updateField("breed", "");
+                }
+              }}
+              onFocus={() => {
+                setShowBreedDropdown(true);
+                if (data.breed) {
+                  setBreedSearch("");
+                  updateField("breed", "");
+                }
+              }}
+              style={{
+                color: "#000000",
+              }}
+            />
+            {showBreedDropdown && (
+              <div className="breed-dropdown">
+                {filteredBreeds.length > 0 ? (
+                  <>
+                    {filteredBreeds.slice(0, 10).map((breed) => (
+                      <button
+                        key={breed}
+                        type="button"
+                        className="breed-option"
+                        onClick={() => handleBreedSelect(breed)}
+                      >
+                        {breed}
+                      </button>
+                    ))}
+                    {filteredBreeds.length > 10 && (
+                      <div className="breed-more-results">
+                        ... and {filteredBreeds.length - 10} more results. Keep typing to narrow
+                        down.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="breed-no-results">No breeds found matching "{breedSearch}"</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Enhanced Photo Upload Section */}

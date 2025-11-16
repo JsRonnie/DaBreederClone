@@ -36,19 +36,31 @@ export default function Toast() {
     <div
       aria-live="polite"
       aria-atomic="true"
-      className="pointer-events-none fixed inset-0 z-[100] flex items-end justify-center p-4"
+      className="pointer-events-none fixed inset-0 z-[100] flex items-start justify-end p-4"
     >
       <div
-        className={`pointer-events-auto ${color} text-white shadow-lg rounded-full px-4 py-2 flex items-center gap-2`}
+        className={`pointer-events-auto ${color} text-white shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 min-w-[300px] max-w-md animate-slide-in`}
         role="status"
+        style={{
+          animation: "slideInRight 0.3s ease-out",
+        }}
       >
-        <span className="text-sm">{toast.message}</span>
+        <div className="flex-1">
+          <p className="text-sm font-medium">{toast.message}</p>
+        </div>
         <button
           aria-label="Dismiss notification"
-          className="ml-1 rounded-full/50 bg-white/15 hover:bg-white/25 px-2 py-0.5 text-xs"
+          className="ml-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors p-1.5 text-xs flex-shrink-0"
           onClick={() => setToast(null)}
         >
-          ✕
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
     </div>
