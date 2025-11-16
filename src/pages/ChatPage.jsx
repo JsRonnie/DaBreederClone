@@ -3,6 +3,35 @@ import { useParams, useNavigate } from "react-router-dom";
 import useChat from "../hooks/useChat";
 import { createSignedAttachmentUrl } from "../lib/chat";
 
+// Helper: truncate long preview messages for contact list
+function truncatePreview(text, max = 80) {
+  if (!text) return "";
+  try {
+    const singleSpaced = String(text).replace(/\s+/g, " ").trim();
+    if (singleSpaced.length <= max) return singleSpaced;
+    return singleSpaced.slice(0, max - 1) + "…";
+  } catch {
+    return text;
+  }
+}
+
+// Paperclip icon for attaching files
+function PaperclipIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ width: 20, height: 20 }}
+    >
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 // Simple chat UI page. Shows either list of contacts or active messages.
 // Route: /chat (contact list) or /chat/:contactId (specific thread)
 export default function ChatPage() {
@@ -25,6 +54,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const blobUrlsRef = useRef(new Set());
+  const fileInputRef = useRef(null);
 
   // Activate contact when param changes
   useEffect(() => {
@@ -268,7 +298,7 @@ export default function ChatPage() {
                 <div>
                   <strong>{c.dog_name || "Conversation"}</strong>
                   <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
-                    {c.last_message ? c.last_message : "No messages yet"}
+                    {c.last_message ? truncatePreview(c.last_message) : "No messages yet"}
                   </div>
                 </div>
               </div>
@@ -302,9 +332,6 @@ export default function ChatPage() {
             padding: "0.75rem 1rem",
           }}
         >
-          <button onClick={() => navigate("/chat")} style={{ padding: "0.4rem 0.8rem" }}>
-            &larr; Back
-          </button>
           <div
             style={{
               width: 36,
@@ -332,6 +359,8 @@ export default function ChatPage() {
             overflowY: "auto",
             padding: "1rem",
             background: "#f8faff",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {loadingMessages && <p>Loading messages…</p>}
@@ -490,7 +519,31 @@ export default function ChatPage() {
               placeholder="Type a message"
               style={{ flex: 1, padding: "0.6rem", border: "1px solid #ccc", borderRadius: 6 }}
             />
-            <input type="file" onChange={handleFile} title="Attach file" multiple />
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFile}
+              multiple
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach file"
+              style={{
+                padding: "0.6rem",
+                background: "#f3f4f6",
+                color: "#374151",
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <PaperclipIcon />
+            </button>
             <button
               type="submit"
               style={{

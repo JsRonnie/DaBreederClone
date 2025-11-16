@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
+import { upsertUserProfile } from "../lib/profile";
 import { normalizeAge, whitelistPayload, coerceNumbers } from "../utils/form";
 import { DOG_ALLOWED_COLUMNS } from "../lib/dogs";
 import { uploadFileToBucket, listPathsUnder, deletePathsFromBucket } from "../lib/storage";
@@ -213,6 +214,14 @@ export function useFormData() {
         if (userError) {
           throw new Error("Authentication check failed. Please sign in and try again.");
         } else if (userResult?.user) {
+          // Extra safety: ensure a profile row exists in public.users before inserting dogs
+          // This prevents FK violations in projects where dogs.user_id references public.users(id)
+          try {
+            await upsertUserProfile(supabase, userResult.user);
+          } catch (e) {
+            console.warn("Profile upsert skipped (non-fatal):", e?.message || e);
+          }
+
           dogPayload.user_id = userResult.user.id;
           console.log("👤 User authenticated:", userResult.user.id);
         } else {
@@ -243,7 +252,21 @@ export function useFormData() {
 
       // Insert new dog record (assumes DB schema is up-to-date)
       const insertResp = await supabase.from("dogs").insert(coerced).select("id").single();
-      if (insertResp.error) throw insertResp.error;
+      if (insertResp.error) {
+        // Provide a clearer error for common FK violations
+        const code = insertResp.error.code || insertResp.error.status || "";
+        const msg = (insertResp.error.message || "").toLowerCase();
+        if (
+          String(code) === "23503" ||
+          msg.includes("foreign key") ||
+          msg.includes("dogs_user_id_fkey")
+        ) {
+          throw new Error(
+            "Couldn't save dog because your user profile hasn't been created yet. Please sign out and sign back in, then try again."
+          );
+        }
+        throw insertResp.error;
+      }
       const dogId = insertResp.data.id;
 
       // Upload main photo if provided, then update dogs.image_url

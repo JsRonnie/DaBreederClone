@@ -201,46 +201,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
           </nav>
-          {loggedIn && (
-            <div className="mt-4">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
-                People you chat
-              </div>
-              {chatContacts.length === 0 ? (
-                <p className="px-3 text-xs text-slate-500">No conversations yet.</p>
-              ) : (
-                <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
-                  {chatContacts.map((contact) => (
-                    <li key={contact.id}>
-                      <Link
-                        to={`/chat/${contact.id}`}
-                        onClick={onClose}
-                        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-                      >
-                        <img
-                          src={contact.dog_image || "/shibaPor.jpg"}
-                          alt={contact.dog_name || "Conversation"}
-                          className="size-8 flex-shrink-0 rounded-full object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium text-slate-900">
-                            {contact.dog_name || "Conversation"}
-                          </div>
-                          {contact.last_message ? (
-                            <div className="truncate text-xs text-slate-500">
-                              {contact.last_message}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-slate-400">No messages yet</div>
-                          )}
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          {/* Chat contacts list removed per user request (now only visible on Chat page) */}
         </div>
 
         {/* Settings */}
