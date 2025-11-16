@@ -7,7 +7,7 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur bg-white/70 border-b border-slate-200">
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center relative">
         {/* Left: Hamburger menu for all users */}
         <div className="flex items-center">
           <button
@@ -30,7 +30,7 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
           </button>
         </div>
         {/* Center: DaBreeder Logo - navigate based on login status */}
-        <div className="flex items-center justify-center flex-1">
+        <div className="absolute left-1/2 transform -translate-x-1/2">
           <Link
             to={user ? "/my-dog" : "/"}
             className="font-bold text-2xl text-slate-800 hover:opacity-80 transition-opacity"
@@ -38,9 +38,9 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
             <span className="text-blue-600">Da</span>
             <span>Breeder</span>
           </Link>
-        </div>{" "}
+        </div>
         {/* Right: show auth only when logged out, dashboard when logged in */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           {!user ? (
             <>
               <button
