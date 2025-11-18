@@ -10,7 +10,7 @@ export async function upsertUserProfile(supabase, authUser) {
   try {
     const { data } = await supabase
       .from("users")
-      .select("name, avatar_url")
+      .select("name, avatar_url, role")
       .eq("id", authUser.id)
       .single();
     existing = data || null;
@@ -29,11 +29,14 @@ export async function upsertUserProfile(supabase, authUser) {
   const derivedAvatar = meta.avatar_url || meta.avatarUrl || fallbackAvatar;
   const targetAvatar = (existing && existing.avatar_url) || derivedAvatar;
 
+  // Preserve existing role if it exists (don't overwrite admin role!)
+  const targetRole = (existing && existing.role) || "user";
+
   const payload = {
     id: authUser.id,
     email: authUser.email,
     name: targetName,
-    role: "Dog Owner",
+    role: targetRole,
     avatar_url: targetAvatar,
   };
 

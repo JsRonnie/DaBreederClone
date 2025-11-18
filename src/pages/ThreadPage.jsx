@@ -6,6 +6,7 @@ import { safeGetUser } from "../lib/auth";
 import ConfirmDialog from "../components/ConfirmDialog";
 import LoadingState from "../components/LoadingState";
 import ErrorMessage from "../components/ErrorMessage";
+import ReportModal from "../components/ReportModal";
 import {
   fetchThreadWithComments,
   toggleThreadVote,
@@ -38,6 +39,10 @@ export default function ThreadPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [votingThread, setVotingThread] = useState(false);
   const [votingComments, setVotingComments] = useState({});
+  const [reportOpen, setReportOpen] = useState(false);
+  const [selectedCommentForReport, setSelectedCommentForReport] = useState(null);
+  const [commentMenuOpen, setCommentMenuOpen] = useState({});
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const composerId = "new-comment";
   const [focusedTick, setFocusedTick] = useState(0);
 
@@ -577,15 +582,46 @@ export default function ThreadPage() {
           <FaArrowLeft className="text-sm" />
           <span>Back to Forum</span>
         </button>
-        {currentUserId && currentUserId === thread?.user_id && (
+        <div className="relative">
           <button
-            onClick={requestDeleteThread}
-            disabled={deletingThread}
-            className="text-sm px-3 py-1.5 rounded-md border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+            onClick={() => setThreadMenuOpen(!threadMenuOpen)}
+            className="text-sm px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50"
+            title="More options"
           >
-            {deletingThread ? "Deleting…" : "Delete thread"}
+            ⋯
           </button>
-        )}
+          {threadMenuOpen && (
+            <div
+              className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-md shadow-lg z-10"
+              style={{ top: "100%" }}
+            >
+              {currentUserId && currentUserId === thread?.user_id && (
+                <button
+                  onClick={() => {
+                    requestDeleteThread();
+                    setThreadMenuOpen(false);
+                  }}
+                  disabled={deletingThread}
+                  className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 border-b border-slate-100 disabled:opacity-50"
+                >
+                  {deletingThread ? "Deleting…" : "Delete thread"}
+                </button>
+              )}
+              {currentUserId && currentUserId !== thread?.user_id && (
+                <button
+                  onClick={() => {
+                    setReportOpen(true);
+                    setSelectedCommentForReport(thread);
+                    setThreadMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50"
+                >
+                  Report Thread Post
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       {/* Thread header styled like forum card */}
       <div className="p-4 mb-4 border border-slate-200 rounded-lg bg-white/60">
@@ -737,15 +773,51 @@ export default function ThreadPage() {
                 <span>{new Date(c.created_at).toLocaleString()}</span>
                 {/* collapse and share removed */}
                 {/* Reply removed by request */}
-                {currentUserId && c.user_id === currentUserId && (
+                <div className="ml-auto relative">
                   <button
-                    onClick={() => requestDeleteComment(c.id)}
-                    disabled={!!deletingComment[c.id]}
-                    className="ml-auto text-xs px-2 py-1 rounded border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                    onClick={() =>
+                      setCommentMenuOpen((m) => ({
+                        ...m,
+                        [c.id]: !m[c.id],
+                      }))
+                    }
+                    className="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50"
+                    title="More options"
                   >
-                    {deletingComment[c.id] ? "Deleting…" : "Delete"}
+                    ⋯
                   </button>
-                )}
+                  {commentMenuOpen[c.id] && (
+                    <div
+                      className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-md shadow-lg z-10"
+                      style={{ top: "100%" }}
+                    >
+                      {currentUserId && c.user_id === currentUserId && (
+                        <button
+                          onClick={() => {
+                            requestDeleteComment(c.id);
+                            setCommentMenuOpen((m) => ({ ...m, [c.id]: false }));
+                          }}
+                          disabled={!!deletingComment[c.id]}
+                          className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 border-b border-slate-100 disabled:opacity-50"
+                        >
+                          {deletingComment[c.id] ? "Deleting…" : "Delete comment"}
+                        </button>
+                      )}
+                      {currentUserId && c.user_id !== currentUserId && (
+                        <button
+                          onClick={() => {
+                            setSelectedCommentForReport(c);
+                            setReportOpen(true);
+                            setCommentMenuOpen((m) => ({ ...m, [c.id]: false }));
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50"
+                        >
+                          Report Thread Comment
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="mt-1 whitespace-pre-wrap text-slate-700">{c.body}</div>
               {/* Bottom row: up/down votes (like thread) */}
@@ -795,6 +867,51 @@ export default function ThreadPage() {
                         <span className="font-medium text-slate-700">{ch.author.name}</span>
                       ) : null}
                       <span>{new Date(ch.created_at).toLocaleString()}</span>
+                      <div className="ml-auto relative">
+                        <button
+                          onClick={() =>
+                            setCommentMenuOpen((m) => ({
+                              ...m,
+                              [ch.id]: !m[ch.id],
+                            }))
+                          }
+                          className="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50"
+                          title="More options"
+                        >
+                          ⋯
+                        </button>
+                        {commentMenuOpen[ch.id] && (
+                          <div
+                            className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-md shadow-lg z-10"
+                            style={{ top: "100%" }}
+                          >
+                            {currentUserId && ch.user_id === currentUserId && (
+                              <button
+                                onClick={() => {
+                                  requestDeleteComment(ch.id);
+                                  setCommentMenuOpen((m) => ({ ...m, [ch.id]: false }));
+                                }}
+                                disabled={!!deletingComment[ch.id]}
+                                className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 border-b border-slate-100 disabled:opacity-50"
+                              >
+                                {deletingComment[ch.id] ? "Deleting…" : "Delete comment"}
+                              </button>
+                            )}
+                            {currentUserId && ch.user_id !== currentUserId && (
+                              <button
+                                onClick={() => {
+                                  setSelectedCommentForReport(ch);
+                                  setReportOpen(true);
+                                  setCommentMenuOpen((m) => ({ ...m, [ch.id]: false }));
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50"
+                              >
+                                Report Thread Comment
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-1 whitespace-pre-wrap text-slate-700">{ch.body}</div>
                     {/* Bottom row votes for reply */}
@@ -859,6 +976,40 @@ export default function ThreadPage() {
         }
         confirmButtonClass="bg-rose-600 hover:bg-rose-700 text-white"
       />
+      {thread && (
+        <ReportModal
+          isOpen={reportOpen}
+          reportType={
+            selectedCommentForReport?.id === thread?.id ? "forum_thread" : "forum_comment"
+          }
+          targetData={
+            selectedCommentForReport
+              ? selectedCommentForReport?.id === thread?.id
+                ? {
+                    id: thread.id,
+                    authorId: thread.user_id,
+                    title: thread.title,
+                    content: thread.body,
+                    timestamp: thread.created_at,
+                  }
+                : {
+                    id: selectedCommentForReport.id,
+                    authorId: selectedCommentForReport.user_id,
+                    content: selectedCommentForReport.body,
+                    timestamp: selectedCommentForReport.created_at,
+                  }
+              : null
+          }
+          onClose={() => {
+            setReportOpen(false);
+            setSelectedCommentForReport(null);
+          }}
+          onReportSuccess={() => {
+            setReportOpen(false);
+            setSelectedCommentForReport(null);
+          }}
+        />
+      )}
     </div>
   );
 }

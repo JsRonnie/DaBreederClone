@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import supabase from "../lib/supabaseClient";
+import ReportModal from "../components/ReportModal";
+import { useAuth } from "../hooks/useAuth";
 import "./FindMatchPage.css"; // reuse shared loading styles
 import LoadingState from "../components/LoadingState";
 
@@ -10,7 +12,10 @@ export default function DogProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { dog, photoUrl, loading, error } = useDogProfile(id);
+  const { user } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [dogMenuOpen, setDogMenuOpen] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -127,6 +132,46 @@ export default function DogProfilePage() {
                     </svg>
                     <span>Edit Profile</span>
                   </button>
+                )}
+                {user && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setDogMenuOpen(!dogMenuOpen)}
+                      className="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50"
+                      title="More options"
+                    >
+                      ⋯
+                    </button>
+                    {dogMenuOpen && (
+                      <div
+                        className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-md shadow-lg z-10"
+                        style={{ top: "100%" }}
+                      >
+                        {isOwner && (
+                          <button
+                            onClick={() => {
+                              navigate(`/edit-dog/${dog.id}`);
+                              setDogMenuOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 border-b border-slate-100"
+                          >
+                            Edit Profile
+                          </button>
+                        )}
+                        {!isOwner && (
+                          <button
+                            onClick={() => {
+                              setReportOpen(true);
+                              setDogMenuOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50"
+                          >
+                            Report Profile
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -346,6 +391,23 @@ export default function DogProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Report Modal */}
+        <ReportModal
+          isOpen={reportOpen}
+          reportType="dog_profile"
+          targetData={{
+            id: dog.id,
+            name: dog.name,
+            breed: dog.breed,
+            ownerId: dog.user_id,
+          }}
+          onClose={() => setReportOpen(false)}
+          onReportSuccess={() => {
+            // Optional: Show success message or refresh
+            setReportOpen(false);
+          }}
+        />
       </div>
     </div>
   );

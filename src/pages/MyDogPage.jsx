@@ -14,6 +14,12 @@ export default function MyDogPage() {
   // After loading: if not authenticated, redirect declaratively
   if (!user) return <Navigate to="/" replace />;
 
+  // Redirect admins to admin dashboard
+  if (user.role === "admin") {
+    navigate("/admin/dashboard", { replace: true });
+    return null;
+  }
+
   const goToAddDog = () => navigate("/add-dog");
 
   return (

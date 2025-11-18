@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import supabase from "../lib/supabaseClient";
 import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 export default function EditProfilePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState({
@@ -13,6 +15,13 @@ export default function EditProfilePage() {
     location: "",
     bio: "",
   });
+
+  // Redirect admins to admin dashboard
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (user) {

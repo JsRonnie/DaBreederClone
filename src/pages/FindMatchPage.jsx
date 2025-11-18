@@ -17,6 +17,14 @@ export default function FindMatchPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user: authUser } = useContext(AuthContext);
+
+  // Redirect admins to admin dashboard
+  useEffect(() => {
+    if (authUser && authUser.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [authUser, navigate]);
+
   // Debug logger for this page
   const FM_LOG = (...args) => console.log("🔎 [FindMatch]", ...args);
   const MATCHES_TTL = 15 * 60 * 1000; // 15 minutes

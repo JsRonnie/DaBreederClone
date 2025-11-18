@@ -23,6 +23,13 @@ export default function ForumPage() {
   const { user, loading } = React.useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Redirect admins to admin dashboard
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
+
   const [threads, setThreads] = useState(() => GLOBAL_FORUM_CACHE.threads || []);
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);

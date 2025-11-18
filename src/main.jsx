@@ -19,6 +19,13 @@ const NotFoundPage = lazy(() => import("./pages/NotFound"));
 const ForumPage = lazy(() => import("./pages/ForumPage"));
 const ThreadPage = lazy(() => import("./pages/ThreadPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
+const AdminLoginPage = lazy(() => import("./pages/AdminLoginPage"));
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const AdminDogsPage = lazy(() => import("./pages/AdminDogsPage"));
+const AdminForumPage = lazy(() => import("./pages/AdminForumPage"));
+const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage"));
+const AdminDocumentsPage = lazy(() => import("./pages/AdminDocumentsPage"));
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -26,6 +33,16 @@ createRoot(document.getElementById("root")).render(
       <Router>
         <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
           <Routes>
+            {/* Admin Routes - Outside Layout */}
+            <Route path="/admin" element={<AdminLoginPage />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/dogs" element={<AdminDogsPage />} />
+            <Route path="/admin/forum" element={<AdminForumPage />} />
+            <Route path="/admin/messages" element={<AdminMessagesPage />} />
+            <Route path="/admin/documents" element={<AdminDocumentsPage />} />
+
+            {/* Regular Routes - Inside Layout */}
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="about" element={<AboutPage />} />

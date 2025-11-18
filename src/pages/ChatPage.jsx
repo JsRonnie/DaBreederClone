@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import useChat from "../hooks/useChat";
 import { createSignedAttachmentUrl } from "../lib/chat";
 import useDogs from "../hooks/useDogs";
+import { useAuth } from "../hooks/useAuth";
+import ReportModal from "../components/ReportModal";
 
 // Helper: truncate long preview messages for contact list
 function truncatePreview(text, max = 80) {
@@ -49,6 +51,7 @@ function ThreeDotsIcon() {
 export default function ChatPage() {
   const { contactId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     contacts,
     messages,
@@ -70,9 +73,18 @@ export default function ChatPage() {
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const textareaRef = useRef(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [selectedMessageForReport, setSelectedMessageForReport] = useState(null);
 
   // Fetch user's dogs using the hook
   const { dogs: userDogs } = useDogs();
+
+  // Redirect admins to admin dashboard
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   // Activate contact when param changes
   useEffect(() => {
@@ -704,9 +716,9 @@ export default function ChatPage() {
             const attachments = m.message_attachments || [];
             const createdAt = m.created_at ? new Date(m.created_at) : null;
             const withinHour = createdAt ? Date.now() - createdAt.getTime() <= 3600000 : false;
-            const canDelete = isOwn && !m.deleted_at && withinHour;
             const isHovered = hoveredMessageId === m.id;
             const isMenuOpen = openMenuId === m.id;
+            const showOwnMenu = isOwn && !m.deleted_at && (isHovered || isMenuOpen);
 
             return (
               <div
@@ -795,7 +807,109 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
-                {canDelete && (isHovered || isMenuOpen) && (
+                {showOwnMenu && (
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenuId(isMenuOpen ? null : m.id)}
+                      className="message-menu-button"
+                      style={{
+                        background: "#f3f4f6",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: 28,
+                        height: 28,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#6b7280",
+                        transition: "all 0.2s ease",
+                        marginTop: "0.5rem",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#e5e7eb";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f3f4f6";
+                      }}
+                    >
+                      <ThreeDotsIcon />
+                    </button>
+                    {isMenuOpen && (
+                      <>
+                        <div
+                          style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 10,
+                          }}
+                          onClick={() => setOpenMenuId(null)}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            right: isOwn ? 0 : "auto",
+                            left: isOwn ? "auto" : 0,
+                            marginTop: "0.25rem",
+                            background: "#ffffff",
+                            borderRadius: 8,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            minWidth: 120,
+                            zIndex: 20,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {withinHour ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleDeleteMessage(m.id);
+                                setOpenMenuId(null);
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "0.625rem 1rem",
+                                border: "none",
+                                background: "transparent",
+                                textAlign: "left",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                                color: "#ef4444",
+                                transition: "background 0.2s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#fef2f2";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                              }}
+                            >
+                              Delete message
+                            </button>
+                          ) : (
+                            <div
+                              style={{
+                                width: "100%",
+                                padding: "0.625rem 1rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                color: "#9ca3af",
+                              }}
+                            >
+                              Can't delete older messages
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+                {!isOwn && (isHovered || isMenuOpen) && (
                   <div style={{ position: "relative" }}>
                     <button
                       type="button"
@@ -855,7 +969,8 @@ export default function ChatPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              handleDeleteMessage(m.id);
+                              setSelectedMessageForReport(m);
+                              setReportOpen(true);
                               setOpenMenuId(null);
                             }}
                             style={{
@@ -866,17 +981,17 @@ export default function ChatPage() {
                               textAlign: "left",
                               cursor: "pointer",
                               fontSize: "0.875rem",
-                              color: "#ef4444",
+                              color: "#dc2626",
                               transition: "background 0.2s ease",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#fef2f2";
+                              e.currentTarget.style.background = "#fee2e2";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
                             }}
                           >
-                            Delete message
+                            Report message
                           </button>
                         </div>
                       </>
@@ -1248,6 +1363,27 @@ export default function ChatPage() {
             Choose a conversation from the list to start chatting.
           </p>
         </div>
+      )}
+      {selectedMessageForReport && (
+        <ReportModal
+          isOpen={reportOpen}
+          reportType="chat_message"
+          targetData={{
+            id: selectedMessageForReport.id,
+            senderId: selectedMessageForReport.sender_id,
+            receiverId: selectedMessageForReport.receiver_id,
+            content: selectedMessageForReport.message,
+            timestamp: selectedMessageForReport.created_at,
+          }}
+          onClose={() => {
+            setReportOpen(false);
+            setSelectedMessageForReport(null);
+          }}
+          onReportSuccess={() => {
+            setReportOpen(false);
+            setSelectedMessageForReport(null);
+          }}
+        />
       )}
     </div>
   );

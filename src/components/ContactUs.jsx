@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import supabase from "../lib/supabaseClient";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -22,15 +23,35 @@ export default function ContactUs() {
     setIsSubmitting(true);
     setSubmitStatus("");
 
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Insert contact message to database
+      const { error } = await supabase.from("contact_messages").insert([
+        {
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+        },
+      ]);
+
+      if (error) {
+        console.error("Error submitting contact form:", error);
+        setSubmitStatus("error");
+        return;
+      }
+
+      // Success
       setSubmitStatus("success");
       setFormData({ name: "", email: "", subject: "", message: "" });
 
-      // Clear success message after 3 seconds
-      setTimeout(() => setSubmitStatus(""), 3000);
-    }, 1000);
+      // Clear success message after 5 seconds
+      setTimeout(() => setSubmitStatus(""), 5000);
+    } catch (err) {
+      console.error("Contact form error:", err);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -291,6 +312,27 @@ export default function ContactUs() {
                       />
                     </svg>
                     Message sent successfully! We'll get back to you soon.
+                  </div>
+                </div>
+              )}
+
+              {submitStatus === "error" && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl">
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 text-red-500 mr-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    Failed to send message. Please try again or email us directly.
                   </div>
                 </div>
               )}

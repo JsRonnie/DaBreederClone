@@ -2,6 +2,8 @@ import { createContext, useEffect, useState } from "react";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
 
+import BannedUserModal from "../components/BannedUserModal";
+
 const AuthContext = createContext();
 
 export { AuthContext };
@@ -10,19 +12,54 @@ export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const toAppUser = (session) => {
+  const toAppUser = async (session) => {
     const user = session?.user;
     if (!user) return null;
     // If anonymous sign-ins are enabled, ignore anonymous sessions for app login state
     // Detect via user.is_anonymous (new) or provider === 'anonymous' (fallback)
     const provider = user.app_metadata?.provider;
     if (user.is_anonymous || provider === "anonymous") return null;
+
+    // Fetch the actual role and ban status from the database
+    let userRole = "user"; // default
+    let isBanned = false;
+    let banReason = null;
+    try {
+      console.log("AuthContext: Fetching role and ban status for user", user.id);
+      const { data: profile } = await supabase
+        .from("users")
+        .select("role, is_active, ban_reason")
+        .eq("id", user.id)
+        .single();
+
+      console.log(
+        "AuthContext: Profile role from DB:",
+        profile?.role,
+        "is_active:",
+        profile?.is_active
+      );
+
+      if (profile?.role) {
+        userRole = profile.role;
+      }
+
+      // Check if user is banned
+      if (profile?.is_active === false) {
+        isBanned = true;
+        banReason = profile?.ban_reason || "Your account has been suspended";
+      }
+    } catch (err) {
+      console.warn("Could not fetch user profile:", err);
+    }
+
     const meta = user.user_metadata || {};
     return {
       id: user.id,
       name: meta.name || meta.full_name || user.email?.split("@")[0] || "User",
       email: user.email || null,
-      role: "Dog Owner",
+      role: userRole,
+      isBanned,
+      banReason,
       avatarUrl:
         meta.avatar_url ||
         meta.avatarUrl ||
@@ -132,16 +169,31 @@ export default function AuthProvider({ children }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
       initialLoadDone = true;
-      const appUser = toAppUser(data?.session);
+      console.log(
+        "AuthContext: Initial session check",
+        data?.session ? "Session found" : "No session"
+      );
+      const appUser = await toAppUser(data?.session);
+      console.log("AuthContext: App user created:", appUser);
       if (appUser) {
         setUser(appUser);
         // Only upsert profile on initial load, not every auth change
-        await upsertUserProfile(supabase, data.session.user);
+        // Skip upsert if user is on admin route (to prevent overwriting admin role)
+        const isAdminRoute = window.location.pathname.startsWith("/admin");
+        console.log("AuthContext: Is admin route?", isAdminRoute);
+        if (!isAdminRoute) {
+          console.log("AuthContext: Upserting user profile");
+          await upsertUserProfile(supabase, data.session.user);
+        } else {
+          console.log("AuthContext: Skipping profile upsert (admin route)");
+        }
         // Warm the dog cache for faster pages (don't await)
-        try {
-          prefetchUserDogs(appUser.id);
-        } catch {
-          /* noop */
+        if (!isAdminRoute) {
+          try {
+            prefetchUserDogs(appUser.id);
+          } catch {
+            /* noop */
+          }
         }
       }
       setLoading(false);
@@ -150,11 +202,13 @@ export default function AuthProvider({ children }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted || !initialLoadDone) return;
 
-      const appUser = toAppUser(session);
+      const appUser = await toAppUser(session);
       if (appUser) {
         setUser(appUser);
         // Only upsert on sign in, not on token refresh
-        if (event === "SIGNED_IN") {
+        // Skip upsert if user is on admin route (to prevent overwriting admin role)
+        const isAdminRoute = window.location.pathname.startsWith("/admin");
+        if (event === "SIGNED_IN" && !isAdminRoute) {
           await upsertUserProfile(supabase, session.user);
           // Warm the dog cache on sign-in
           try {
@@ -181,5 +235,10 @@ export default function AuthProvider({ children }) {
     setUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <>
+      {user?.isBanned && <BannedUserModal user={user} onLogout={handleLogout} />}
+      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    </>
+  );
 }

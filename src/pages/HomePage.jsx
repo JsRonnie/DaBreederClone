@@ -10,10 +10,15 @@ export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect logged-in users to their dogs page
+  // Redirect logged-in users to their dogs page, or admins to admin dashboard
   useEffect(() => {
     if (user) {
-      navigate("/my-dog");
+      // Check if user is an admin
+      if (user.role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/my-dog");
+      }
     }
   }, [user, navigate]);
 
