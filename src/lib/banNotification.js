@@ -1,4 +1,5 @@
 import supabase from "./supabaseClient";
+import { createNotification } from "./notifications";
 
 /**
  * Send a ban notification email to the user
@@ -7,19 +8,28 @@ import supabase from "./supabaseClient";
  * @param {string} reason - Reason for banning
  */
 export const sendBanNotificationEmail = async (
+  userId,
   email,
   userName,
   reason = "Terms of Service violation"
 ) => {
   try {
-    // Use Supabase Edge Functions or your email service
-    // For now, we'll create a record in a notifications table
+    let resolvedUserId = userId;
+    if (!resolvedUserId && email) {
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+      resolvedUserId = userRecord?.id;
+    }
 
-    const { error } = await supabase.from("notifications").insert({
-      user_email: email,
-      type: "ban_notification",
-      subject: "Your DaBreeder Account Has Been Banned",
-      message: `
+    if (resolvedUserId) {
+      await createNotification({
+        userId: resolvedUserId,
+        type: "ban_notification",
+        title: "Your DaBreeder account has been banned",
+        message: `
 Dear ${userName},
 
 Your DaBreeder account has been suspended due to: ${reason}
@@ -29,12 +39,8 @@ If you believe this is a mistake, please contact our support team at support@dab
 Best regards,
 DaBreeder Team
       `,
-      created_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      console.error("Error creating notification record:", error);
-      return false;
+        metadata: { reason },
+      });
     }
 
     // TODO: Integrate with email service (SendGrid, Resend, etc.)
@@ -48,7 +54,7 @@ DaBreeder Team
     //   })
     // });
 
-    console.log("Ban notification sent to:", email);
+    console.log("Ban notification recorded for:", email);
     return true;
   } catch (err) {
     console.error("Error sending ban notification:", err);

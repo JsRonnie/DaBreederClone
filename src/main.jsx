@@ -1,6 +1,7 @@
 import React, { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import AuthProvider from "./context/AuthContext";
 import Layout from "./components/Layout";
@@ -25,44 +26,53 @@ const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AdminDogsPage = lazy(() => import("./pages/AdminDogsPage"));
 const AdminForumPage = lazy(() => import("./pages/AdminForumPage"));
 const AdminMessagesPage = lazy(() => import("./pages/AdminMessagesPage"));
-const AdminDocumentsPage = lazy(() => import("./pages/AdminDocumentsPage"));
+const AdminReportsPage = lazy(() => import("./pages/AdminReportsPage"));
+// ...existing code...
+const AdminLayout = lazy(() => import("./components/AdminLayout"));
+
+const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <AuthProvider>
-      <Router>
-        <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
-          <Routes>
-            {/* Admin Routes - Outside Layout */}
-            <Route path="/admin" element={<AdminLoginPage />} />
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/dogs" element={<AdminDogsPage />} />
-            <Route path="/admin/forum" element={<AdminForumPage />} />
-            <Route path="/admin/messages" element={<AdminMessagesPage />} />
-            <Route path="/admin/documents" element={<AdminDocumentsPage />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
+            <Routes>
+              {/* Admin Routes - Outside Layout */}
+              <Route path="/admin" element={<AdminLoginPage />} />
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route path="dashboard" element={<AdminDashboardPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="dogs" element={<AdminDogsPage />} />
+                <Route path="forum" element={<AdminForumPage />} />
+                <Route path="messages" element={<AdminMessagesPage />} />
+                <Route path="reports" element={<AdminReportsPage />} />
+                // ...existing code...
+              </Route>
 
-            {/* Regular Routes - Inside Layout */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="about" element={<AboutPage />} />
-              <Route path="contact" element={<ContactPage />} />
-              <Route path="my-dog" element={<MyDogPage />} />
-              <Route path="add-dog" element={<AddDogPage />} />
-              <Route path="dog/:id" element={<DogProfilePage />} />
-              <Route path="dog/:id/edit" element={<DogEditPage />} />
-              <Route path="find-match" element={<FindMatchPage />} />
-              <Route path="forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="change-password" element={<ChangePasswordPage />} />
-              <Route path="forum" element={<ForumPage />} />
-              <Route path="thread/:id" element={<ThreadPage />} />
-              <Route path="chat" element={<ChatPage />} />
-              <Route path="chat/:contactId" element={<ChatPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </Router>
-    </AuthProvider>
+              {/* Regular Routes - Inside Layout */}
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomePage />} />
+                <Route path="about" element={<AboutPage />} />
+                <Route path="contact" element={<ContactPage />} />
+                <Route path="my-dog" element={<MyDogPage />} />
+                <Route path="add-dog" element={<AddDogPage />} />
+                <Route path="dog/:id" element={<DogProfilePage />} />
+                <Route path="dog/:id/edit" element={<DogEditPage />} />
+                <Route path="find-match" element={<FindMatchPage />} />
+                <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="change-password" element={<ChangePasswordPage />} />
+                <Route path="forum" element={<ForumPage />} />
+                <Route path="thread/:id" element={<ThreadPage />} />
+                <Route path="chat" element={<ChatPage />} />
+                <Route path="chat/:contactId" element={<ChatPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
   </StrictMode>
 );

@@ -1,8 +1,59 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  Trash2,
+  Eye,
+  FileText,
+  Plus,
+  Download,
+  Check,
+  X as XIcon,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+  MoreHorizontal,
+  User,
+  PawPrint as PawPrintIcon,
+  ArrowLeft,
+  FileCheck,
+  FileX,
+  RefreshCw,
+} from "lucide-react";
+import { format } from "date-fns";
 import supabase from "../lib/supabaseClient";
 import ConfirmDialog from "../components/ConfirmDialog";
 import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+  CardDescription,
+} from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Skeleton } from "../components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+// import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table"; // Removed: file does not exist
+// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip"; // Removed: file does not exist
+import { ScrollArea } from "../components/ui/scroll-area";
+import { Separator } from "../components/ui/separator";
+import { formatDistanceToNow } from "date-fns";
 
 export default function AdminDogsPage() {
   const navigate = useNavigate();
@@ -24,12 +75,44 @@ export default function AdminDogsPage() {
     loading: false,
   });
   const [docActionLoading, setDocActionLoading] = useState(false);
-  const [notification, setNotification] = useState(null); // { type, message }
+  // Removed unused notification state
   const [documentViewer, setDocumentViewer] = useState({ open: false, document: null }); // { open, document }
+
+  // Stub fetchDogs to prevent reference error
+  const fetchDogs = async () => {
+    setLoading(true);
+    try {
+      // Fetch dogs with owner and documents
+      const { data, error } = await supabase
+        .from("dogs")
+        .select(`*, users(id, name, email), dog_documents(*)`);
+      if (error) throw error;
+      setDogs(data || []);
+      // Calculate stats
+      const total = data ? data.length : 0;
+      const withDocs = data
+        ? data.filter((dog) => dog.dog_documents && dog.dog_documents.length > 0).length
+        : 0;
+      setStats({ total, withDocs });
+    } catch (err) {
+      console.error("Failed to fetch dogs:", err);
+      setDogs([]);
+      setStats({ total: 0, withDocs: 0 });
+    }
+    setLoading(false);
+  };
+
+  // Stub handleActionClick to prevent reference error
+  const handleActionClick = (action, dogId, dogName) => {
+    // TODO: Implement actual action logic
+    if (action === "delete") {
+      setConfirmDialog({ open: true, action, dogId, dogName });
+    }
+  };
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
+  const rowsPerPage = 8; // Match the users page for consistency
 
   // Reset to first page if filters/search change
   useEffect(() => {
@@ -81,90 +164,8 @@ export default function AdminDogsPage() {
     }
   };
 
-  const fetchDogs = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch dogs with their owner information and documents
-      const { data, error: dogsError } = await supabase
-        .from("dogs")
-        .select(
-          `
-          id,
-          user_id,
-          name,
-          gender,
-          breed,
-          age_years,
-          weight_kg,
-          pedigree_certified,
-          dna_tested,
-          vaccinated,
-          hip_elbow_tested,
-          heart_tested,
-          eye_tested,
-          genetic_panel,
-          thyroid_tested,
-          coat_type,
-          color,
-          activity_level,
-          sociability,
-          trainability,
-          created_at,
-          image_url,
-          users!dogs_user_id_fkey (
-            id,
-            name,
-            email
-          ),
-          dog_documents (
-            id,
-            file_name,
-            storage_path,
-            file_size_bytes,
-            content_type,
-            category,
-            uploaded_at
-          )
-        `
-        )
-        .order("created_at", { ascending: false });
-
-      if (dogsError) {
-        console.error("Error fetching dogs:", dogsError);
-        return;
-      }
-
-      console.log("Fetched dogs:", data?.length || 0);
-
-      // Attach documentCount from nested dog_documents
-      const dogsWithDocs = (data || []).map((dog) => ({
-        ...dog,
-        documentCount: (dog.dog_documents || []).length,
-      }));
-
-      setDogs(dogsWithDocs);
-
-      // Calculate stats
-      const total = dogsWithDocs?.length || 0;
-      const withDocs = dogsWithDocs?.filter((d) => d.documentCount > 0).length || 0;
-
-      setStats({ total, visible: total, hidden: 0, withDocs });
-    } catch (err) {
-      console.error("Error in fetchDogs:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleActionClick = (action, dogId, dogName) => {
-    setConfirmDialog({
-      open: true,
-      action,
-      dogId,
-      dogName,
-    });
-  };
+  // Removed stray <table> block outside the component
+  // Removed orphaned closing braces from previous patch
 
   const confirmAction = async () => {
     const { action, dogId } = confirmDialog;
@@ -172,25 +173,17 @@ export default function AdminDogsPage() {
     try {
       if (action === "delete") {
         const { error } = await supabase.from("dogs").delete().eq("id", dogId);
-
         if (error) throw error;
         console.log("Dog deleted:", dogId);
-        setNotification({
-          type: "success",
-          message: `Dog "${confirmDialog.dogName}" has been deleted.`,
-        });
+        // Notification removed
       }
-
       // Refresh the list
       await fetchDogs();
       setConfirmDialog({ open: false, action: null, dogId: null, dogName: "" });
-
-      // Clear notification after 4 seconds
-      setTimeout(() => setNotification(null), 4000);
+      // Notification removed
     } catch (err) {
       console.error(`Error performing ${action}:`, err);
-      setNotification({ type: "error", message: "Failed to delete dog. Please try again." });
-      setTimeout(() => setNotification(null), 4000);
+      // Notification removed
     }
   };
 
@@ -268,13 +261,9 @@ export default function AdminDogsPage() {
     currentPage * rowsPerPage
   );
 
-  const getDocumentStatus = (dog) => {
-    const count = dog.documentCount || 0;
-
-    if (count === 0) return { text: "No Documents", color: "gray" };
-    if (count === 1) return { text: "1 Document", color: "blue" };
-    return { text: `${count} Documents`, color: "green" };
-  };
+  // Calculate range for pagination display
+  const startItem = (currentPage - 1) * rowsPerPage + 1;
+  const endItem = Math.min(currentPage * rowsPerPage, filteredDogs.length);
 
   const viewDocuments = (dog) => {
     // Open modal to verify/reject documents
@@ -282,291 +271,302 @@ export default function AdminDogsPage() {
   };
 
   if (loading) {
-    return <AdminLoadingScreen message="Loading dogs..." />;
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-6 w-6 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-32 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-40 animate-pulse ${
-            notification.type === "success" ? "bg-green-500" : "bg-red-500"
-          }`}
-        >
-          {notification.message}
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dog Management</h1>
+          <p className="text-muted-foreground">Monitor and manage all dog profiles and documents</p>
         </div>
-      )}
+        <Button variant="outline" size="sm" onClick={fetchDogs} className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+      <Separator />
 
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur border-b border-slate-100 shadow-sm sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 flex items-center gap-4">
-          <button
-            onClick={() => navigate("/admin/dashboard")}
-            className="rounded-full p-2 hover:bg-slate-100 transition-colors text-slate-500"
-            title="Back to Dashboard"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Manage Dog Profiles
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              View, manage, and moderate all dog profiles
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Dogs</CardTitle>
+            <PawPrintIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.total === 1 ? "1 dog registered" : `${stats.total} dogs registered`}
             </p>
-          </div>
-        </div>
-      </header>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">With Documents</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.withDocs}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.withDocs === 1
+                ? "1 dog with documents"
+                : `${stats.withDocs} dogs with documents`}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6 mb-8">
-          <div className="bg-white/90 rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Total Dogs
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by name, breed, or owner..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
             </div>
-            <div className="text-3xl font-bold text-slate-900 mt-2">{stats.total}</div>
+            <Select value={filterDocuments} onValueChange={setFilterDocuments}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by documents" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Dogs</SelectItem>
+                <SelectItem value="verified">With Documents</SelectItem>
+                <SelectItem value="pending">Pending Documents</SelectItem>
+                <SelectItem value="none">No Documents</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="bg-white/90 rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              With Documents
-            </div>
-            <div className="text-3xl font-bold text-blue-600 mt-2">{stats.withDocs}</div>
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Search and Filters */}
-        <div className="bg-white/90 rounded-2xl shadow-lg border border-slate-100 p-4 sm:p-6 mb-8 flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center justify-between">
-            <input
-              type="text"
-              placeholder="Search by name, breed, or owner..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:flex-1 px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-slate-700 placeholder:text-slate-400"
-            />
-            <select
-              value={filterDocuments}
-              onChange={(e) => setFilterDocuments(e.target.value)}
-              className="w-full sm:w-48 px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-slate-700"
-            >
-              <option value="all">All</option>
-              <option value="verified">With Documents</option>
-              <option value="pending">Pending Docs</option>
-              <option value="none">No Documents</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Dogs Table */}
-        <div className="bg-white/90 rounded-2xl shadow-lg border border-slate-100 overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50/80 border-b border-slate-100">
-              <tr>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Dog
-                </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Health Tests
-                </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Documents
-                </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-4 sm:px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedDogs.length === 0 ? (
+      {/* Dogs Table */}
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Dog Profiles</CardTitle>
+          <CardDescription>Manage and review all registered dog profiles</CardDescription>
+        </CardHeader>
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50/80 border-b border-slate-100">
                 <tr>
-                  <td colSpan="6" className="px-6 py-16 text-center">
-                    <div className="text-slate-300 flex flex-col items-center gap-2">
-                      <svg
-                        className="w-12 h-12 mb-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                        />
-                      </svg>
-                      <span className="text-lg font-medium">No dogs found</span>
-                      <span className="text-xs">
-                        {searchTerm || filterDocuments !== "all"
-                          ? "Try adjusting your search or filters"
-                          : "No dogs have been registered yet"}
-                      </span>
-                    </div>
-                  </td>
+                  <th className="w-[300px] px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Dog
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Owner
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Health Tests
+                  </th>
+                  <th className="w-[120px] px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Documents
+                  </th>
+                  <th className="w-[120px] px-4 sm:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="w-[100px] px-4 sm:px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ) : (
-                paginatedDogs.map((dog) => {
-                  const docStatus = getDocumentStatus(dog);
-                  return (
-                    <tr
-                      key={dog.id}
-                      className="hover:bg-slate-50 transition border-b border-slate-100"
-                    >
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={dog.image_url || "https://via.placeholder.com/150"}
-                            alt={dog.name}
-                            className="w-10 h-10 rounded-full border border-slate-200 shadow-sm object-cover bg-slate-100"
-                          />
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 text-sm truncate">
-                              {dog.name}
-                            </p>
-                            <p className="text-xs text-slate-500 truncate">
-                              {dog.breed} • {dog.age_years}y • {dog.gender}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedDogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="h-24 text-center">
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <FileText className="h-12 w-12 mb-2 text-muted-foreground/30" />
+                        <p className="text-sm font-medium">No dogs found</p>
+                        <p className="text-xs">
+                          {searchTerm || filterDocuments !== "all"
+                            ? "Try adjusting your search or filters"
+                            : "No dogs have been registered yet"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedDogs.map((dog) => {
+                    const createdAt = new Date(dog.created_at);
+                    const formattedDate = format(createdAt, "MMM d, yyyy");
+                    const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
+                    return (
+                      <tr key={dog.id} className="group hover:bg-muted/50">
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border">
+                              <AvatarImage
+                                src={dog.image_url || "/default-dog.png"}
+                                alt={dog.name}
+                              />
+                              <AvatarFallback className="bg-muted">
+                                <PawPrintIcon className="h-5 w-5 text-muted-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground truncate">{dog.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {dog.breed} • {dog.age_years}y • {dog.gender}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">{dog.users?.name || "Unknown"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {dog.users?.email || "No email"}
                             </p>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="text-sm text-slate-900 font-medium">
-                          {dog.users?.name || "Unknown"}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {dog.users?.email || "No email"}
-                        </div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {dog.vaccinated && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              Vaccinated
-                            </span>
-                          )}
-                          {dog.dna_tested && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              DNA
-                            </span>
-                          )}
-                          {dog.pedigree_certified && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                              Pedigree
-                            </span>
-                          )}
-                          {dog.heart_tested && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                              Heart
-                            </span>
-                          )}
-                          {dog.hip_elbow_tested && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                              Hip/Elbow
-                            </span>
-                          )}
-                          {dog.eye_tested && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                              Eyes
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <span
-                          className={`text-xs font-medium ${
-                            docStatus.color === "green"
-                              ? "text-green-600"
-                              : docStatus.color === "blue"
-                                ? "text-blue-600"
-                                : "text-slate-500"
-                          }`}
-                        >
-                          {docStatus.text}
-                        </span>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 text-xs text-slate-600">
-                        {new Date(dog.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => viewDocuments(dog)}
-                            className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-600 transition"
-                            title="View Documents"
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {dog.vaccinated && <Badge variant="success">Vaccinated</Badge>}
+                            {dog.dna_tested && <Badge variant="outline">DNA Tested</Badge>}
+                            {dog.pedigree_certified && <Badge variant="outline">Pedigree</Badge>}
+                            {dog.heart_tested && <Badge variant="secondary">Heart</Badge>}
+                            {dog.hip_elbow_tested && <Badge variant="outline">Hip/Elbow</Badge>}
+                            {dog.eye_tested && <Badge variant="outline">Eyes</Badge>}
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <Badge
+                            variant={dog.documentCount > 0 ? "default" : "secondary"}
+                            className="text-xs"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
+                            {dog.documentCount > 0 ? (
+                              <>
+                                <FileCheck className="mr-1 h-3 w-3" />
+                                {dog.documentCount} {dog.documentCount === 1 ? "doc" : "docs"}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">No docs</span>
+                            )}
+                          </Badge>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm">{formattedDate}</span>
+                            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => viewDocuments(dog)}
                             >
-                              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.3-1.54c-.18-.22-.57-.22-.75 0-.17.21-.17.56 0 .77l1.68 2c.09.13.23.21.38.21.15 0 .29-.08.38-.21l3.13-4c.17-.21.17-.56 0-.77-.18-.21-.57-.21-.75 0z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleActionClick("delete", dog.id, dog.name)}
-                            className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 transition"
-                            title="Delete"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
+                              <Eye className="h-4 w-4" />
+                              <span className="sr-only">View documents</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleActionClick("delete", dog.id, dog.name)}
                             >
-                              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-9l-1 1H5v2h14V4z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </main>
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Pagination Controls at the bottom of the page */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-3 max-w-6xl mx-auto px-4 py-4 border-t border-slate-100 bg-white/80 rounded-b-2xl shadow-lg mt-0">
-          <button
-            className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition disabled:opacity-50 text-sm font-medium"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            aria-label="Previous page"
-          >
-            &larr;
-          </button>
-          <span className="text-sm text-slate-600">
-            Page <span className="font-semibold">{currentPage}</span> of{" "}
-            <span className="font-semibold">{totalPages}</span>
-          </span>
-          <button
-            className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition disabled:opacity-50 text-sm font-medium"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            aria-label="Next page"
-          >
-            &rarr;
-          </button>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t px-6 py-4">
+              <p className="text-sm text-muted-foreground">
+                Showing <span className="font-medium">{startItem}</span> to{" "}
+                <span className="font-medium">{endItem}</span> of{" "}
+                <span className="font-medium">{filteredDogs.length}</span> dogs
+              </p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </Card>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, open: false })}
+        title={`Delete ${confirmDialog.dogName}?`}
+        description="This action cannot be undone. This will permanently delete the dog's profile and all associated data."
+        onConfirm={confirmAction}
+        confirmText="Delete"
+        variant="destructive"
+      />
 
       {/* Confirmation Modal */}
       {confirmDialog.open && (

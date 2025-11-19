@@ -228,6 +228,42 @@ export default function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    const handlePageShow = (event) => {
+      const navigationEntries = performance.getEntriesByType("navigation");
+      const navType = navigationEntries?.[0]?.type;
+      const restoredFromCache = event.persisted || navType === "back_forward";
+      if (restoredFromCache) {
+        console.log("AuthContext: Page restored from cache, forcing hard refresh for fresh data.");
+        window.location.reload();
+      }
+    };
+
+    let wasHidden = false;
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        wasHidden = true;
+        return;
+      }
+      if (wasHidden) {
+        wasHidden = false;
+        console.log(
+          "AuthContext: Tab became visible after being hidden, reloading to refresh data."
+        );
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, []);
+
   const value = {
     user,
     loading,
