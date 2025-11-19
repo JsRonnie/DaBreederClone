@@ -1,7 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  Trash2,
+  Eye,
+  MessageSquare,
+  Users,
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import supabase from "../lib/supabaseClient";
+import ConfirmDialog from "../components/ConfirmDialog";
 import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Skeleton } from "../components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { ScrollArea } from "../components/ui/scroll-area";
+import { Separator } from "../components/ui/separator";
 
 export default function AdminForumPage() {
   const navigate = useNavigate();
@@ -74,7 +101,7 @@ export default function AdminForumPage() {
 
       // Fetch user info for threads
       const threadUserIds = [...new Set(threadsData?.map((t) => t.user_id || t.author_id) || [])];
-      const { data: threadUsers = {} } =
+      const { data: threadUsers = [] } =
         threadUserIds.length > 0
           ? await supabase
               .from("users")
@@ -219,417 +246,471 @@ export default function AdminForumPage() {
   };
 
   if (loading) {
-    return <AdminLoadingScreen message="Loading..." />;
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-6 w-6 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-32 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+    <div className="space-y-6 p-6">
+      {/* Notification */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-40 ${notification.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+          className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-40 flex items-center gap-2 ${
+            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
         >
+          {notification.type === "success" ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
           {notification.message}
         </div>
       )}
 
-      <header className="bg-white/80 backdrop-blur border-b border-slate-100 shadow-sm sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6 flex items-center gap-4">
-          <button
-            onClick={() => navigate("/admin/dashboard")}
-            className="rounded-full p-2 hover:bg-slate-100 text-slate-500"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Manage Forum</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              View all posts and comments, delete inappropriate content
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">Forum Management</h1>
+          </div>
+          <p className="text-muted-foreground">
+            View all posts and comments, delete inappropriate content
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchForumData}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+      <Separator />
+
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalThreads}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.totalThreads === 1 ? "1 post" : `${stats.totalThreads} posts`}
             </p>
-          </div>
-        </div>
-      </header>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Comments</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalComments}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.totalComments === 1 ? "1 comment" : `${stats.totalComments} comments`}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white/90 rounded-xl shadow-sm border border-slate-100 p-6">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Total Posts</div>
-            <div className="text-3xl font-bold text-slate-900 mt-2">{stats.totalThreads}</div>
-          </div>
-          <div className="bg-white/90 rounded-xl shadow-sm border border-slate-100 p-6">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Total Comments</div>
-            <div className="text-3xl font-bold text-blue-600 mt-2">{stats.totalComments}</div>
-          </div>
-        </div>
-
-        <div className="bg-white/90 rounded-2xl shadow-lg border border-slate-100 p-6 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:flex-1 px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => {
-                  setView("threads");
-                  setCurrentPage(1);
-                }}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium ${view === "threads" ? "bg-blue-600 text-white" : "bg-slate-100 hover:bg-slate-200"}`}
-              >
-                Posts ({filteredThreads.length})
-              </button>
-              <button
-                onClick={() => {
-                  setView("comments");
-                  setCurrentPage(1);
-                }}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium ${view === "comments" ? "bg-blue-600 text-white" : "bg-slate-100 hover:bg-slate-200"}`}
-              >
-                Comments ({filteredComments.length})
-              </button>
+      {/* Search and View Toggle */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div className="flex-1">
+              <Input
+                placeholder="Search posts, comments, or users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
             </div>
+            <Tabs value={view} onValueChange={setView} className="w-full md:w-auto">
+              <TabsList>
+                <TabsTrigger value="threads" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Posts ({filteredThreads.length})
+                </TabsTrigger>
+                <TabsTrigger value="comments" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Comments ({filteredComments.length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {view === "threads" && (
-          <>
-            <div className="bg-white/90 rounded-2xl shadow-lg border border-slate-100 overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50/80 border-b border-slate-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Post
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Author
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Created
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+      {/* Content */}
+      <Tabs value={view} onValueChange={setView}>
+        <TabsContent value="threads" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Posts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px]">
+                <div className="space-y-4">
                   {paginatedThreads.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
-                        No posts found
-                      </td>
-                    </tr>
+                    <div className="text-center py-8 text-muted-foreground">No posts found</div>
                   ) : (
                     paginatedThreads.map((thread) => (
-                      <tr key={thread.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-slate-900 truncate">{thread.title}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-slate-900">{thread.users?.name}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${thread.users?.is_active === false ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}
-                          >
-                            {thread.users?.is_active === false ? "Banned" : "Active"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {new Date(thread.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => viewThread(thread.id)}
-                              className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteClick("deleteThread", thread.id, thread.title)
-                              }
-                              className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded"
-                            >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-9l-1 1H5v2h14V4z" />
-                              </svg>
-                            </button>
-                            {thread.users?.is_active !== false && (
-                              <button
-                                onClick={() =>
-                                  handleDeleteClick(
-                                    "banUser",
-                                    null,
-                                    thread.title,
-                                    thread.user_id,
-                                    thread.users?.name
-                                  )
-                                }
-                                className="p-2 bg-orange-100 hover:bg-orange-200 text-orange-600 rounded"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle cx="12" cy="12" r="10" />
-                                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                                </svg>
-                              </button>
-                            )}
+                      <div
+                        key={thread.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={thread.users?.avatar_url} />
+                              <AvatarFallback>
+                                {thread.users?.name?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h3 className="font-semibold">{thread.title}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                by {thread.users?.name || "Unknown"} •{" "}
+                                {formatDistanceToNow(new Date(thread.created_at), {
+                                  addSuffix: true,
+                                })}
+                              </p>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {thread.content}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge
+                              variant={
+                                thread.users?.is_active === false ? "destructive" : "secondary"
+                              }
+                            >
+                              {thread.users?.is_active === false ? "Banned" : "Active"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {thread.users?.email}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button variant="outline" size="sm" onClick={() => viewThread(thread.id)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleDeleteClick(
+                                "deleteThread",
+                                thread.id,
+                                thread.title,
+                                thread.users?.id,
+                                thread.users?.name
+                              )
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          {thread.users?.is_active !== false && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleDeleteClick(
+                                  "banUser",
+                                  thread.id,
+                                  thread.title,
+                                  thread.users?.id,
+                                  thread.users?.name
+                                )
+                              }
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
-            {totalPagesThreads > 1 && (
-              <div className="flex justify-center gap-3 mt-4">
-                <button
-                  className="px-3 py-2 bg-slate-100 rounded disabled:opacity-50"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Pagination for Threads */}
+          {totalPagesThreads > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
+                {Math.min(currentPage * rowsPerPage, filteredThreads.length)} of{" "}
+                {filteredThreads.length} posts
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                 >
-                  &larr;
-                </button>
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
                 <span className="text-sm">
                   Page {currentPage} of {totalPagesThreads}
                 </span>
-                <button
-                  className="px-3 py-2 bg-slate-100 rounded disabled:opacity-50"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPagesThreads, p + 1))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPagesThreads, prev + 1))}
                   disabled={currentPage === totalPagesThreads}
                 >
-                  &rarr;
-                </button>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPagesThreads)}
+                  disabled={currentPage === totalPagesThreads}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </TabsContent>
 
-        {view === "comments" && (
-          <>
-            <div className="bg-white/90 rounded-2xl shadow-lg border border-slate-100 overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50/80 border-b border-slate-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Comment
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Thread
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Author
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">
-                      Created
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+        <TabsContent value="comments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Comments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px]">
+                <div className="space-y-4">
                   {paginatedComments.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
-                        No comments found
-                      </td>
-                    </tr>
+                    <div className="text-center py-8 text-muted-foreground">No comments found</div>
                   ) : (
                     paginatedComments.map((comment) => (
-                      <tr key={comment.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-slate-900 line-clamp-1">{comment.content}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-slate-900 line-clamp-1">
-                            {comment.threads?.title}
+                      <div
+                        key={comment.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={comment.users?.avatar_url} />
+                              <AvatarFallback>
+                                {comment.users?.name?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                by {comment.users?.name || "Unknown"} •{" "}
+                                {formatDistanceToNow(new Date(comment.created_at), {
+                                  addSuffix: true,
+                                })}
+                              </p>
+                              <p className="text-sm font-medium text-blue-600">
+                                Re: {comment.threads?.title}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {comment.content}
                           </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-slate-900">{comment.users?.name}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${comment.users?.is_active === false ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}
-                          >
-                            {comment.users?.is_active === false ? "Banned" : "Active"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {new Date(comment.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => viewThread(comment.thread_id)}
-                              className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded"
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge
+                              variant={
+                                comment.users?.is_active === false ? "destructive" : "secondary"
+                              }
                             >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                            <button
+                              {comment.users?.is_active === false ? "Banned" : "Active"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {comment.users?.email}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => viewThread(comment.thread_id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleDeleteClick(
+                                "deleteComment",
+                                comment.id,
+                                "",
+                                comment.users?.id,
+                                comment.users?.name
+                              )
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          {comment.users?.is_active !== false && (
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() =>
                                 handleDeleteClick(
-                                  "deleteComment",
+                                  "banUser",
                                   comment.id,
-                                  comment.content.substring(0, 50)
+                                  "",
+                                  comment.users?.id,
+                                  comment.users?.name
                                 )
                               }
-                              className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded"
                             >
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-9l-1 1H5v2h14V4z" />
-                              </svg>
-                            </button>
-                            {comment.users?.is_active !== false && (
-                              <button
-                                onClick={() =>
-                                  handleDeleteClick(
-                                    "banUser",
-                                    null,
-                                    comment.content.substring(0, 50),
-                                    comment.user_id,
-                                    comment.users?.name
-                                  )
-                                }
-                                className="p-2 bg-orange-100 hover:bg-orange-200 text-orange-600 rounded"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle cx="12" cy="12" r="10" />
-                                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
-            {totalPagesComments > 1 && (
-              <div className="flex justify-center gap-3 mt-4">
-                <button
-                  className="px-3 py-2 bg-slate-100 rounded disabled:opacity-50"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Pagination for Comments */}
+          {totalPagesComments > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
+                {Math.min(currentPage * rowsPerPage, filteredComments.length)} of{" "}
+                {filteredComments.length} comments
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                 >
-                  &larr;
-                </button>
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
                 <span className="text-sm">
                   Page {currentPage} of {totalPagesComments}
                 </span>
-                <button
-                  className="px-3 py-2 bg-slate-100 rounded disabled:opacity-50"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPagesComments, p + 1))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPagesComments, prev + 1))}
                   disabled={currentPage === totalPagesComments}
                 >
-                  &rarr;
-                </button>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPagesComments)}
+                  disabled={currentPage === totalPagesComments}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
               </div>
-            )}
-          </>
-        )}
-      </main>
-
-      {confirmDialog.open && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-8 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900 mb-3">
-              {confirmDialog.action === "deleteThread"
-                ? "Delete Post"
-                : confirmDialog.action === "deleteComment"
-                  ? "Delete Comment"
-                  : "Ban User"}
-            </h3>
-            <p className="text-slate-600 mb-6">
-              {confirmDialog.action === "deleteThread"
-                ? "Delete this post and all comments?"
-                : confirmDialog.action === "deleteComment"
-                  ? "Delete this comment?"
-                  : "Ban this user?"}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() =>
-                  setConfirmDialog({
-                    open: false,
-                    action: null,
-                    itemId: null,
-                    itemTitle: "",
-                    userId: null,
-                    userName: "",
-                  })
-                }
-                className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAction}
-                className={`px-4 py-2 text-sm font-bold text-white rounded ${confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment" ? "bg-red-600 hover:bg-red-700" : "bg-orange-600 hover:bg-orange-700"}`}
-              >
-                {confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment"
-                  ? "Delete"
-                  : "Ban"}
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+        onConfirm={confirmAction}
+        title={
+          confirmDialog.action === "deleteThread"
+            ? "Delete Post"
+            : confirmDialog.action === "deleteComment"
+              ? "Delete Comment"
+              : "Ban User"
+        }
+        message={
+          confirmDialog.action === "deleteThread"
+            ? `Are you sure you want to delete the post "${confirmDialog.itemTitle}"? This will also delete all comments.`
+            : confirmDialog.action === "deleteComment"
+              ? `Are you sure you want to delete this comment?`
+              : `Are you sure you want to ban ${confirmDialog.userName}? This will prevent them from posting.`
+        }
+        confirmText={
+          confirmDialog.action === "deleteThread"
+            ? "Delete Post"
+            : confirmDialog.action === "deleteComment"
+              ? "Delete Comment"
+              : "Ban User"
+        }
+        cancelText="Cancel"
+        variant={confirmDialog.action === "banUser" ? "destructive" : "default"}
+      />
     </div>
   );
 }
