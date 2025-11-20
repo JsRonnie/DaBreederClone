@@ -733,7 +733,7 @@ export default function ThreadPage() {
             <textarea
               id="body"
               name="body"
-              className="flex-1 resize-none bg-transparent outline-none px-3 py-2 min-h-[56px] rounded-md"
+              className="flex-1 resize-none bg-transparent outline-none px-3 py-2 min-h-56px rounded-md"
               placeholder="What are your thoughts?"
               autoFocus
             />

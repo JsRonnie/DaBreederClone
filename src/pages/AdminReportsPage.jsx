@@ -671,9 +671,9 @@ export default function AdminReportsPage() {
             >
               <div className="flex items-start gap-2">
                 {actionState.type === "reject" ? (
-                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 ) : (
-                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
                 )}
                 <p className="text-xs leading-relaxed">
                   {actionState.type === "reject"
