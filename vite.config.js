@@ -20,6 +20,7 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{js,jsx,ts,tsx}"],
   },
   build: {
+    chunkSizeWarningLimit: 2000, // Increase limit to 2000kb (default is 500)
     rollupOptions: {
       output: {
         manualChunks: {
