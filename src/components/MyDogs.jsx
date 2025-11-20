@@ -111,10 +111,33 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         <p className="page-description">
           Manage your dog profiles and find perfect breeding matches
         </p>
-        <div className="mt-4">
-          <Link to="/my-matches" className="contact-btn inline-flex items-center gap-2">
-            View match history
-            <span aria-hidden="true">→</span>
+        <div className="mt-6 flex justify-center">
+          <Link
+            to="/my-matches"
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-offset-2"
+          >
+            <span className="flex size-8 items-center justify-center rounded-full bg-white/20">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="size-4"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4 12 4 4 12-12" />
+              </svg>
+            </span>
+            <span>View match history</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="size-4"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+            </svg>
           </Link>
         </div>
       </div>

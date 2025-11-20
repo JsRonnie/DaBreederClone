@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
@@ -6,10 +6,8 @@ import {
   Filter,
   Ban,
   Trash2,
-  UserPlus,
   ShieldAlert,
   UserCheck,
-  ArrowRight,
   AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -17,7 +15,6 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { ScrollArea } from "../components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -40,75 +37,102 @@ import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { Separator } from "../components/ui/separator";
 import { Skeleton } from "../components/ui/skeleton";
+import ErrorMessage from "../components/ErrorMessage";
 import supabase from "../lib/supabaseClient";
 import { sendBanNotificationEmail } from "../lib/banNotification";
+import { useAdminData } from "../hooks/useAdminData";
+import { fetchAdminUsers } from "../lib/api/admin";
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [actionType, setActionType] = useState(""); // ban, reactivate, delete
+  const [actionType, setActionType] = useState("");
   const [banReason, setBanReason] = useState("");
   const [showBanReasonModal, setShowBanReasonModal] = useState(false);
-  const [isProcessing, _setIsProcessing] = useState(false);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 8;
-
-  // Reset to first page if filters/search change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    async function checkAdminAccess() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          navigate("/admin");
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile?.role !== "admin") {
+          navigate("/admin");
+          return;
+        }
+        if (!cancelled) setAuthorized(true);
+      } catch (err) {
+        console.error("Failed to verify admin session:", err);
+        if (!cancelled) navigate("/admin");
+      } finally {
+        if (!cancelled) setAuthChecking(false);
+      }
+    }
     checkAdminAccess();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
-  const checkAdminAccess = async () => {
-    try {
-      const {
-        data: { session },
-        error: _sessionError,
-      } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/admin");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
-      if (profile?.role !== "admin") {
-        navigate("/admin");
-        return;
-      }
-      await fetchUsers();
-    } catch {
-      navigate("/admin");
-    }
-  };
+  const {
+    rows: users = [],
+    total = 0,
+    stats,
+    pageCount,
+    pagination,
+    filters,
+    search,
+    loading: dataLoading,
+    isFetching,
+    error: fetchError,
+    handleSearch,
+    handleFilterChange,
+    handlePageChange,
+    refresh,
+  } = useAdminData({
+    queryKey: "admin-users",
+    fetcher: fetchAdminUsers,
+    initialFilters: { status: "all", search: "" },
+    initialPageSize: 8,
+    enabled: authorized,
+    staleTime: 120_000,
+  });
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const { data } = await supabase
-        .from("users")
-        .select(`id,email,name,role,created_at,avatar_url,is_active`)
-        .order("created_at", { ascending: false });
-      setUsers(data || []);
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isLoading = authChecking || dataLoading;
+  const currentPage = pagination.page;
+  const pageSize = pagination.pageSize;
+  const displayRangeStart = total ? (currentPage - 1) * pageSize + 1 : 0;
+  const displayRangeEnd = total ? Math.min(displayRangeStart + users.length - 1, total) : 0;
+  const refreshing = isFetching && !dataLoading;
+
+  const summary = useMemo(() => {
+    const totalUsers = total || 0;
+    const activeCount = stats?.active ?? 0;
+    const inactiveCount = stats?.inactive ?? 0;
+    const adminCount = stats?.admins ?? 0;
+    const activePct = totalUsers > 0 ? Math.round((activeCount / totalUsers) * 100) : 0;
+    return {
+      totalUsers,
+      activeCount,
+      inactiveCount,
+      adminCount,
+      activePct,
+    };
+  }, [stats, total]);
 
   const handleActionClick = (user, action) => {
     setSelectedUser(user);
@@ -124,7 +148,7 @@ export default function AdminUsersPage() {
   const confirmAction = async () => {
     if (!selectedUser) return;
     try {
-      _setIsProcessing(true);
+      setIsProcessing(true);
       if (actionType === "ban") {
         await supabase
           .from("users")
@@ -154,7 +178,7 @@ export default function AdminUsersPage() {
         await supabase.from("users").delete().eq("id", selectedUser.id);
         toast.success(`User ${selectedUser.email} has been deleted.`);
       }
-      await fetchUsers();
+      await refresh();
       setShowConfirmModal(false);
       setShowBanReasonModal(false);
       setSelectedUser(null);
@@ -163,25 +187,12 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error("Failed to perform action. Please try again.");
       console.error("Action failed:", err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter =
-      filterStatus === "all" ||
-      (filterStatus === "active" && user.is_active !== false) ||
-      (filterStatus === "deactivated" && user.is_active === false);
-    return matchesSearch && matchesFilter;
-  });
-  const totalPages = Math.ceil(filteredUsers.length / rowsPerPage);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
@@ -230,40 +241,37 @@ export default function AdminUsersPage() {
             Monitor and manage all user accounts and permissions
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => fetchUsers()} disabled={isProcessing}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${isProcessing ? "animate-spin" : ""}`} />
-          {isProcessing ? "Refreshing..." : "Refresh"}
+        <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
       <Separator />
+      {fetchError && <ErrorMessage message={fetchError} onRetry={refresh} />}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
-          value={users.length.toLocaleString()}
+          value={summary.totalUsers.toLocaleString()}
           icon={<Users className="h-4 w-4" />}
-          description={`${users.filter((u) => u.is_active !== false).length} active`}
+          description={`${summary.activeCount.toLocaleString()} active`}
         />
         <StatCard
           title="Active Users"
-          value={users.filter((u) => u.is_active !== false).length.toLocaleString()}
+          value={summary.activeCount.toLocaleString()}
           icon={<UserCheck className="h-4 w-4" />}
           variant="success"
-          description={`${Math.round((users.filter((u) => u.is_active !== false).length / users.length) * 100) || 0}% of total`}
+          description={`${summary.activePct || 0}% of total`}
         />
         <StatCard
           title="Banned Users"
-          value={users.filter((u) => u.is_active === false).length.toLocaleString()}
+          value={summary.inactiveCount.toLocaleString()}
           icon={<Ban className="h-4 w-4" />}
-          variant={
-            users.filter((u) => u.is_active === false).length > 0 ? "destructive" : "default"
-          }
-          description={
-            users.filter((u) => u.is_active === false).length > 0 ? "Needs review" : "All clear"
-          }
+          variant={summary.inactiveCount > 0 ? "destructive" : "default"}
+          description={summary.inactiveCount > 0 ? "Needs review" : "All clear"}
         />
         <StatCard
           title="Admin Users"
-          value={users.filter((u) => u.role === "admin").length.toLocaleString()}
+          value={summary.adminCount.toLocaleString()}
           icon={<ShieldAlert className="h-4 w-4" />}
           variant="warning"
           description="With elevated permissions"
@@ -282,11 +290,14 @@ export default function AdminUsersPage() {
                 <Input
                   placeholder="Search users..."
                   className="pl-9 w-full md:w-[200px] lg:w-[300px]"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <Select
+                value={filters.status || "all"}
+                onValueChange={(value) => handleFilterChange({ status: value })}
+              >
                 <SelectTrigger className="w-[180px]">
                   <Filter className="mr-2 h-4 w-4 opacity-50" />
                   <SelectValue placeholder="Filter status" />
@@ -324,7 +335,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedUsers.length === 0 ? (
+                {users.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="h-24 text-center">
                       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -335,7 +346,7 @@ export default function AdminUsersPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedUsers.map((user) => (
+                  users.map((user) => (
                     <tr key={user.id} className="border-b hover:bg-muted/50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -432,21 +443,18 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
+          {pageCount > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Showing <span className="font-medium">{(currentPage - 1) * rowsPerPage + 1}</span>{" "}
-                to{" "}
-                <span className="font-medium">
-                  {Math.min(currentPage * rowsPerPage, filteredUsers.length)}
-                </span>{" "}
-                of <span className="font-medium">{filteredUsers.length}</span> users
+                Showing <span className="font-medium">{displayRangeStart}</span> to{" "}
+                <span className="font-medium">{displayRangeEnd}</span> of{" "}
+                <span className="font-medium">{total}</span> users
               </p>
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
                 >
                   Previous
@@ -454,8 +462,8 @@ export default function AdminUsersPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pageCount}
                 >
                   Next
                 </Button>

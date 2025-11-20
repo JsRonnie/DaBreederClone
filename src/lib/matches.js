@@ -48,6 +48,84 @@ const STATUS_SET = new Set([
   "completed_failed",
 ]);
 
+const ACTIVE_STATUS_LIST = ["pending", "accepted", "awaiting_confirmation"];
+const ACTIVE_REQUEST_STATUSES = new Set(ACTIVE_STATUS_LIST);
+
+async function lookupDogOwnerId(dogId) {
+  if (!dogId) return null;
+  const { data, error } = await supabase
+    .from("dogs")
+    .select("user_id")
+    .eq("id", dogId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.user_id || null;
+}
+
+async function getActiveRequestForContact(contactId) {
+  if (!contactId) return null;
+  const { data, error } = await supabase
+    .from("dog_match_requests")
+    .select("id, status, requester_dog_id, requested_dog_id, requested_at")
+    .eq("contact_id", contactId)
+    .in("status", ACTIVE_STATUS_LIST)
+    .order("requested_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+export async function createMatchRequest({
+  contactId,
+  requesterDogId,
+  requestedDogId,
+  requesterUserId,
+  requestedUserId = null,
+  notes = null,
+}) {
+  if (!contactId) throw new Error("contactId is required");
+  if (!requesterDogId || !requestedDogId) {
+    throw new Error("Both dogs must be provided to request breeding");
+  }
+  if (!requesterUserId) throw new Error("requesterUserId is required");
+  if (requesterDogId === requestedDogId) {
+    throw new Error("Dogs must be different");
+  }
+
+  const active = await getActiveRequestForContact(contactId);
+  if (active && ACTIVE_REQUEST_STATUSES.has(active.status)) {
+    const err = new Error("A breeding request is already awaiting a response in this chat.");
+    err.code = "MATCH_REQUEST_EXISTS";
+    err.activeRequest = active;
+    throw err;
+  }
+
+  let targetUserId = requestedUserId;
+  if (!targetUserId) {
+    targetUserId = await lookupDogOwnerId(requestedDogId);
+  }
+  if (!targetUserId) {
+    throw new Error("Unable to determine the other owner. Please refresh and try again.");
+  }
+
+  const payload = {
+    contact_id: contactId,
+    requester_dog_id: requesterDogId,
+    requested_dog_id: requestedDogId,
+    requester_user_id: requesterUserId,
+    requested_user_id: targetUserId,
+    requester_notes: notes || null,
+  };
+
+  const { data, error } = await supabase
+    .from("dog_match_requests")
+    .insert([payload])
+    .select(MATCH_SELECT)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchMatchesForUser(userId) {
   if (!userId) return [];
   let query = supabase

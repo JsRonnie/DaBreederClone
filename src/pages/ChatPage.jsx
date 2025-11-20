@@ -5,6 +5,8 @@ import { createSignedAttachmentUrl } from "../lib/chat";
 import useDogs from "../hooks/useDogs";
 import { useAuth } from "../hooks/useAuth";
 import ReportModal from "../components/ReportModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { createMatchRequest } from "../lib/matches";
 
 // Helper: truncate long preview messages for contact list
 function truncatePreview(text, max = 80) {
@@ -75,9 +77,14 @@ export default function ChatPage() {
   const textareaRef = useRef(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedMessageForReport, setSelectedMessageForReport] = useState(null);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestContext, setRequestContext] = useState(null);
+  const [requestingMatch, setRequestingMatch] = useState(false);
+  const [requestError, setRequestError] = useState("");
 
   // Fetch user's dogs using the hook
   const { dogs: userDogs } = useDogs();
+  const activeContact = contacts.find((c) => c.id === activeContactId);
 
   // Redirect admins to admin dashboard
   useEffect(() => {
@@ -310,6 +317,57 @@ export default function ChatPage() {
     }
   };
 
+  const handleOpenMatchRequest = (context) => {
+    if (!context) return;
+    setRequestContext(context);
+    setRequestError("");
+    setRequestDialogOpen(true);
+  };
+
+  const handleCloseMatchRequest = () => {
+    setRequestDialogOpen(false);
+    setRequestContext(null);
+    setRequestError("");
+  };
+
+  const handleConfirmMatchRequest = async () => {
+    if (!requestContext || requestingMatch) return;
+    if (!currentUserId) {
+      setRequestError("Please sign in to request a breeding match.");
+      return;
+    }
+    try {
+      setRequestingMatch(true);
+      await createMatchRequest({
+        contactId: requestContext.contactId,
+        requesterDogId: requestContext.requesterDogId,
+        requestedDogId: requestContext.requestedDogId,
+        requesterUserId: currentUserId,
+        requestedUserId: requestContext.requestedUserId,
+      });
+      setRequestDialogOpen(false);
+      setRequestContext(null);
+      window.dispatchEvent(
+        new CustomEvent("toast", {
+          detail: {
+            message: "Breeding request sent! Track it from the My Matches page.",
+            type: "success",
+          },
+        })
+      );
+    } catch (err) {
+      console.error("Failed to send match request", err);
+      let message = err?.message || "We couldn't send that request just now.";
+      if (typeof message === "string" && message.includes("dog_match_events")) {
+        message =
+          "Security policies are blocking the match timeline entry. Please run the latest Supabase migration (dog_match_events_policies.sql).";
+      }
+      setRequestError(message);
+    } finally {
+      setRequestingMatch(false);
+    }
+  };
+
   const renderContactList = () => (
     <div
       className="chat-contact-list"
@@ -512,8 +570,6 @@ export default function ChatPage() {
   );
 
   const renderMessages = () => {
-    const activeContact = contacts.find((c) => c.id === activeContactId);
-
     // Determine the correct perspective based on current user
     const isOwner = activeContact?.owner_id === currentUserId;
 
@@ -541,6 +597,32 @@ export default function ChatPage() {
         image: activeContact?.dog_image || "/shibaPor.jpg",
       };
     }
+
+    const requesterDogIdForRequest = isOwner ? activeContact?.dog_id : activeContact?.my_dog_id;
+    const partnerDogIdForRequest = isOwner ? activeContact?.my_dog_id : activeContact?.dog_id;
+    const requestPayload = {
+      contactId: activeContact?.id || null,
+      requesterDogId: requesterDogIdForRequest || null,
+      requestedDogId: partnerDogIdForRequest || null,
+      requestedUserId: isOwner ? null : activeContact?.owner_id || null,
+      myDogName:
+        myDog?.name ||
+        (isOwner ? activeContact?.dog_name : activeContact?.my_dog_name) ||
+        "Your dog",
+      partnerDogName: otherDog.name || "their dog",
+    };
+    const hasMatchContext = Boolean(
+      requestPayload.contactId && requestPayload.requesterDogId && requestPayload.requestedDogId
+    );
+    let requestButtonDisabledReason = "";
+    if (!currentUserId) {
+      requestButtonDisabledReason = "Please sign in to request breeding";
+    } else if (!hasMatchContext) {
+      requestButtonDisabledReason = "Both dogs must be linked to this chat";
+    } else if (requestingMatch) {
+      requestButtonDisabledReason = "Sending request…";
+    }
+    const requestButtonDisabled = !currentUserId || !hasMatchContext || requestingMatch;
 
     return (
       <div
@@ -657,6 +739,53 @@ export default function ChatPage() {
             >
               {myDog ? `${myDog.name} & ${otherDog.name}` : otherDog.name}
             </h3>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              marginLeft: "auto",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (!requestButtonDisabled) handleOpenMatchRequest(requestPayload);
+              }}
+              disabled={requestButtonDisabled}
+              title={requestButtonDisabledReason || "Request a breeding match for these dogs"}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: 9999,
+                border: "none",
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                backgroundColor: requestButtonDisabled ? "#e5e7eb" : "#2563eb",
+                color: requestButtonDisabled ? "#9ca3af" : "#ffffff",
+                cursor: requestButtonDisabled ? "not-allowed" : "pointer",
+                boxShadow: requestButtonDisabled ? "none" : "0 4px 10px rgba(37,99,235,0.25)",
+                transition: "transform 0.15s ease, background 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (requestButtonDisabled) return;
+                e.currentTarget.style.backgroundColor = "#1d4ed8";
+              }}
+              onMouseLeave={(e) => {
+                if (requestButtonDisabled) return;
+                e.currentTarget.style.backgroundColor = "#2563eb";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              onMouseDown={(e) => {
+                if (requestButtonDisabled) return;
+                e.currentTarget.style.transform = "scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              Request breeding
+            </button>
           </div>
         </div>
         <div
@@ -1270,6 +1399,16 @@ export default function ChatPage() {
     );
   };
 
+  const requestDialogMessage = requestContext
+    ? [
+        `We'll notify ${requestContext.partnerDogName}'s owner that ${requestContext.myDogName} would like to proceed.`,
+        "They can respond from the My Matches dashboard.",
+        requestError ? `\nError: ${requestError}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
   return (
     <div
       style={{
@@ -1385,6 +1524,18 @@ export default function ChatPage() {
           }}
         />
       )}
+      <ConfirmDialog
+        isOpen={requestDialogOpen}
+        onClose={handleCloseMatchRequest}
+        onConfirm={handleConfirmMatchRequest}
+        title={
+          requestContext ? `Request breeding for ${requestContext.myDogName}?` : "Request breeding?"
+        }
+        message={requestDialogMessage || "Select a conversation to request a match."}
+        confirmText={requestingMatch ? "Sending…" : "Send request"}
+        cancelText={requestingMatch ? "Close" : "Cancel"}
+        confirmButtonClass="bg-blue-600 hover:bg-blue-700 text-white"
+      />
     </div>
   );
 }

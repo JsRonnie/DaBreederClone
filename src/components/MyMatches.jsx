@@ -221,10 +221,41 @@ export default function MyMatches({ userId }) {
   return (
     <div className="find-match-container">
       <div className="header-section">
-        <h1 className="page-title">My Matches</h1>
-        <p className="page-description">
-          Track every request, pending confirmation, and success story.
-        </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-4">
+            <MatchesGlyph />
+            <div>
+              <h1 className="page-title mb-1">My Matches</h1>
+              <p className="page-description">
+                Track every request, pending confirmation, and success story.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/find-match"
+            className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-white"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="size-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-9A2.25 2.25 0 0 0 2.25 5.25v9A2.25 2.25 0 0 0 4.5 16.5H9"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m16.5 16.5 4.5 4.5m0-4.5-4.5 4.5"
+              />
+            </svg>
+            Find new matches
+          </Link>
+        </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           <SummaryCard label="Total requests" value={summary.total} />
           <SummaryCard label="Pending" value={summary.pending} />
@@ -294,6 +325,32 @@ export default function MyMatches({ userId }) {
         onClose={() => setOutcomeMatch(null)}
         onSubmit={handleOutcomeSubmit}
       />
+    </div>
+  );
+}
+
+function MatchesGlyph() {
+  return (
+    <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 text-white shadow-xl shadow-purple-500/20">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        className="size-7"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7 5.5C5 5.5 3.5 7.2 3.5 9.2c0 4.8 6.5 8 6.5 8s6.5-3.2 6.5-8c0-2-1.5-3.7-3.5-3.7-1.4 0-2.6.8-3 2-.4-1.2-1.6-2-3-2Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity=".7"
+          d="M17 6.5c1.4 0 2.5 1.1 2.5 2.6 0 3.3-4.3 5.5-4.3 5.5"
+        />
+      </svg>
     </div>
   );
 }
