@@ -78,6 +78,13 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
                   My Dogs
                 </Link>
                 <Link
+                  to="/my-matches"
+                  onClick={() => setOpen(false)}
+                  className="text-left hover:text-slate-900 transition-colors"
+                >
+                  My Matches
+                </Link>
+                <Link
                   to="/find-match"
                   onClick={() => setOpen(false)}
                   className="text-left hover:text-slate-900 transition-colors"

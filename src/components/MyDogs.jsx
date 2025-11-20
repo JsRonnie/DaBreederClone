@@ -111,6 +111,12 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         <p className="page-description">
           Manage your dog profiles and find perfect breeding matches
         </p>
+        <div className="mt-4">
+          <Link to="/my-matches" className="contact-btn inline-flex items-center gap-2">
+            View match history
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -178,93 +184,129 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
           </div>
         ) : (
           <div className="matches-grid">
-            {displayDogs.map((dog) => (
-              <div
-                key={dog.id}
-                className={`match-card ${dog.is_visible === false ? "hidden-dog" : ""}`}
-              >
-                {dog.is_visible === false && <div className="match-rank">Hidden from Matches</div>}
+            {displayDogs.map((dog) => {
+              const normalizedGender = (dog.sex || dog.gender || "").toString().toLowerCase();
+              const maleSuccessRate =
+                typeof dog.male_success_rate === "number"
+                  ? dog.male_success_rate
+                  : Number.parseFloat(dog.male_success_rate || 0);
+              const femaleMateCount = dog.female_successful_matings ?? 0;
+              const requestsCount = dog.match_requests_count ?? 0;
+              const completedCount = dog.match_completed_count ?? 0;
+              const successCount = dog.match_success_count ?? 0;
 
-                <div className="card-image-wrapper">
-                  <img
-                    src={dog.image || dog.image_url || "/heroPup.jpg"}
-                    alt={dog.name}
-                    className="match-image"
-                    onError={(e) => {
-                      e.target.src = "/heroPup.jpg";
-                    }}
-                  />
-                </div>
+              return (
+                <div
+                  key={dog.id}
+                  className={`match-card ${dog.is_visible === false ? "hidden-dog" : ""}`}
+                >
+                  {dog.is_visible === false && (
+                    <div className="match-rank">Hidden from Matches</div>
+                  )}
 
-                <div className="card-content">
-                  <h3 className="match-name">{dog.name}</h3>
-                  <div className="match-details">
-                    <div className="detail-item">
-                      <span className="detail-label">Breed</span>
-                      <span className="detail-value capitalize">{dog.breed}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Age</span>
-                      <span className="detail-value">{dog.age}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Gender</span>
-                      <span className="detail-value">
-                        <div
-                          className={
-                            "gender-pill " +
-                            ((dog.sex || dog.gender || "").toString().toLowerCase() === "male"
-                              ? "male"
-                              : (dog.sex || dog.gender || "").toString().toLowerCase() === "female"
-                                ? "female"
-                                : "unknown")
-                          }
-                        >
-                          {(() => {
-                            const g = (dog.sex || dog.gender || "").toString();
-                            const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "—";
-                            return <span className="gender-label">{label.toLowerCase()}</span>;
-                          })()}
-                        </div>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="card-actions">
-                    <Link to={`/dog/${dog.id}`} className="view-profile-btn">
-                      View Profile
-                    </Link>
-
-                    <button
-                      onClick={() =>
-                        handleToggleMatchVisibility(dog.id, dog.name, dog.is_visible ?? true)
-                      }
-                      disabled={togglingVisibility[dog.id]}
-                      className={dog.is_visible !== false ? "contact-btn" : "view-profile-btn"}
-                      style={{
-                        opacity: togglingVisibility[dog.id] ? 0.6 : 1,
-                        cursor: togglingVisibility[dog.id] ? "not-allowed" : "pointer",
+                  <div className="card-image-wrapper">
+                    <img
+                      src={dog.image || dog.image_url || "/heroPup.jpg"}
+                      alt={dog.name}
+                      className="match-image"
+                      onError={(e) => {
+                        e.target.src = "/heroPup.jpg";
                       }}
-                    >
-                      {togglingVisibility[dog.id]
-                        ? "Processing..."
-                        : dog.is_visible !== false
-                          ? "Hide from Matches"
-                          : "Show in Matches"}
-                    </button>
+                    />
                   </div>
 
-                  <div className="delete-button-container">
-                    <button
-                      onClick={() => showDeleteConfirmation(dog.id, dog.name)}
-                      className="delete-btn"
-                    >
-                      Delete
-                    </button>
+                  <div className="card-content">
+                    <h3 className="match-name">{dog.name}</h3>
+                    <div className="match-details">
+                      <div className="detail-item">
+                        <span className="detail-label">Breed</span>
+                        <span className="detail-value capitalize">{dog.breed}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Age</span>
+                        <span className="detail-value">{dog.age}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Gender</span>
+                        <span className="detail-value">
+                          <div
+                            className={
+                              "gender-pill " +
+                              ((dog.sex || dog.gender || "").toString().toLowerCase() === "male"
+                                ? "male"
+                                : (dog.sex || dog.gender || "").toString().toLowerCase() ===
+                                    "female"
+                                  ? "female"
+                                  : "unknown")
+                            }
+                          >
+                            {(() => {
+                              const g = (dog.sex || dog.gender || "").toString();
+                              const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "—";
+                              return <span className="gender-label">{label.toLowerCase()}</span>;
+                            })()}
+                          </div>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="match-details" style={{ marginTop: "0.5rem" }}>
+                      <div className="detail-item">
+                        <span className="detail-label">Requests</span>
+                        <span className="detail-value">{requestsCount}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Completed</span>
+                        <span className="detail-value">{completedCount}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">
+                          {normalizedGender === "male" ? "Success rate" : "Successful matings"}
+                        </span>
+                        <span className="detail-value">
+                          {normalizedGender === "male"
+                            ? `${Number.isFinite(maleSuccessRate) ? maleSuccessRate.toFixed(0) : 0}% (${successCount})`
+                            : femaleMateCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="card-actions">
+                      <Link to={`/dog/${dog.id}`} className="view-profile-btn">
+                        View Profile
+                      </Link>
+
+                      <button
+                        onClick={() =>
+                          handleToggleMatchVisibility(dog.id, dog.name, dog.is_visible ?? true)
+                        }
+                        disabled={togglingVisibility[dog.id]}
+                        className={dog.is_visible !== false ? "contact-btn" : "view-profile-btn"}
+                        style={{
+                          opacity: togglingVisibility[dog.id] ? 0.6 : 1,
+                          cursor: togglingVisibility[dog.id] ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {togglingVisibility[dog.id]
+                          ? "Processing..."
+                          : dog.is_visible !== false
+                            ? "Hide from Matches"
+                            : "Show in Matches"}
+                      </button>
+                    </div>
+
+                    <div className="delete-button-container">
+                      <button
+                        onClick={() => showDeleteConfirmation(dog.id, dog.name)}
+                        className="delete-btn"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

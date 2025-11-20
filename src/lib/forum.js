@@ -1,5 +1,43 @@
 import supabase from "./supabaseClient";
 
+const THREAD_VIEW = "forum_threads_with_dog_stats";
+const THREAD_VIEW_COLUMNS = [
+  "id",
+  "title",
+  "body",
+  "image_url",
+  "user_id",
+  "created_at",
+  "upvotes_count",
+  "downvotes_count",
+  "dog_id",
+  "dog_name",
+  "dog_gender",
+  "match_requests_count",
+  "match_accept_count",
+  "match_completed_count",
+  "match_success_count",
+  "match_failure_count",
+  "male_success_rate_pct",
+  "female_successful_matings",
+].join(", ");
+const THREAD_BASE_COLUMNS = [
+  "id",
+  "title",
+  "body",
+  "image_url",
+  "user_id",
+  "created_at",
+  "upvotes_count",
+  "downvotes_count",
+  "dog_id",
+].join(", ");
+
+function isMissingView(error) {
+  const msg = (error?.message || error?.details || "").toLowerCase();
+  return error?.code === "42P01" || msg.includes("does not exist") || msg.includes("relation");
+}
+
 // Capability cache so we don't repeatedly issue failing selects on older DBs
 // Assumes database schema includes `threads.image_url` and denormalized count columns
 
@@ -12,51 +50,47 @@ async function getCurrentUserId() {
 
 // Fetch latest threads with vote counts
 export async function fetchThreads({ limit = 20, from = 0, sort = "new" } = {}) {
-  // build query
-  // Select expected columns (image_url and counts are expected in migrated schema)
-  const selectCols = [
-    "id",
-    "title",
-    "body",
-    "image_url",
-    "user_id",
-    "created_at",
-    "upvotes_count",
-    "downvotes_count",
-  ].join(", ");
-  let qb = supabase.from("threads").select(selectCols);
+  async function runQuery(useView) {
+    const source = useView ? THREAD_VIEW : "threads";
+    const selectCols = useView ? THREAD_VIEW_COLUMNS : THREAD_BASE_COLUMNS;
+    let qb = supabase.from(source).select(selectCols);
 
-  // Map legacy and new sort keys to DB ordering (coarse ordering)
-  switch (sort) {
-    case "new":
-    case "newest":
-      qb = qb.order("created_at", { ascending: false });
-      break;
-    case "old":
-    case "oldest":
-      qb = qb.order("created_at", { ascending: true });
-      break;
-    case "best":
-    case "most_upvoted":
-      // Best: Most upvotes; tie-break by recency
-      qb = qb
-        .order("upvotes_count", { ascending: false })
-        .order("created_at", { ascending: false });
-      break;
-    case "hot":
-    case "top":
-    case "most_commented":
-      // Hot: Most comments (computed client-side), fallback to recent at DB level
-      qb = qb.order("created_at", { ascending: false });
-      break;
-    case "least_popular":
-      qb = qb.order("upvotes_count", { ascending: true }).order("created_at", { ascending: true });
-      break;
-    default:
-      qb = qb.order("created_at", { ascending: false });
+    switch (sort) {
+      case "new":
+      case "newest":
+        qb = qb.order("created_at", { ascending: false });
+        break;
+      case "old":
+      case "oldest":
+        qb = qb.order("created_at", { ascending: true });
+        break;
+      case "best":
+      case "most_upvoted":
+        qb = qb
+          .order("upvotes_count", { ascending: false })
+          .order("created_at", { ascending: false });
+        break;
+      case "hot":
+      case "top":
+      case "most_commented":
+        qb = qb.order("created_at", { ascending: false });
+        break;
+      case "least_popular":
+        qb = qb
+          .order("upvotes_count", { ascending: true })
+          .order("created_at", { ascending: true });
+        break;
+      default:
+        qb = qb.order("created_at", { ascending: false });
+    }
+
+    return qb.range(from, from + limit - 1);
   }
 
-  const { data, error } = await qb.range(from, from + limit - 1);
+  let { data, error } = await runQuery(true);
+  if (error && isMissingView(error)) {
+    ({ data, error } = await runQuery(false));
+  }
   if (error) throw error;
   let rows = data || [];
 
@@ -133,12 +167,16 @@ export async function fetchThreads({ limit = 20, from = 0, sort = "new" } = {}) 
 
 // Fetch a single thread and its comments (with vote counts)
 export async function fetchThreadWithComments(threadId) {
-  // Fetch single thread (expects migrated schema)
-  const threadRes = await supabase
-    .from("threads")
-    .select("id, title, body, image_url, user_id, created_at, upvotes_count, downvotes_count")
-    .eq("id", threadId)
-    .single();
+  async function getThread(useView) {
+    const source = useView ? THREAD_VIEW : "threads";
+    const selectCols = useView ? THREAD_VIEW_COLUMNS : THREAD_BASE_COLUMNS;
+    return supabase.from(source).select(selectCols).eq("id", threadId).maybeSingle();
+  }
+
+  let threadRes = await getThread(true);
+  if (threadRes.error && isMissingView(threadRes.error)) {
+    threadRes = await getThread(false);
+  }
   const commentsRes = await supabase
     .from("comments")
     .select("id, body, user_id, thread_id, created_at, upvotes_count, downvotes_count")
@@ -149,6 +187,7 @@ export async function fetchThreadWithComments(threadId) {
   if (commentsRes.error) throw commentsRes.error;
 
   const thread = threadRes.data;
+  if (!thread) throw new Error("Thread not found");
   const comments = commentsRes.data || [];
   // attach comments_count for convenience
   thread.comments_count = (comments || []).length;

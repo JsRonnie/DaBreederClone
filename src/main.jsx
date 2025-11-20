@@ -11,6 +11,7 @@ import NotificationBox from "./components/NotificationBox";
 // Lazy-load heavier pages to reduce initial bundle size
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 const MyDogPage = lazy(() => import("./pages/MyDogPage"));
+const MyMatchesPage = lazy(() => import("./pages/MyMatchesPage"));
 const AddDogPage = lazy(() => import("./pages/AddDogPage"));
 const DogProfilePage = lazy(() => import("./pages/DogProfilePage"));
 const DogEditPage = lazy(() => import("./pages/DogEditPage"));
@@ -58,6 +59,7 @@ createRoot(document.getElementById("root")).render(
                 <Route path="about" element={<AboutPage />} />
                 <Route path="contact" element={<ContactPage />} />
                 <Route path="my-dog" element={<MyDogPage />} />
+                <Route path="my-matches" element={<MyMatchesPage />} />
                 <Route path="add-dog" element={<AddDogPage />} />
                 <Route path="dog/:id" element={<DogProfilePage />} />
                 <Route path="dog/:id/edit" element={<DogEditPage />} />

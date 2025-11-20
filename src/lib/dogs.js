@@ -36,4 +36,11 @@ export const DOG_LIST_COLUMNS = [
   "hidden",
   "user_id",
   "created_at",
+  "match_requests_count",
+  "match_accept_count",
+  "match_completed_count",
+  "match_success_count",
+  "match_failure_count",
+  "female_successful_matings",
+  "male_success_rate",
 ];

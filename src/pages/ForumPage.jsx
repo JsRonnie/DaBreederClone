@@ -782,6 +782,31 @@ export default function ForumPage() {
                     <p className="mt-1 text-sm text-slate-700 line-clamp-3">{excerpt}</p>
                   ) : null}
 
+                  {t.dog_id && (
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                      <div className="font-semibold text-slate-900">
+                        Featured dog: {t.dog_name || "Unnamed"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {(t.dog_gender || "").toString().toLowerCase() || "gender n/a"}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-600">
+                        <span>
+                          {(() => {
+                            const gender = (t.dog_gender || "").toString().toLowerCase();
+                            if (gender === "male") {
+                              const pct = Number(t.male_success_rate_pct || 0).toFixed(0);
+                              return `Success rate ${pct}% (${t.match_success_count || 0}/${t.match_completed_count || 0})`;
+                            }
+                            return `${t.female_successful_matings || 0} verified matings`;
+                          })()}
+                        </span>
+                        <span>{t.match_requests_count || 0} requests</span>
+                        <span>{t.match_completed_count || 0} completed</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Bottom row: up/down votes and comments */}
                   <div
                     className="mt-3 flex items-center gap-2 text-sm text-slate-700"

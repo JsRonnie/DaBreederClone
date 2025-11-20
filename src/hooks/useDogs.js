@@ -10,16 +10,24 @@ const FIVE_MIN = 5 * 60 * 1000;
 
 function mapDogRow(row) {
   if (!row) return null;
+  const gender = row.gender || row.sex || null;
   return {
     id: row.id,
     name: row.name || "Unnamed",
     breed: row.breed || "Unknown",
     age_years: row.age_years ?? null,
-    sex: row.gender || row.sex || null,
+    sex: gender,
     image: row.image || row.image_url || null,
     hidden: !!row.hidden,
     is_visible: row.is_visible ?? true,
     user_id: row.user_id,
+    match_requests_count: row.match_requests_count ?? 0,
+    match_accept_count: row.match_accept_count ?? 0,
+    match_completed_count: row.match_completed_count ?? 0,
+    match_success_count: row.match_success_count ?? 0,
+    match_failure_count: row.match_failure_count ?? 0,
+    female_successful_matings: row.female_successful_matings ?? 0,
+    male_success_rate: typeof row.male_success_rate === "number" ? row.male_success_rate : 0,
   };
 }
 

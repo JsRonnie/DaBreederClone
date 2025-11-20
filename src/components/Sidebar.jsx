@@ -185,6 +185,13 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
             <NavItem
+              label="My Matches"
+              icon={<HeartIcon />}
+              to="/my-matches"
+              disabled={!loggedIn}
+              onClick={onClose}
+            />
+            <NavItem
               label="Find Match"
               icon={<HeartIcon />}
               to="/find-match"

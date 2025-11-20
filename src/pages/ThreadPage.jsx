@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaRegCommentDots, FaArrowUp, FaArrowDown } from "react-icons/fa";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -652,6 +652,42 @@ export default function ThreadPage() {
         ) : thread.body ? (
           <p className="mt-2 whitespace-pre-wrap text-slate-700">{thread.body}</p>
         ) : null}
+
+        {thread.dog_id && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-sm font-semibold text-slate-900">
+              Featured dog: {thread.dog_name || "Unnamed"}
+            </div>
+            <div className="text-xs text-slate-500">
+              {(thread.dog_gender || "").toString().toLowerCase() || "gender n/a"}
+            </div>
+            <div className="mt-3 grid gap-2 text-[13px] text-slate-700 sm:grid-cols-2">
+              <div>
+                {(() => {
+                  const gender = (thread.dog_gender || "").toString().toLowerCase();
+                  if (gender === "male") {
+                    const pct = Number(thread.male_success_rate_pct || 0).toFixed(0);
+                    return `Success rate ${pct}% (${thread.match_success_count || 0}/${thread.match_completed_count || 0})`;
+                  }
+                  return `${thread.female_successful_matings || 0} verified matings`;
+                })()}
+              </div>
+              <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
+                <span>{thread.match_requests_count || 0} requests</span>
+                <span>{thread.match_accept_count || 0} accepted</span>
+                <span>{thread.match_completed_count || 0} completed</span>
+              </div>
+            </div>
+            <div className="mt-3">
+              <Link
+                to={`/dog/${thread.dog_id}`}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600"
+              >
+                View dog profile →
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Bottom row: votes and comments */}
         <div className="mt-3 flex items-center gap-2 text-sm text-slate-700">
