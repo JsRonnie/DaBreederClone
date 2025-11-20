@@ -7,6 +7,7 @@ import AuthProvider from "./context/AuthContext";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
+import NotificationBox from "./components/NotificationBox";
 // Lazy-load heavier pages to reduce initial bundle size
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 const MyDogPage = lazy(() => import("./pages/MyDogPage"));
@@ -67,6 +68,7 @@ createRoot(document.getElementById("root")).render(
                 <Route path="thread/:id" element={<ThreadPage />} />
                 <Route path="chat" element={<ChatPage />} />
                 <Route path="chat/:contactId" element={<ChatPage />} />
+                <Route path="notifications" element={<NotificationBox />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>

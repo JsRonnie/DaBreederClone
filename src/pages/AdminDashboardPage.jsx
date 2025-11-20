@@ -24,10 +24,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import supabase from "../lib/supabaseClient";
+import { useAuth } from "../hooks/useAuth";
 
 const POLL_MS = 30000;
 
 export default function AdminDashboardPage() {
+  const { user } = useAuth();
+  const [verificationStatus, setVerificationStatus] = useState(null);
+  // Check if the current user is waiting for verification
+  useEffect(() => {
+    async function fetchVerificationStatus() {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from("users")
+        .select("verification_status")
+        .eq("id", user.id)
+        .single();
+      if (!error && data) {
+        setVerificationStatus(data.verification_status);
+      }
+    }
+    fetchVerificationStatus();
+  }, [user]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,23 +158,20 @@ export default function AdminDashboardPage() {
   };
 
   const getAlerts = async () => {
-    const [{ count: flaggedContent }, { count: verificationRequests }, { count: systemErrors }] =
+    const [{ count: flaggedContent }, { count: newUsers }, { count: contactMessages }] =
       await Promise.all([
-        supabase.from("reports").select("*", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "open"),
         supabase
           .from("users")
-          .select("*", { count: "exact", head: true })
-          .eq("verification_status", "pending"),
-        supabase
-          .from("error_logs")
-          .select("*", { count: "exact", head: true })
+          .select("id", { count: "exact", head: true })
           .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+        supabase.from("contact_messages").select("id", { count: "exact", head: true }),
       ]);
 
     return {
       flaggedContent: flaggedContent || 0,
-      verificationRequests: verificationRequests || 0,
-      systemErrors: systemErrors || 0,
+      newUsers: newUsers || 0,
+      contactMessages: contactMessages || 0,
     };
   };
 
@@ -258,6 +273,13 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Verification Banner */}
+      {verificationStatus === "pending" && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+          <strong>Account Verification:</strong> Your account is currently waiting for verification.
+          Some features may be restricted until verification is complete.
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
@@ -339,18 +361,18 @@ export default function AdminDashboardPage() {
                 variant={alerts.flaggedContent > 0 ? "destructive" : "default"}
               />
               <AlertItem
-                icon={<UserCheck className="h-4 w-4" />}
-                title={`${alerts.verificationRequests} Verifications`}
-                description="User verification requests"
-                action={() => navigate("/admin/users?tab=verifications")}
-                variant={alerts.verificationRequests > 0 ? "warning" : "default"}
+                icon={<UserPlus className="h-4 w-4" />}
+                title={`${alerts.newUsers} New Users`}
+                description="Users registered in the last 24 hours"
+                action={() => navigate("/admin/users")}
+                variant={alerts.newUsers > 0 ? "warning" : "default"}
               />
               <AlertItem
-                icon={<ShieldAlert className="h-4 w-4" />}
-                title={`${alerts.systemErrors} System Issues`}
-                description="Errors in the last 24 hours"
-                action={() => navigate("/admin/system-reports")}
-                variant={alerts.systemErrors > 0 ? "error" : "default"}
+                icon={<MessageSquare className="h-4 w-4" />}
+                title={`Contact Messages`}
+                description={`Total messages: ${alerts.contactMessages}`}
+                action={() => navigate("/admin/messages")}
+                variant={alerts.contactMessages > 0 ? "warning" : "default"}
               />
             </div>
           </CardContent>

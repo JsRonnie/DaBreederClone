@@ -206,7 +206,7 @@ export default function AdminLoginPage() {
                 onClick={() => navigate("/")}
                 className="text-sm"
               >
-                ← Back to Home
+                Back to Home
               </Button>
             </div>
           </CardContent>

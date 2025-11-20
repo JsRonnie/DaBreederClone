@@ -337,6 +337,19 @@ export default function AdminReportsPage() {
 
       if (updateError) throw updateError;
 
+      // Insert reply into report_replies table
+      const { error: replyError } = await supabase.from("report_replies").insert([
+        {
+          report_id: actionState.report.id,
+          admin_id: session.user.id,
+          user_id: actionState.report.reporter.id,
+          reply_text: actionNotes,
+          action_type: actionState.type,
+          is_notified: false,
+        },
+      ]);
+      if (replyError) throw replyError;
+
       await notifyReporter(actionState.report, nextStatus, actionNotes);
 
       const toastMessages = {
@@ -397,6 +410,12 @@ export default function AdminReportsPage() {
           value={summary.status.under_review || 0}
           icon={<Eye className="h-4 w-4" />}
           description="In progress"
+          // ...existing code...
+
+          // Helper to fetch report replies for notifications (should be outside any component/JSX)
+
+          // Place this at the very end of the file, after all components and exports
+
           variant="warning"
         />
         <StatCard
