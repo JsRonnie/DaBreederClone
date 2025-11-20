@@ -25,6 +25,17 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ["react", "react-dom"],
+          "react-query": ["@tanstack/react-query"],
+          "date-fns": ["date-fns"],
+          "admin-pages": [
+            "./src/pages/AdminDashboardPage.jsx",
+            "./src/pages/AdminLoginPage.jsx",
+            "./src/pages/AdminReportsPage.jsx",
+            "./src/pages/AdminUsersPage.jsx",
+            "./src/pages/AdminDogsPage.jsx",
+            "./src/pages/AdminForumPage.jsx",
+            "./src/pages/AdminMessagesPage.jsx",
+          ],
         },
       },
     },
