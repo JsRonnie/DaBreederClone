@@ -1,6 +1,9 @@
+
 // Helper: map breeds to groups (comprehensive list of all available breeds)
 const breedGroups = {
   // Herding Group
+    // Native/Local Breeds
+    aspin: "native",
   "australian cattle dog": "herding",
   "australian kelpie": "herding",
   "australian shepherd": "herding",
@@ -219,18 +222,53 @@ function getBreedGroup(breed) {
   return breedGroups[breed.toLowerCase()] || null;
 }
 
+// 💥 NEW: Define groups with common lineage for higher compatibility score
+const relatedGroups = [
+  // Poodle/Doodle mixes (Toy/Non-Sporting/Sporting - Poodles, Water Dogs, Retrievers)
+  ["toy", "sporting", "non-sporting"], 
+  // Working/Molosser/Terrier types (Mastiffs, Rottweilers, Bullies, Staffies)
+  ["working", "terrier"],
+  // Herding/Working (General Livestock and Guard Dogs)
+  ["herding", "working"],
+  // Scent Hounds/Sight Hounds (All Hounds are related)
+  ["hound"], 
+];
+
+function getCrossGroupScore(groupA, groupB) {
+  // Only check if groups are different
+  if (groupA === groupB) return 0;
+  
+  for (const relation of relatedGroups) {
+    // Check if both groups are included in the same related group set
+    if (relation.includes(groupA) && relation.includes(groupB)) {
+      // Score: Higher than same-group (10) but less than exact match (20)
+      return 15; 
+    }
+  }
+  return 0;
+}
+
 function breedCompatibilityScore(breedA, breedB) {
   if (!breedA || !breedB) return 0;
   const a = breedA.toLowerCase();
   const b = breedB.toLowerCase();
 
-  if (a === b) return 20; // exact breed match — strongest signal
+  // 1. Exact breed match
+  if (a === b) return 20; 
 
   const groupA = getBreedGroup(a);
   const groupB = getBreedGroup(b);
-  if (groupA && groupB && groupA === groupB) return 10; // same AKC-like group
 
-  return 0; // different breeds and different groups
+  if (groupA && groupB) {
+    // 2. Same AKC-like group match
+    if (groupA === groupB) return 10; 
+    
+    // 3. 💥 NEW: Cross-Group/Lineage match
+    const crossScore = getCrossGroupScore(groupA, groupB);
+    if (crossScore > 0) return crossScore;
+  }
+  
+  return 0; // different breeds and different groups/lineages
 }
 
 /**
@@ -245,25 +283,29 @@ export function calculateMatchScore(dogA, dogB) {
 
   // Normalize helper
   const safe = (v) => (typeof v === "string" ? v.toLowerCase() : v);
+  const sizes = ["small", "medium", "large", "giant"];
+  const sa = safe(dogA.size);
+  const sb = safe(dogB.size);
+  const ia = sizes.indexOf(sa);
+  const ib = sizes.indexOf(sb);
+
+  // 💥 NEW: HARD STOP - Breeding Safety Check (Size/Risk)
+  // If size difference is 2 or more levels (e.g., small -> large), return 0.
+  if (ia !== -1 && ib !== -1 && Math.abs(ia - ib) >= 2) return 0; 
 
   // 1) Gender (must be opposite for breeding)
   if (!dogA.gender || !dogB.gender) return 0;
   if (safe(dogA.gender) === safe(dogB.gender)) return 0;
   score += 10;
 
-  // 2) Breed compatibility
-  score += breedCompatibilityScore(dogA.breed, dogB.breed); // max +20
+  // 2) Breed compatibility (Max 20) - Uses enhanced logic
+  score += breedCompatibilityScore(dogA.breed, dogB.breed); 
 
   // 3) Age compatibility (max 15)
   const ageDiff = Math.abs((dogA.age_years || 0) - (dogB.age_years || 0));
   score += Math.max(0, 15 - ageDiff * 2); // -2 per year diff
 
-  // 4) Size compatibility (max 15)
-  const sizes = ["small", "medium", "large", "giant"];
-  const sa = safe(dogA.size);
-  const sb = safe(dogB.size);
-  const ia = sizes.indexOf(sa);
-  const ib = sizes.indexOf(sb);
+  // 4) Size compatibility (max 15) - Soft score after hard stop
   if (ia !== -1 && ib !== -1) {
     if (ia === ib) score += 15;
     else if (Math.abs(ia - ib) === 1) score += 7; // adjacent sizes
