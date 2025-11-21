@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
-import supabase from "../lib/supabaseClient";
+import useDogMatches from "../hooks/useDogMatches";
+// ...existing code...
 import ReportModal from "../components/ReportModal";
 import { useAuth } from "../hooks/useAuth";
 import "./FindMatchPage.css"; // reuse shared loading styles
@@ -12,23 +13,16 @@ export default function DogProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { dog, photoUrl, loading, error } = useDogProfile(id);
+  const { historyMatches, loading: matchesLoading } = useDogMatches();
   const { user } = useAuth();
-  const [currentUser, setCurrentUser] = useState(null);
+  // ...existing code...
   const [reportOpen, setReportOpen] = useState(false);
   const [dogMenuOpen, setDogMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    getCurrentUser();
-  }, []);
+  // ...existing code...
 
-  // Check if current user owns this dog
-  const isOwner = currentUser && dog && currentUser.id === dog.user_id;
+
+  const isOwner = user && dog && user.id === dog.user_id;
 
   if (loading) {
     return <LoadingState message="Loading profile..." minHeight={140} />;
@@ -78,6 +72,11 @@ export default function DogProfilePage() {
       </div>
     );
   }
+
+  // Filter match history for this dog
+  const dogHistoryMatches = historyMatches?.filter(
+    (m) => m.requester_dog_id === dog?.id || m.requested_dog_id === dog?.id
+  ) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -181,7 +180,7 @@ export default function DogProfilePage() {
           <div className="px-6 py-6">
             <div className="flex flex-col lg:flex-row lg:space-x-8">
               {/* Photo */}
-              <div className="flex-shrink-0 mb-6 lg:mb-0">
+              <div className="shrink-0 mb-6 lg:mb-0">
                 <div className="w-64 h-64 mx-auto lg:mx-0 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-gray-200">
                   {photoUrl ? (
                     <img
@@ -269,7 +268,7 @@ export default function DogProfilePage() {
               </div>
             </div>
           </div>
-        </div>
+        
 
         {/* Content Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -390,6 +389,59 @@ export default function DogProfilePage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Dog History Card - separate, styled, renamed */}
+        {/* Dog History Card - styled like other cards, outside main info card */}
+        <div className="bg-white rounded-lg shadow-sm w-full mt-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Dog History</h2>
+          </div>
+          <div className="px-6 py-6">
+            {matchesLoading ? (
+              <div className="text-gray-500">Loading dog history...</div>
+            ) : dogHistoryMatches.length === 0 ? (
+              <div className="text-gray-500">No history found for this dog.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Partner</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Outcome</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {dogHistoryMatches.map((match) => {
+                      const isRequester = match.requester_dog_id === dog.id;
+                      const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
+                      const date = match.completed_at || match.declined_at || match.cancelled_at || match.requested_at;
+                      const outcome = match.outcome?.outcome || (match.status === "completed_success" ? "Success" : match.status === "completed_failed" ? "Failed" : match.status.charAt(0).toUpperCase() + match.status.slice(1));
+                      return (
+                        <tr key={match.id}>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{date ? new Date(date).toLocaleDateString() : "—"}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">
+                            {partnerDog?.id ? (
+                              <Link to={`/dog/${partnerDog.id}`} className="text-blue-700 font-medium underline hover:text-blue-900 transition">
+                                {partnerDog.name}
+                              </Link>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{match.status.replace("completed_", "Completed: ").replace("_", " ")}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{outcome}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
         </div>
 
         {/* Report Modal */}

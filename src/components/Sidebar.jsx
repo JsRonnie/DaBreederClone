@@ -10,9 +10,8 @@ function BellIcon() {
     </svg>
   );
 }
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { listContacts } from "../lib/chat";
 
 function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) {
   const baseClasses = `w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors ${
@@ -51,9 +50,6 @@ function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) 
 export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
   const containerRef = useRef(null);
-  const [chatContacts, setChatContacts] = useState([]);
-  // Count contacts with messages (last_message_at exists) as potential unread
-  const unreadCount = chatContacts.filter((c) => c.last_message_at).length;
 
   // When the sidebar closes, ensure no element inside remains focused
   useEffect(() => {
@@ -78,49 +74,10 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
     }
   }, [open]);
 
-  // Load chats when user signs in
-  useEffect(() => {
-    if (!loggedIn) {
-      setChatContacts([]);
-      return;
-    }
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await listContacts();
-        if (!cancelled) setChatContacts(data || []);
-      } catch (err) {
-        console.error("Failed to load chats", err);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [loggedIn]);
-
-  // Refresh list whenever the drawer opens
-  useEffect(() => {
-    if (!open || !loggedIn) return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await listContacts();
-        if (!cancelled) setChatContacts(data || []);
-      } catch (err) {
-        console.error("Failed to refresh chats", err);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, loggedIn]);
-
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-[60] ${open ? "" : "pointer-events-none"}`}
+      className={`fixed inset-0 z-60 ${open ? "" : "pointer-events-none"}`}
       aria-hidden={!open}
       inert={!open}
     >
@@ -204,7 +161,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               to="/chat"
               disabled={!loggedIn}
               onClick={onClose}
-              badge={unreadCount}
             />
             <NavItem
               label="Forum"
@@ -250,7 +206,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 
         {/* Bottom */}
         <div className="mt-auto px-4 pb-6 absolute bottom-0 left-0 right-0">
-          <NavItem label="Help" icon={<HelpIcon />} />
           {loggedIn ? (
             <NavItem label="Logout Account" icon={<LogoutIcon />} danger onClick={onLogout} />
           ) : (
@@ -315,18 +270,6 @@ function ChevronDownIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-function HelpIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5">
-      <circle cx="12" cy="12" r="9" />
-      <path
-        strokeLinecap="round"
-        d="M9.75 9.75a2.25 2.25 0 1 1 3.9 1.5c-.6.6-1.35.9-1.65 1.8v.45"
-      />
-      <circle cx="12" cy="17" r=".75" fill="currentColor" stroke="none" />
     </svg>
   );
 }

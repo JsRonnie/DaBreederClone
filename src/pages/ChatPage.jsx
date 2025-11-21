@@ -345,6 +345,14 @@ export default function ChatPage() {
         requesterUserId: currentUserId,
         requestedUserId: requestContext.requestedUserId,
       });
+
+      // Send a chat message with clickable link to My Matches
+      const myDogName = requestContext.myDogName || "Your dog";
+      const partnerDogName = requestContext.partnerDogName || "their dog";
+      // Use markdown-style link for chat rendering, or plain text with instructions
+      const messageText = `${myDogName} wants to breed with your dog ${partnerDogName}. Please go to My Matches to see the request.`;
+      await sendText(messageText);
+
       setRequestDialogOpen(false);
       setRequestContext(null);
       window.dispatchEvent(

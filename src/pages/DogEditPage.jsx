@@ -46,7 +46,7 @@ export default function DogEditPage() {
 
         // If we have both user and dog data, check ownership
         if (user && dog && user.id !== dog.user_id) {
-          console.log("❌ User not authorized to edit this dog");
+          console.log("User not authorized to edit this dog");
           navigate("/my-dog");
           return;
         }
@@ -83,7 +83,7 @@ export default function DogEditPage() {
   // Initialize form with existing dog data and store initial documents
   useEffect(() => {
     if (dog && initializing) {
-      console.log("🔄 Initializing form with dog data:", dog);
+      console.log(" Initializing form with dog data:", dog);
 
       // Fetch initial documents and populate form
       const fetchInitialDocuments = async () => {
@@ -228,8 +228,8 @@ export default function DogEditPage() {
     setUploadProgress(0);
 
     try {
-      console.log("💾 Saving dog profile changes...");
-      console.log("📋 Current form data:", form.data);
+      console.log("Saving dog profile changes...");
+      console.log("Current form data:", form.data);
 
       setUploadProgress(10); // Started validation
 
@@ -280,7 +280,7 @@ export default function DogEditPage() {
       setUploadProgress(80); // Update completed
 
       if (success) {
-        console.log("✅ Dog profile updated successfully");
+        console.log("Dog profile updated successfully");
 
         // Update initial documents to current state to prevent cleanup
         const updatedDocs = await listDogDocuments(id);
@@ -288,7 +288,7 @@ export default function DogEditPage() {
 
         setUploadProgress(100); // All done
         setSaveSuccess(true);
-        showToastMessage("Dog profile updated successfully! 🎉", "success");
+        showToastMessage("Dog profile updated successfully!", "success");
 
         // Show success message briefly before navigating
         setTimeout(() => {
@@ -298,7 +298,7 @@ export default function DogEditPage() {
         throw new Error("Failed to update dog profile. Please try again.");
       }
     } catch (error) {
-      console.error("❌ Failed to save changes:", error);
+      console.error("Failed to save changes:", error);
       setUploadProgress(0);
       showToastMessage(`Failed to update dog profile: ${error.message}`, "error");
       // Don't navigate on error, let user see the error and try again
@@ -410,7 +410,7 @@ export default function DogEditPage() {
                 </button>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Edit {dog.name}'s Profile</h1>
-                  <p className="text-sm text-gray-500">Update your dog's information</p>
+                  <p className="text-sm text-gray-700">Update your dog's information</p>
                 </div>
               </div>
             </div>
@@ -423,7 +423,7 @@ export default function DogEditPage() {
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Basic Information & Photo</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-700 mt-1">
                 Update your dog's basic details and profile photo
               </p>
             </div>
@@ -443,7 +443,7 @@ export default function DogEditPage() {
               <h2 className="text-lg font-semibold text-gray-900">
                 Traits & Physical Characteristics
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-700 mt-1">
                 Describe your dog's personality and physical features
               </p>
             </div>
@@ -456,7 +456,7 @@ export default function DogEditPage() {
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Health & Verification</h2>
-              <p className="text-sm text-gray-500 mt-1">Update health records and certifications</p>
+              <p className="text-sm text-gray-700 mt-1">Update health records and certifications</p>
             </div>
             <div className="px-6 py-6">
               <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
@@ -473,7 +473,7 @@ export default function DogEditPage() {
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <div className="mb-4">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Required Documents</h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-700">
                       Please upload the following documents for the certifications you've checked:
                     </p>
                     <div className="mt-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -594,7 +594,7 @@ export default function DogEditPage() {
             )}
 
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-700">
                 {saveSuccess
                   ? "✅ Changes saved successfully!"
                   : "Don't forget to save your changes"}

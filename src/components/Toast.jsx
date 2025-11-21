@@ -39,7 +39,7 @@ export default function Toast() {
       className="pointer-events-none fixed inset-0 z-100 flex items-start justify-end p-4"
     >
       <div
-        className={`pointer-events-auto ${color} text-white shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 min-w-[300px] max-w-md animate-slide-in`}
+        className={`pointer-events-auto ${color} text-white shadow-xl rounded-lg px-4 py-3 flex items-center min-w-[300px] max-w-md animate-slide-in`}
         role="status"
         style={{
           animation: "slideInRight 0.3s ease-out",
@@ -53,14 +53,7 @@ export default function Toast() {
           className="ml-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors p-1.5 text-xs shrink-0"
           onClick={() => setToast(null)}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          ×
         </button>
       </div>
     </div>

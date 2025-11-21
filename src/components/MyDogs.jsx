@@ -111,35 +111,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         <p className="page-description">
           Manage your dog profiles and find perfect breeding matches
         </p>
-        <div className="mt-6 flex justify-center">
-          <Link
-            to="/my-matches"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-offset-2"
-          >
-            <span className="flex size-8 items-center justify-center rounded-full bg-white/20">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="size-4"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4 12 4 4 12-12" />
-              </svg>
-            </span>
-            <span>View match history</span>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="size-4"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
+        
       </div>
 
       {/* Main Content */}
@@ -194,7 +166,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
 
               <div className="text-center">
                 <p className="text-sm text-gray-500 mt-2">
-                  🐾 Start building your dog's profile and find the perfect match!
+                  Start building your dog's profile and find the perfect match!
                 </p>
               </div>
             </div>
@@ -208,15 +180,16 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         ) : (
           <div className="matches-grid">
             {displayDogs.map((dog) => {
-              const normalizedGender = (dog.sex || dog.gender || "").toString().toLowerCase();
-              const maleSuccessRate =
-                typeof dog.male_success_rate === "number"
-                  ? dog.male_success_rate
-                  : Number.parseFloat(dog.male_success_rate || 0);
-              const femaleMateCount = dog.female_successful_matings ?? 0;
-              const requestsCount = dog.match_requests_count ?? 0;
-              const completedCount = dog.match_completed_count ?? 0;
-              const successCount = dog.match_success_count ?? 0;
+                // Removed unused variables as reported by lint
+                // const normalizedGender = (dog.sex || dog.gender || "").toString().toLowerCase();
+                // const maleSuccessRate =
+                //   typeof dog.male_success_rate === "number"
+                //     ? dog.male_success_rate
+                //     : Number.parseFloat(dog.male_success_rate || 0);
+                // const femaleMateCount = dog.female_successful_matings ?? 0;
+                // const requestsCount = dog.match_requests_count ?? 0;
+                // const completedCount = dog.match_completed_count ?? 0;
+                // const successCount = dog.match_success_count ?? 0;
 
               return (
                 <div
@@ -274,24 +247,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
                     </div>
 
                     <div className="match-details" style={{ marginTop: "0.5rem" }}>
-                      <div className="detail-item">
-                        <span className="detail-label">Requests</span>
-                        <span className="detail-value">{requestsCount}</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Completed</span>
-                        <span className="detail-value">{completedCount}</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">
-                          {normalizedGender === "male" ? "Success rate" : "Successful matings"}
-                        </span>
-                        <span className="detail-value">
-                          {normalizedGender === "male"
-                            ? `${Number.isFinite(maleSuccessRate) ? maleSuccessRate.toFixed(0) : 0}% (${successCount})`
-                            : femaleMateCount}
-                        </span>
-                      </div>
+                      {/* Removed Requests, Completed, and Successful matings stats as requested */}
                     </div>
 
                     <div className="card-actions">
@@ -313,7 +269,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
                         {togglingVisibility[dog.id]
                           ? "Processing..."
                           : dog.is_visible !== false
-                            ? "Hide from Matches"
+                            ? "Hide"
                             : "Show in Matches"}
                       </button>
                     </div>
