@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from "react";
 import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
 import { calculateMatchScore } from "../utils/matchmaking";
@@ -10,6 +10,7 @@ import { getCookie, setCookie } from "../utils/cookies";
 import useDogs from "../hooks/useDogs";
 import LoadingState from "../components/LoadingState";
 import { ensureContact } from "../lib/chat";
+import { fetchAwaitingDogIds } from "../lib/matches";
 
 // Shared invalidation timestamp is managed inside useDogs; keep usage here only for matches caching.
 
@@ -64,6 +65,17 @@ export default function FindMatchPage() {
   const [error, setError] = useState(null);
   const [contactingDogId, setContactingDogId] = useState(null);
   const matchesRequestIdRef = useRef(0);
+  const filterUnavailableMatches = useCallback(async (matches) => {
+    if (!Array.isArray(matches) || matches.length === 0) return matches || [];
+    try {
+      const awaitingSet = await fetchAwaitingDogIds(matches.map((m) => m.id));
+      if (!awaitingSet.size) return matches;
+      return matches.filter((m) => !awaitingSet.has(String(m.id)));
+    } catch (err) {
+      console.error("Failed to filter awaiting dogs", err);
+      return matches;
+    }
+  }, []);
   useEffect(() => {
     // Restore state if coming back from a profile page
     if (location.state) {
@@ -246,9 +258,10 @@ export default function FindMatchPage() {
     // Cache-first: if we have cached matches for this dog, use them
     const cached = matchesCache.current.get(`matches:${dog.id}`);
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      FM_LOG("matches: using cached", cached.length);
-      setAllMatches(cached); // Store all matches
-      setPotentialMatches(getFilteredMatches(cached, dog, breedFilter).slice(0, 3)); // Show first 3
+      const filteredCached = await filterUnavailableMatches(cached);
+      FM_LOG("matches: using cached", filteredCached.length, "(raw:", cached.length, ")");
+      setAllMatches(filteredCached);
+      setPotentialMatches(getFilteredMatches(filteredCached, dog, breedFilter).slice(0, 3));
       setDisplayCount(3); // Reset display count
       setMatchesLoading(false);
       return;
@@ -275,7 +288,7 @@ export default function FindMatchPage() {
     const scoredMatches = rows
       .map((match) => {
         // Debug: log both dog objects before scoring
-        console.log('[MATCH DEBUG] Scoring:', { selectedDog: dog, candidateDog: match });
+        console.log("[MATCH DEBUG] Scoring:", { selectedDog: dog, candidateDog: match });
         return {
           ...match,
           score: calculateMatchScore(dog, match),
@@ -289,9 +302,10 @@ export default function FindMatchPage() {
       shown: scoredMatches.length,
       top: scoredMatches.map((m) => ({ id: m.id, score: m.score })).slice(0, 3),
     });
+    const availableMatches = await filterUnavailableMatches(scoredMatches);
     if (matchesRequestIdRef.current === myReq) {
-      setAllMatches(scoredMatches); // Store all matches
-      setPotentialMatches(getFilteredMatches(scoredMatches, dog, breedFilter).slice(0, 3)); // Show first 3
+      setAllMatches(availableMatches);
+      setPotentialMatches(getFilteredMatches(availableMatches, dog, breedFilter).slice(0, 3));
       setDisplayCount(3); // Reset display count
       try {
         matchesCache.current.set(`matches:${dog.id}`, scoredMatches);
@@ -403,7 +417,9 @@ export default function FindMatchPage() {
   const handleViewMore = () => {
     const newCount = displayCount + 3;
     setDisplayCount(newCount);
-    setPotentialMatches(getFilteredMatches(allMatches, selectedDog, breedFilter).slice(0, newCount));
+    setPotentialMatches(
+      getFilteredMatches(allMatches, selectedDog, breedFilter).slice(0, newCount)
+    );
   };
 
   return (
@@ -467,17 +483,33 @@ export default function FindMatchPage() {
         )}
       </div>
 
-      
-
       {/* Results Section */}
       {selectedDog && (
         <div className="content-section">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-            <h2 className="section-title" style={{ marginBottom: 0 }}>Matches for {selectedDog.name}</h2>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <h2 className="section-title" style={{ marginBottom: 0 }}>
+              Matches for {selectedDog.name}
+            </h2>
             <div className="filter-group">
-              <label style={{ fontWeight: "bold", marginRight: "1rem", color: "#4B5563" }}>Filter:</label>
-              <label className={"filter-label" + (breedFilter === "same" ? " active" : "")}
-                style={{ marginRight: "1rem", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+              <label style={{ fontWeight: "bold", marginRight: "1rem", color: "#4B5563" }}>
+                Filter:
+              </label>
+              <label
+                className={"filter-label" + (breedFilter === "same" ? " active" : "")}
+                style={{
+                  marginRight: "1rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="radio"
                   name="breedFilter"
@@ -486,10 +518,19 @@ export default function FindMatchPage() {
                   onChange={handleBreedFilterChange}
                   style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
                 />
-                <span style={{ color: breedFilter === "same" ? "#6366F1" : "#4B5563", fontWeight: "500" }}>Same Breed</span>
+                <span
+                  style={{
+                    color: breedFilter === "same" ? "#6366F1" : "#4B5563",
+                    fontWeight: "500",
+                  }}
+                >
+                  Same Breed
+                </span>
               </label>
-              <label className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}
-                style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+              <label
+                className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}
+                style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+              >
                 <input
                   type="radio"
                   name="breedFilter"
@@ -498,7 +539,14 @@ export default function FindMatchPage() {
                   onChange={handleBreedFilterChange}
                   style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
                 />
-                <span style={{ color: breedFilter === "mixed" ? "#6366F1" : "#4B5563", fontWeight: "500" }}>Mixed Breed</span>
+                <span
+                  style={{
+                    color: breedFilter === "mixed" ? "#6366F1" : "#4B5563",
+                    fontWeight: "500",
+                  }}
+                >
+                  Mixed Breed
+                </span>
               </label>
             </div>
           </div>

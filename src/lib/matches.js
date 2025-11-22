@@ -146,7 +146,12 @@ export function mapMatchRecord(row, userId) {
   const myDog = myselfIsRequester ? row.requester_dog : row.requested_dog;
   const partnerDog = myselfIsRequester ? row.requested_dog : row.requester_dog;
   const myDogGender = (myDog?.gender || "").toString().toLowerCase();
-  const awaitingMyOutcome = row.status === "awaiting_confirmation" && myDogGender === "female";
+  const awaitingMyOutcome =
+    row.status === "awaiting_confirmation" && !myselfIsRequester && myDogGender === "female";
+  let userStatus = row.status;
+  if (row.status === "awaiting_confirmation" && myselfIsRequester) {
+    userStatus = "accepted";
+  }
   const outcomeRel = row.dog_match_outcomes;
   const outcome = Array.isArray(outcomeRel) ? outcomeRel[0] || null : outcomeRel || null;
   const isCompleted = row.status === "completed_success" || row.status === "completed_failed";
@@ -167,6 +172,7 @@ export function mapMatchRecord(row, userId) {
     requiresResponse,
     canCancel,
     outcome,
+    userStatus,
     direction: myselfIsRequester ? "sent" : "received",
     isCompleted,
     isHistory,
@@ -196,6 +202,44 @@ export async function updateMatchStatus(matchId, status) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function acceptMatchRequest(matchId) {
+  if (!matchId) throw new Error("matchId is required");
+  const now = new Date().toISOString();
+  const patch = {
+    status: "awaiting_confirmation",
+    accepted_at: now,
+    awaiting_confirmation_at: now,
+    last_status_changed_at: now,
+  };
+  const { data, error } = await supabase
+    .from("dog_match_requests")
+    .update(patch)
+    .eq("id", matchId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchAwaitingDogIds(dogIds) {
+  if (!Array.isArray(dogIds) || dogIds.length === 0) return new Set();
+  const filtered = Array.from(new Set(dogIds.filter(Boolean).map((id) => String(id))));
+  if (!filtered.length) return new Set();
+  const list = filtered.join(",");
+  const { data, error } = await supabase
+    .from("dog_match_requests")
+    .select("requester_dog_id, requested_dog_id")
+    .eq("status", "awaiting_confirmation")
+    .or(`requester_dog_id.in.(${list}),requested_dog_id.in.(${list})`);
+  if (error) throw error;
+  const awaiting = new Set();
+  (data || []).forEach((row) => {
+    if (row?.requester_dog_id) awaiting.add(String(row.requester_dog_id));
+    if (row?.requested_dog_id) awaiting.add(String(row.requested_dog_id));
+  });
+  return awaiting;
 }
 
 export async function submitMatchOutcome({

@@ -1,9 +1,8 @@
-
 // Helper: map breeds to groups (comprehensive list of all available breeds)
 const breedGroups = {
   // Herding Group
-    // Native/Local Breeds
-    aspin: "native",
+  // Native/Local Breeds
+  aspin: "native",
   "australian cattle dog": "herding",
   "australian kelpie": "herding",
   "australian shepherd": "herding",
@@ -217,7 +216,7 @@ const breedGroups = {
   whippet: "hound",
 };
 
-function getBreedGroup(breed) {
+export function getBreedGroup(breed) {
   if (!breed) return null;
   return breedGroups[breed.toLowerCase()] || null;
 }
@@ -225,49 +224,49 @@ function getBreedGroup(breed) {
 // 💥 NEW: Define groups with common lineage for higher compatibility score
 const relatedGroups = [
   // Poodle/Doodle mixes (Toy/Non-Sporting/Sporting - Poodles, Water Dogs, Retrievers)
-  ["toy", "sporting", "non-sporting"], 
+  ["toy", "sporting", "non-sporting"],
   // Working/Molosser/Terrier types (Mastiffs, Rottweilers, Bullies, Staffies)
   ["working", "terrier"],
   // Herding/Working (General Livestock and Guard Dogs)
   ["herding", "working"],
   // Scent Hounds/Sight Hounds (All Hounds are related)
-  ["hound"], 
+  ["hound"],
 ];
 
 function getCrossGroupScore(groupA, groupB) {
   // Only check if groups are different
   if (groupA === groupB) return 0;
-  
+
   for (const relation of relatedGroups) {
     // Check if both groups are included in the same related group set
     if (relation.includes(groupA) && relation.includes(groupB)) {
       // Score: Higher than same-group (10) but less than exact match (20)
-      return 15; 
+      return 15;
     }
   }
   return 0;
 }
 
-function breedCompatibilityScore(breedA, breedB) {
+export function breedCompatibilityScore(breedA, breedB) {
   if (!breedA || !breedB) return 0;
   const a = breedA.toLowerCase();
   const b = breedB.toLowerCase();
 
   // 1. Exact breed match
-  if (a === b) return 20; 
+  if (a === b) return 20;
 
   const groupA = getBreedGroup(a);
   const groupB = getBreedGroup(b);
 
   if (groupA && groupB) {
     // 2. Same AKC-like group match
-    if (groupA === groupB) return 10; 
-    
+    if (groupA === groupB) return 10;
+
     // 3. 💥 NEW: Cross-Group/Lineage match
     const crossScore = getCrossGroupScore(groupA, groupB);
     if (crossScore > 0) return crossScore;
   }
-  
+
   return 0; // different breeds and different groups/lineages
 }
 
@@ -278,54 +277,123 @@ function breedCompatibilityScore(breedA, breedB) {
  * @param {object} dogB - The second dog object.
  * @returns {number} A compatibility score from 0 to 100.
  */
-export function calculateMatchScore(dogA, dogB) {
-  let score = 0;
+const hasValue = (value) => value !== undefined && value !== null && value !== "";
 
-  // Normalize helper
-  const safe = (v) => (typeof v === "string" ? v.toLowerCase() : v);
+function normalizeNumber(value) {
+  if (!hasValue(value)) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function normalizeString(value) {
+  return typeof value === "string" ? value.toLowerCase() : value || null;
+}
+
+function calculateMatchBreakdown(dogA, dogB) {
+  const breakdown = {
+    gender: 0,
+    breed: 0,
+    age: 0,
+    size: 0,
+    weight: 0,
+    coat: 0,
+    color: 0,
+    temperament: 0,
+  };
+
   const sizes = ["small", "medium", "large", "giant"];
-  const sa = safe(dogA.size);
-  const sb = safe(dogB.size);
-  const ia = sizes.indexOf(sa);
-  const ib = sizes.indexOf(sb);
+  const safeA = normalizeString(dogA.size);
+  const safeB = normalizeString(dogB.size);
+  const ia = sizes.indexOf(safeA);
+  const ib = sizes.indexOf(safeB);
 
-  // 💥 NEW: HARD STOP - Breeding Safety Check (Size/Risk)
-  // If size difference is 2 or more levels (e.g., small -> large), return 0.
-  if (ia !== -1 && ib !== -1 && Math.abs(ia - ib) >= 2) return 0; 
-
-  // 1) Gender (must be opposite for breeding)
-  if (!dogA.gender || !dogB.gender) return 0;
-  if (safe(dogA.gender) === safe(dogB.gender)) return 0;
-  score += 10;
-
-  // 2) Breed compatibility (Max 20) - Uses enhanced logic
-  score += breedCompatibilityScore(dogA.breed, dogB.breed); 
-
-  // 3) Age compatibility (max 15)
-  const ageDiff = Math.abs((dogA.age_years || 0) - (dogB.age_years || 0));
-  score += Math.max(0, 15 - ageDiff * 2); // -2 per year diff
-
-  // 4) Size compatibility (max 15) - Soft score after hard stop
-  if (ia !== -1 && ib !== -1) {
-    if (ia === ib) score += 15;
-    else if (Math.abs(ia - ib) === 1) score += 7; // adjacent sizes
+  // Hard stop on unsafe size pairing
+  if (ia !== -1 && ib !== -1 && Math.abs(ia - ib) >= 2) {
+    return { breakdown, unsafe: true };
   }
 
-  // 5) Weight proximity (max 15)
-  const wa = Number(dogA.weight_kg || 0);
-  const wb = Number(dogB.weight_kg || 0);
-  const weightDiff = Math.abs(wa - wb);
-  score += Math.max(0, 15 - weightDiff); // penalize big kg differences
+  const genderA = normalizeString(dogA.gender || dogA.sex);
+  const genderB = normalizeString(dogB.gender || dogB.sex);
+  if (!genderA || !genderB || genderA === genderB) {
+    return { breakdown, unsafe: true };
+  }
+  breakdown.gender = 10;
 
-  // 6) Coat & Color (max 10)
-  if (safe(dogA.coat_type) === safe(dogB.coat_type)) score += 7;
-  if (safe(dogA.color) === safe(dogB.color)) score += 3;
+  breakdown.breed = breedCompatibilityScore(dogA.breed, dogB.breed);
 
-  // 7) Temperament (max 15)
-  if (safe(dogA.activity_level) === safe(dogB.activity_level)) score += 7;
-  if (safe(dogA.sociability) === safe(dogB.sociability)) score += 4;
-  if (safe(dogA.trainability) === safe(dogB.trainability)) score += 4;
+  const ageA = normalizeNumber(dogA.age_years);
+  const ageB = normalizeNumber(dogB.age_years);
+  if (ageA !== null && ageB !== null) {
+    const ageDiff = Math.abs(ageA - ageB);
+    breakdown.age = Math.max(0, 15 - ageDiff * 2);
+  }
 
-  // Final cap at 100
-  return Math.min(Math.round(score), 100);
+  if (ia !== -1 && ib !== -1) {
+    if (ia === ib) breakdown.size = 15;
+    else if (Math.abs(ia - ib) === 1) breakdown.size = 7;
+  }
+
+  const weightA = normalizeNumber(dogA.weight_kg);
+  const weightB = normalizeNumber(dogB.weight_kg);
+  if (weightA !== null && weightB !== null) {
+    const weightDiff = Math.abs(weightA - weightB);
+    breakdown.weight = Math.max(0, 15 - weightDiff);
+  }
+
+  const coatA = normalizeString(dogA.coat_type);
+  const coatB = normalizeString(dogB.coat_type);
+  if (coatA && coatB && coatA === coatB) breakdown.coat = 7;
+
+  const colorA = normalizeString(dogA.color);
+  const colorB = normalizeString(dogB.color);
+  if (colorA && colorB && colorA === colorB) breakdown.color = 3;
+
+  const activityA = normalizeString(dogA.activity_level);
+  const activityB = normalizeString(dogB.activity_level);
+  if (activityA && activityB && activityA === activityB) breakdown.temperament += 7;
+
+  const sociabilityA = normalizeString(dogA.sociability);
+  const sociabilityB = normalizeString(dogB.sociability);
+  if (sociabilityA && sociabilityB && sociabilityA === sociabilityB) breakdown.temperament += 4;
+
+  const trainabilityA = normalizeString(dogA.trainability);
+  const trainabilityB = normalizeString(dogB.trainability);
+  if (trainabilityA && trainabilityB && trainabilityA === trainabilityB) breakdown.temperament += 4;
+
+  return { breakdown, unsafe: false };
+}
+
+export function calculateMatchScore(dogA, dogB) {
+  const { breakdown, unsafe } = calculateMatchBreakdown(dogA, dogB);
+  if (unsafe) return 0;
+  const total =
+    breakdown.gender +
+    breakdown.breed +
+    breakdown.age +
+    breakdown.size +
+    breakdown.weight +
+    breakdown.coat +
+    breakdown.color +
+    breakdown.temperament;
+  return Math.min(Math.round(total), 100);
+}
+
+export function calculateMatchDetails(dogA, dogB) {
+  const { breakdown, unsafe } = calculateMatchBreakdown(dogA, dogB);
+  const score = unsafe
+    ? 0
+    : Math.min(
+        Math.round(
+          breakdown.gender +
+            breakdown.breed +
+            breakdown.age +
+            breakdown.size +
+            breakdown.weight +
+            breakdown.coat +
+            breakdown.color +
+            breakdown.temperament
+        ),
+        100
+      );
+  return { score, breakdown, unsafe };
 }

@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import supabase from "../lib/supabaseClient";
 import { AuthContext } from "../context/AuthContext";
 import {
+  acceptMatchRequest,
   fetchMatchesForUser,
   mapMatchRecord,
   submitMatchOutcome,
@@ -111,16 +112,20 @@ export default function useDogMatches(options = {}) {
     const totals = {
       total: matches.length,
       pending: 0,
+      accepted: 0,
       awaitingConfirmation: 0,
       successes: 0,
       failures: 0,
       declines: 0,
     };
     for (const match of matches) {
-      switch (match.status) {
+      const status = match.userStatus || match.status;
+      switch (status) {
         case "pending":
-        case "accepted":
           totals.pending += 1;
+          break;
+        case "accepted":
+          totals.accepted += 1;
           break;
         case "awaiting_confirmation":
           totals.awaitingConfirmation += 1;
@@ -143,14 +148,17 @@ export default function useDogMatches(options = {}) {
 
   const grouped = useMemo(() => {
     const pending = [];
+    const accepted = [];
     const awaiting = [];
     const history = [];
     matches.forEach((m) => {
-      if (m.status === "pending" || m.status === "accepted") pending.push(m);
-      else if (m.status === "awaiting_confirmation") awaiting.push(m);
+      const status = m.userStatus || m.status;
+      if (status === "pending") pending.push(m);
+      else if (status === "accepted") accepted.push(m);
+      else if (status === "awaiting_confirmation") awaiting.push(m);
       else history.push(m);
     });
-    return { pending, awaiting, history };
+    return { pending, accepted, awaiting, history };
   }, [matches]);
 
   const refetch = useCallback(() => load(true), [load]);
@@ -158,6 +166,15 @@ export default function useDogMatches(options = {}) {
   const changeStatus = useCallback(
     async (matchId, status) => {
       await updateMatchStatus(matchId, status);
+      delete CACHE[cacheKey];
+      await load(true);
+    },
+    [cacheKey, load]
+  );
+
+  const acceptMatch = useCallback(
+    async (matchId) => {
+      await acceptMatchRequest(matchId);
       delete CACHE[cacheKey];
       await load(true);
     },
@@ -176,12 +193,14 @@ export default function useDogMatches(options = {}) {
   return {
     matches,
     pendingMatches: grouped.pending,
+    acceptedMatches: grouped.accepted,
     awaitingConfirmationMatches: grouped.awaiting,
     historyMatches: grouped.history,
     summary,
     loading,
     error,
     refetch,
+    acceptMatch,
     updateStatus: changeStatus,
     submitOutcome: recordOutcome,
   };
