@@ -217,7 +217,7 @@ export default function DogEditPage() {
               const newDocs = currentDocs.filter((doc) => !initialDocIds.has(doc.id));
 
               if (newDocs.length > 0) {
-                console.log("🗑️ Cleanup on unmount - removing unsaved documents:", newDocs.length);
+                console.log("Cleanup on unmount - removing unsaved documents:", newDocs.length);
                 try {
                   await removeDocumentsByIds(newDocs.map((d) => d.id));
                 } catch (err) {
@@ -342,7 +342,7 @@ export default function DogEditPage() {
         const newDocs = currentDocs.filter((doc) => !initialDocIds.has(doc.id));
 
         if (newDocs.length > 0) {
-          console.log("🗑️ Cleaning up unsaved documents:", newDocs.length);
+          console.log("Cleaning up unsaved documents:", newDocs.length);
           try {
             await removeDocumentsByIds(newDocs.map((d) => d.id));
           } catch (err) {
@@ -704,9 +704,7 @@ export default function DogEditPage() {
 
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-700">
-                {saveSuccess
-                  ? "✅ Changes saved successfully!"
-                  : "Don't forget to save your changes"}
+                {saveSuccess ? "Changes saved successfully!" : "Don't forget to save your changes"}
               </p>
               <div className="flex items-center space-x-3">
                 <button

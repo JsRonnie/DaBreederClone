@@ -120,8 +120,8 @@ export default function DogProfilePage() {
                 </div>
                 <div className="flex-1 flex justify-end">
                   {isOwner ? (
-                    <button
-                      onClick={() => navigate(`/edit-dog/${dog.id}`)}
+                    <Link
+                      to={`/dog/${dog.id}/edit`}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
                     >
                       <svg
@@ -138,7 +138,7 @@ export default function DogProfilePage() {
                         />
                       </svg>
                       <span>Edit Profile</span>
-                    </button>
+                    </Link>
                   ) : (
                     <button
                       onClick={() => setReportOpen(true)}
