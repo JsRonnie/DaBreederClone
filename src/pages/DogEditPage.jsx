@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import useFormData from "../hooks/useFormData";
+import useDogMatches from "../hooks/useDogMatches";
 import Step1DogInfo from "../stepComponents/Step1DogInfo";
 import Step2Health from "../stepComponents/Step2Health";
 import Step3Traits from "../stepComponents/Step3Traits";
@@ -14,6 +15,18 @@ export default function DogEditPage() {
   const navigate = useNavigate();
   const { dog, photoUrl, loading: profileLoading, error: profileError } = useDogProfile(id);
   const form = useFormData();
+  const { historyMatches, loading: matchesLoading } = useDogMatches();
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PER_PAGE = 5;
+  const dogHistoryMatches =
+    historyMatches?.filter(
+      (m) => m.requester_dog_id === dog?.id || m.requested_dog_id === dog?.id
+    ) || [];
+  const totalPages = Math.ceil(dogHistoryMatches.length / HISTORY_PER_PAGE);
+  const paginatedHistory = dogHistoryMatches.slice(
+    (historyPage - 1) * HISTORY_PER_PAGE,
+    historyPage * HISTORY_PER_PAGE
+  );
   const [initializing, setInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -508,7 +521,103 @@ export default function DogEditPage() {
           </div>
         </div>
 
-        {/* Success Display */}
+        {/* Dog History Table */}
+        <div className="bg-white rounded-lg shadow-sm w-full mt-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Dog History</h2>
+          </div>
+          <div className="px-6 py-6">
+            {matchesLoading ? (
+              <div className="text-gray-500">Loading dog history...</div>
+            ) : paginatedHistory.length === 0 ? (
+              <div className="text-gray-500">No history found for this dog.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Date
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Partner
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Outcome
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {paginatedHistory.map((match) => {
+                      const isRequester = match.requester_dog_id === dog.id;
+                      const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
+                      const date =
+                        match.completed_at ||
+                        match.declined_at ||
+                        match.cancelled_at ||
+                        match.requested_at;
+                      const outcome =
+                        match.outcome?.outcome ||
+                        (match.status === "completed_success"
+                          ? "Success"
+                          : match.status === "completed_failed"
+                            ? "Failed"
+                            : match.status.charAt(0).toUpperCase() + match.status.slice(1));
+                      return (
+                        <tr key={match.id}>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {date ? new Date(date).toLocaleDateString() : "—"}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">
+                            {partnerDog?.id ? (
+                              <a
+                                href={`/dog/${partnerDog.id}`}
+                                className="text-blue-700 font-medium underline hover:text-blue-900 transition"
+                              >
+                                {partnerDog.name}
+                              </a>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {match.status.replace("completed_", "Completed: ").replace("_", " ")}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {outcome}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {/* Pagination Controls */}
+                <div className="flex justify-end items-center mt-4 gap-2">
+                  <button
+                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    disabled={historyPage === 1}
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm">
+                    Page {historyPage} of {totalPages}
+                  </span>
+                  <button
+                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    disabled={historyPage === totalPages}
+                    onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         {saveSuccess && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex">
@@ -541,7 +650,7 @@ export default function DogEditPage() {
         {form.error && (
           <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex">
-              <div className="flex-shrink-0">
+              <div className="s">
                 <svg
                   className="h-5 w-5 text-red-400"
                   fill="none"

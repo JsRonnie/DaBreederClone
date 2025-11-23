@@ -290,15 +290,18 @@ function normalizeString(value) {
 }
 
 function calculateMatchBreakdown(dogA, dogB) {
+  let sizeDeduction = 0;
+  let weightDeduction = 0;
+  // Adjusted weights for more realistic results
   const breakdown = {
-    gender: 0,
-    breed: 0,
-    age: 0,
-    size: 0,
-    weight: 0,
-    coat: 0,
-    color: 0,
-    temperament: 0,
+    gender: 15, // Higher importance for gender pairing
+    breed: 20, // Breed compatibility is most important
+    age: 10, // Age difference matters, but less
+    size: 15, // Size compatibility is important
+    weight: 10, // Weight difference matters, but less
+    coat: 5, // Coat type is less important
+    color: 2, // Color is least important
+    temperament: 8, // Temperament is moderately important
   };
 
   const sizes = ["small", "medium", "large", "giant"];
@@ -307,8 +310,14 @@ function calculateMatchBreakdown(dogA, dogB) {
   const ia = sizes.indexOf(safeA);
   const ib = sizes.indexOf(safeB);
 
-  // Hard stop on unsafe size pairing
-  if (ia !== -1 && ib !== -1 && Math.abs(ia - ib) >= 2) {
+  // Hard stop on unsafe size or weight pairing
+  const weightA = normalizeNumber(dogA.weight_kg);
+  const weightB = normalizeNumber(dogB.weight_kg);
+  const weightDiff = weightA !== null && weightB !== null ? Math.abs(weightA - weightB) : null;
+  if (
+    (ia !== -1 && ib !== -1 && Math.abs(ia - ib) >= 2) ||
+    (weightDiff !== null && weightDiff >= 10)
+  ) {
     return { breakdown, unsafe: true };
   }
 
@@ -317,7 +326,6 @@ function calculateMatchBreakdown(dogA, dogB) {
   if (!genderA || !genderB || genderA === genderB) {
     return { breakdown, unsafe: true };
   }
-  breakdown.gender = 10;
 
   breakdown.breed = breedCompatibilityScore(dogA.breed, dogB.breed);
 
@@ -325,48 +333,60 @@ function calculateMatchBreakdown(dogA, dogB) {
   const ageB = normalizeNumber(dogB.age_years);
   if (ageA !== null && ageB !== null) {
     const ageDiff = Math.abs(ageA - ageB);
-    breakdown.age = Math.max(0, 15 - ageDiff * 2);
+    breakdown.age = Math.max(0, 10 - ageDiff * 1.5);
   }
 
   if (ia !== -1 && ib !== -1) {
-    if (ia === ib) breakdown.size = 15;
-    else if (Math.abs(ia - ib) === 1) breakdown.size = 7;
+    if (ia === ib) {
+      breakdown.size = 15;
+    } else if (Math.abs(ia - ib) === 1) {
+      breakdown.size = 8;
+      sizeDeduction = 5; // Deduct 5% if size is off by 1
+    } else {
+      sizeDeduction = 10; // Deduct 10% if size is off by more than 1
+    }
   }
 
-  const weightA = normalizeNumber(dogA.weight_kg);
-  const weightB = normalizeNumber(dogB.weight_kg);
   if (weightA !== null && weightB !== null) {
-    const weightDiff = Math.abs(weightA - weightB);
-    breakdown.weight = Math.max(0, 15 - weightDiff);
+    // Already blocked above if weightDiff >= 10
+    breakdown.weight = Math.max(0, 10 - weightDiff * 0.8);
+    if (weightDiff >= 5 && weightDiff < 10) {
+      weightDeduction = 5; // Deduct 5% for moderate weight difference
+    }
   }
 
   const coatA = normalizeString(dogA.coat_type);
   const coatB = normalizeString(dogB.coat_type);
-  if (coatA && coatB && coatA === coatB) breakdown.coat = 7;
+  if (coatA && coatB && coatA === coatB) breakdown.coat = 5;
 
   const colorA = normalizeString(dogA.color);
   const colorB = normalizeString(dogB.color);
-  if (colorA && colorB && colorA === colorB) breakdown.color = 3;
+  if (colorA && colorB && colorA === colorB) breakdown.color = 2;
 
   const activityA = normalizeString(dogA.activity_level);
   const activityB = normalizeString(dogB.activity_level);
-  if (activityA && activityB && activityA === activityB) breakdown.temperament += 7;
+  if (activityA && activityB && activityA === activityB) breakdown.temperament += 4;
 
   const sociabilityA = normalizeString(dogA.sociability);
   const sociabilityB = normalizeString(dogB.sociability);
-  if (sociabilityA && sociabilityB && sociabilityA === sociabilityB) breakdown.temperament += 4;
+  if (sociabilityA && sociabilityB && sociabilityA === sociabilityB) breakdown.temperament += 2;
 
   const trainabilityA = normalizeString(dogA.trainability);
   const trainabilityB = normalizeString(dogB.trainability);
-  if (trainabilityA && trainabilityB && trainabilityA === trainabilityB) breakdown.temperament += 4;
+  if (trainabilityA && trainabilityB && trainabilityA === trainabilityB) breakdown.temperament += 2;
 
-  return { breakdown, unsafe: false };
+  return { breakdown, unsafe: false, sizeDeduction, weightDeduction };
 }
 
 export function calculateMatchScore(dogA, dogB) {
-  const { breakdown, unsafe } = calculateMatchBreakdown(dogA, dogB);
+  const {
+    breakdown,
+    unsafe,
+    sizeDeduction = 0,
+    weightDeduction = 0,
+  } = calculateMatchBreakdown(dogA, dogB);
   if (unsafe) return 0;
-  const total =
+  let total =
     breakdown.gender +
     breakdown.breed +
     breakdown.age +
@@ -375,11 +395,18 @@ export function calculateMatchScore(dogA, dogB) {
     breakdown.coat +
     breakdown.color +
     breakdown.temperament;
+  total -= sizeDeduction;
+  total -= weightDeduction;
   return Math.min(Math.round(total), 100);
 }
 
 export function calculateMatchDetails(dogA, dogB) {
-  const { breakdown, unsafe } = calculateMatchBreakdown(dogA, dogB);
+  const {
+    breakdown,
+    unsafe,
+    sizeDeduction = 0,
+    weightDeduction = 0,
+  } = calculateMatchBreakdown(dogA, dogB);
   const score = unsafe
     ? 0
     : Math.min(
@@ -392,7 +419,9 @@ export function calculateMatchDetails(dogA, dogB) {
             breakdown.coat +
             breakdown.color +
             breakdown.temperament
-        ),
+        ) -
+          sizeDeduction -
+          weightDeduction,
         100
       );
   return { score, breakdown, unsafe };

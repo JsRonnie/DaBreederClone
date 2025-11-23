@@ -142,9 +142,9 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               onClick={onClose}
             />
             <NavItem
-              label="My Matches"
-              icon={<HeartIcon />}
-              to="/my-matches"
+              label="Add Dogs"
+              icon={<PlusIcon />}
+              to="/add-dog"
               disabled={!loggedIn}
               onClick={onClose}
             />
@@ -152,6 +152,13 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               label="Find Match"
               icon={<HeartIcon />}
               to="/find-match"
+              disabled={!loggedIn}
+              onClick={onClose}
+            />
+            <NavItem
+              label="My Matches"
+              icon={<HeartIcon />}
+              to="/my-matches"
               disabled={!loggedIn}
               onClick={onClose}
             />
@@ -173,13 +180,6 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               label="Notifications"
               icon={<BellIcon />}
               to="/notifications"
-              disabled={!loggedIn}
-              onClick={onClose}
-            />
-            <NavItem
-              label="Add Dog"
-              icon={<PlusIcon />}
-              to="/add-dog"
               disabled={!loggedIn}
               onClick={onClose}
             />

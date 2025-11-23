@@ -39,14 +39,21 @@ export default function FindMatchPage() {
   const userDogs = useMemo(
     () =>
       (myDogs || [])
-        .filter((d) => d.is_visible !== false) // Only show visible dogs
+        .filter((d) => d.is_visible !== false)
         .map((d) => ({
           id: d.id,
           name: d.name,
           breed: d.breed,
-          gender: d.sex || d.gender || null,
+          gender: d.gender || d.sex || null,
           sex: d.sex || d.gender || null,
-          image_url: d.image || null,
+          size: d.size || null,
+          weight_kg: d.weight_kg ?? null,
+          coat_type: d.coat_type || null,
+          color: d.color || null,
+          activity_level: d.activity_level || null,
+          sociability: d.sociability || null,
+          trainability: d.trainability || null,
+          image_url: d.image || d.image_url || null,
           hidden: !!d.hidden,
           is_visible: d.is_visible ?? true,
           user_id: d.user_id,
@@ -77,6 +84,11 @@ export default function FindMatchPage() {
     }
   }, []);
   useEffect(() => {
+    // Clear match cache on mount to ensure updated calculation logic is used
+    if (matchesCache.current) {
+      matchesCache.current.clear();
+      FM_LOG("Match cache cleared on mount");
+    }
     // Restore state if coming back from a profile page
     if (location.state) {
       const { selectedDog: savedSelectedDog } = location.state;
@@ -258,8 +270,16 @@ export default function FindMatchPage() {
     // Cache-first: if we have cached matches for this dog, use them
     const cached = matchesCache.current.get(`matches:${dog.id}`);
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      const filteredCached = await filterUnavailableMatches(cached);
-      FM_LOG("matches: using cached", filteredCached.length, "(raw:", cached.length, ")");
+      // Recalculate scores for cached matches using latest logic
+      const rescored = cached
+        .map((match) => ({
+          ...match,
+          score: calculateMatchScore(dog, match),
+        }))
+        .filter((match) => match.score > 0)
+        .sort((a, b) => b.score - a.score);
+      const filteredCached = await filterUnavailableMatches(rescored);
+      FM_LOG("matches: using rescored cached", filteredCached.length, "(raw:", cached.length, ")");
       setAllMatches(filteredCached);
       setPotentialMatches(getFilteredMatches(filteredCached, dog, breedFilter).slice(0, 3));
       setDisplayCount(3); // Reset display count
@@ -288,7 +308,24 @@ export default function FindMatchPage() {
     const scoredMatches = rows
       .map((match) => {
         // Debug: log both dog objects before scoring
-        console.log("[MATCH DEBUG] Scoring:", { selectedDog: dog, candidateDog: match });
+        console.log("[MATCH DEBUG] Scoring:", {
+          selectedDog: {
+            id: dog.id,
+            name: dog.name,
+            breed: dog.breed,
+            gender: dog.gender || dog.sex,
+            size: dog.size,
+            weight_kg: dog.weight_kg,
+          },
+          candidateDog: {
+            id: match.id,
+            name: match.name,
+            breed: match.breed,
+            gender: match.gender || match.sex,
+            size: match.size,
+            weight_kg: match.weight_kg,
+          },
+        });
         return {
           ...match,
           score: calculateMatchScore(dog, match),

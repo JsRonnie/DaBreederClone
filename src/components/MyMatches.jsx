@@ -53,6 +53,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
     label: statusKey,
     color: "bg-slate-100 text-slate-700",
   };
+  // Allow both male and female dog owners to accept if they are the receiving owner
   const showAcceptDecline =
     match.status === "pending" && match.requiresResponse && match.isReceivingOwner;
   const showCancel = match.canCancel;
@@ -204,7 +205,6 @@ export default function MyMatches({ userId }) {
   const tabOptions = useMemo(
     () => [
       { id: "pending", label: "Pending" },
-      { id: "accepted", label: "Accepted" },
       { id: "declined", label: "Declined" },
       { id: "awaiting", label: "Awaiting" },
       { id: "success", label: "Success" },
@@ -243,11 +243,9 @@ export default function MyMatches({ userId }) {
       case "pending":
         list = pendingMatches;
         break;
-      case "accepted":
-        list = acceptedMatches;
-        break;
+      // Removed accepted tab
       case "declined":
-        list = matches.filter((m) => m.status === "declined");
+        list = matches.filter((m) => m.status === "declined" || m.status === "cancelled");
         break;
       case "awaiting":
         list = awaitingConfirmationMatches;
@@ -268,7 +266,7 @@ export default function MyMatches({ userId }) {
     }));
     const start = (page - 1) * PAGE_SIZE;
     return matchesWithHelpers.slice(start, start + PAGE_SIZE);
-  }, [tab, pendingMatches, acceptedMatches, awaitingConfirmationMatches, matches, page, userId]);
+  }, [tab, pendingMatches, awaitingConfirmationMatches, matches, page, userId]);
 
   React.useEffect(() => {
     let total = 0;
@@ -359,11 +357,12 @@ export default function MyMatches({ userId }) {
       </div>
       <div className="content-section">
         <div className="mb-8">
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-3 gap-3">
             <SummaryCard label="Pending" value={summary.pending} />
-            <SummaryCard label="Accepted" value={summary.accepted || 0} />
             <SummaryCard label="Declined" value={summary.declines} />
             <SummaryCard label="Awaiting" value={summary.awaitingConfirmation} />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <SummaryCard label="Success" value={summary.successes} positive />
             <SummaryCard label="Failed" value={summary.failures} negative />
           </div>
