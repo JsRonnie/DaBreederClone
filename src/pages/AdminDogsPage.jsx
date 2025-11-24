@@ -74,6 +74,11 @@ export default function AdminDogsPage() {
     documents: [],
     loading: false,
   });
+
+  // Helper to count documents for a dog
+  const getDocumentCount = (dog) => {
+    return Array.isArray(dog.dog_documents) ? dog.dog_documents.length : 0;
+  };
   const [docActionLoading, setDocActionLoading] = useState(false);
   // Removed unused notification state
   const [documentViewer, setDocumentViewer] = useState({ open: false, document: null }); // { open, document }
@@ -189,8 +194,19 @@ export default function AdminDogsPage() {
 
   // Fetch documents for a dog and open modal
   const openDocModal = async (dog) => {
-    // Use documents already fetched with the dog (nested select)
-    setDocModal({ open: true, dog, documents: dog.dog_documents || [], loading: false });
+    setDocModal({ open: true, dog, documents: [], loading: true });
+    try {
+      // Always fetch latest documents from DB for this dog
+      const { data: documents, error } = await supabase
+        .from("dog_documents")
+        .select("*")
+        .eq("dog_id", dog.id);
+      if (error) throw error;
+      setDocModal({ open: true, dog, documents: documents || [], loading: false });
+    } catch (err) {
+      console.error("Failed to fetch documents for dog:", err);
+      setDocModal({ open: true, dog, documents: [], loading: false });
+    }
   };
 
   // Verify or reject a document
@@ -266,7 +282,7 @@ export default function AdminDogsPage() {
   const endItem = Math.min(currentPage * rowsPerPage, filteredDogs.length);
 
   const viewDocuments = (dog) => {
-    // Open modal to verify/reject documents
+    // Always fetch latest documents for this dog
     openDocModal(dog);
   };
 
@@ -477,13 +493,14 @@ export default function AdminDogsPage() {
                         </td>
                         <td className="px-4 sm:px-6 py-4">
                           <Badge
-                            variant={dog.documentCount > 0 ? "default" : "secondary"}
+                            variant={getDocumentCount(dog) > 0 ? "default" : "secondary"}
                             className="text-xs"
                           >
-                            {dog.documentCount > 0 ? (
+                            {getDocumentCount(dog) > 0 ? (
                               <>
                                 <FileCheck className="mr-1 h-3 w-3" />
-                                {dog.documentCount} {dog.documentCount === 1 ? "doc" : "docs"}
+                                {getDocumentCount(dog)}{" "}
+                                {getDocumentCount(dog) === 1 ? "doc" : "docs"}
                               </>
                             ) : (
                               <span className="text-muted-foreground">No docs</span>
@@ -719,10 +736,20 @@ export default function AdminDogsPage() {
         documentViewer.document &&
         (() => {
           const doc = documentViewer.document;
-          // Determine which bucket based on category
-          const bucket =
-            doc.category === "photo" || doc.category === "Photo" ? "dog-photos" : "dog-documents";
-          const storageUrl = `https://qbwsozqajbfveeofxszw.supabase.co/storage/v1/object/public/${bucket}/${doc.storage_path}`;
+          // Determine bucket based on category (default: dog-documents)
+          let bucket = "dog-documents";
+          if (doc.category && doc.category.toLowerCase() === "photo") {
+            bucket = "dog-photos";
+          }
+          // Use storage_path, fallback to file_path or path
+          const path = doc.storage_path || doc.file_path || doc.path || doc.id;
+          const storageUrl = path
+            ? `https://qbwsozqajbfveeofxszw.supabase.co/storage/v1/object/public/${bucket}/${path}`
+            : "";
+
+          // Debug output for troubleshooting
+          console.log("[Document Viewer] doc:", doc);
+          console.log("[Document Viewer] storageUrl:", storageUrl);
 
           return (
             <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
@@ -758,13 +785,13 @@ export default function AdminDogsPage() {
 
                 {/* Modal Body - Document Display */}
                 <div className="flex-1 overflow-auto p-6 bg-slate-50">
-                  {doc.content_type.includes("pdf") ? (
+                  {doc.content_type && doc.content_type.includes("pdf") && storageUrl ? (
                     <iframe
                       src={storageUrl}
                       className="w-full h-full border border-slate-200 rounded-lg"
                       title={doc.file_name}
                     />
-                  ) : doc.content_type.includes("image") ? (
+                  ) : doc.content_type && doc.content_type.includes("image") && storageUrl ? (
                     <div className="flex items-center justify-center h-full bg-white">
                       <img
                         src={storageUrl}
@@ -800,28 +827,30 @@ export default function AdminDogsPage() {
                         <p className="text-sm text-slate-500 mt-1">
                           Preview not available for this file type
                         </p>
-                        <a
-                          href={storageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                        {storageUrl && (
+                          <a
+                            href={storageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
-                          </svg>
-                          Download File
-                        </a>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
+                            </svg>
+                            Download File
+                          </a>
+                        )}
                       </div>
                     </div>
                   )}

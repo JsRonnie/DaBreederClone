@@ -36,7 +36,12 @@ export async function uploadDogDocument({ dogId, userId, file, category = null }
   const sanitized = sanitizeFilename(file.name);
   const path = `${dogId}/${subfolder}/${Date.now()}-${sanitized}`;
 
-  await uploadFileToBucket({ bucket: "dog-photos", path, file, upsert: false });
+  // Use dog-photos only for profile photos, dog-documents for all other documents
+  let bucket = "dog-documents";
+  if (category && category.toLowerCase() === "photo") {
+    bucket = "dog-photos";
+  }
+  await uploadFileToBucket({ bucket, path, file, upsert: false });
 
   const payload = {
     dog_id: dogId,
@@ -77,10 +82,10 @@ export async function removeDocumentsByIds(ids) {
   if (!list.length) return { removed: 0 };
   const { data: docs, error: selErr } = await supabase
     .from("dog_documents")
-    .select("id, storage_path, file_path")
+    .select("id, storage_path")
     .in("id", list);
   if (selErr) throw selErr;
-  const paths = (docs || []).map((d) => d.storage_path || d.file_path).filter(Boolean);
+  const paths = (docs || []).map((d) => d.storage_path).filter(Boolean);
   if (paths.length) await deletePathsFromBucket({ bucket: "dog-photos", paths });
   const { error: delErr } = await supabase.from("dog_documents").delete().in("id", list);
   if (delErr) throw delErr;
@@ -108,7 +113,7 @@ export function mapDogDocumentsToForm(rows, options = {}) {
         out.push({
           name: doc.file_name,
           category: cat,
-          storage_path: doc.storage_path || doc.file_path || null,
+          storage_path: doc.storage_path || null,
           file_size_bytes: doc.file_size_bytes,
           content_type: doc.content_type,
           isExisting: true,
@@ -119,7 +124,7 @@ export function mapDogDocumentsToForm(rows, options = {}) {
         out.push({
           name: doc.file_name,
           category: cat,
-          storage_path: doc.storage_path || doc.file_path || null,
+          storage_path: doc.storage_path || null,
           file_size_bytes: doc.file_size_bytes,
           content_type: doc.content_type,
           isExisting: true,
