@@ -5,6 +5,7 @@ import { upsertUserProfile } from "../lib/profile";
 import { normalizeAge, whitelistPayload, coerceNumbers } from "../utils/form";
 import { DOG_ALLOWED_COLUMNS } from "../lib/dogs";
 import { uploadFileToBucket, listPathsUnder, deletePathsFromBucket } from "../lib/storage";
+import { notifyDogsInvalidate } from "../lib/dogEvents";
 import {
   uploadDogDocument,
   removeDocumentsByCategory,
@@ -319,7 +320,7 @@ export function useFormData() {
 
       setSuccess(true);
       try {
-        globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
+        notifyDogsInvalidate("dog-updated");
       } catch {
         /* noop */
       }
@@ -526,7 +527,7 @@ export function useFormData() {
 
         setSuccess(true);
         try {
-          globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
+          notifyDogsInvalidate("dog-created");
         } catch {
           /* noop */
         }

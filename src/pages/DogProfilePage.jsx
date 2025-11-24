@@ -22,7 +22,7 @@ export default function DogProfilePage() {
 
   const isOwner = user && dog && user.id === dog.user_id;
 
-  if (loading) {
+  if (loading && !dog) {
     return <LoadingState message="Loading profile..." minHeight={140} />;
   }
 

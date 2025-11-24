@@ -35,6 +35,10 @@ export default function Layout() {
     navigate("/my-dog");
     setSidebarOpen(false);
     setAuthOpen(false);
+    // Force a hard refresh shortly after login so all client state reflects the new session
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 1500);
   };
 
   const handleNavigate = (path) => {

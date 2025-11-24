@@ -68,9 +68,50 @@ export default function useDogs(options = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const invalidateTsRef = useRef(globalThis.__DB_DOGS_INVALIDATE_TS__ || 0);
+  const lastSuccessfulDogsRef = useRef([]);
+  const hydratedFromStorageRef = useRef(false);
 
   const cacheKey = useMemo(() => (userId ? `u:${userId}` : "anon"), [userId]);
+  const storageKey = useMemo(() => (userId ? `db:dogs:${userId}` : null), [userId]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") {
+      hydratedFromStorageRef.current = true;
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed?.dogs)) {
+          setDogs(parsed.dogs);
+          lastSuccessfulDogsRef.current = parsed.dogs;
+          DOGS_CACHE[cacheKey] = {
+            dogs: parsed.dogs,
+            lastFetch: 0,
+            error: null,
+          };
+        }
+      }
+    } catch (err) {
+      if (typeof import.meta !== "undefined" && import.meta?.env?.DEV) {
+        console.warn("useDogs: failed to hydrate cached dogs", err);
+      }
+    } finally {
+      hydratedFromStorageRef.current = true;
+    }
+  }, [storageKey, cacheKey]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined" || !hydratedFromStorageRef.current) return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ dogs, ts: Date.now() }));
+    } catch (err) {
+      if (typeof import.meta !== "undefined" && import.meta?.env?.DEV) {
+        console.warn("useDogs: unable to persist dogs locally", err);
+      }
+    }
+  }, [dogs, storageKey]);
 
   const load = useCallback(
     async (force = false) => {
@@ -83,23 +124,47 @@ export default function useDogs(options = {}) {
 
       const cache = DOGS_CACHE[cacheKey];
       const freshEnough = cache && Date.now() - (cache.lastFetch || 0) < FIVE_MIN;
-      if (!force && freshEnough) {
-        setDogs(cache.dogs || []);
-        setError(cache.error || null);
+      const cacheHasError = !!cache?.error;
+      if (!force && freshEnough && !cacheHasError) {
+        const cachedDogs = cache.dogs || [];
+        lastSuccessfulDogsRef.current = cachedDogs;
+        setDogs(cachedDogs);
+        setError(null);
         setLoading(false);
-        return cache.dogs || [];
+        return cachedDogs;
       }
 
       try {
         setLoading(true);
         setError(null);
-        const rows = await fetchDogsForUser(userId);
+        let rows = await fetchDogsForUser(userId);
+
+        // If we previously had data but Supabase temporarily returns an empty array,
+        // retry once before trusting the empty payload. This mirrors the more
+        // aggressive refetch behavior used on the admin dashboards.
+        if (rows.length === 0 && lastSuccessfulDogsRef.current.length > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          const retryRows = await fetchDogsForUser(userId);
+          if (retryRows.length > 0) {
+            rows = retryRows;
+          }
+        }
+
         DOGS_CACHE[cacheKey] = { dogs: rows, lastFetch: Date.now(), error: null };
+        lastSuccessfulDogsRef.current = rows;
         setDogs(rows);
         return rows;
       } catch (e) {
-        DOGS_CACHE[cacheKey] = { dogs: [], lastFetch: Date.now(), error: e };
+        DOGS_CACHE[cacheKey] = {
+          dogs: lastSuccessfulDogsRef.current,
+          lastFetch: 0,
+          error: e,
+        };
         setError(e);
+        if (lastSuccessfulDogsRef.current.length > 0) {
+          setDogs(lastSuccessfulDogsRef.current);
+          return lastSuccessfulDogsRef.current;
+        }
         setDogs([]);
         return [];
       } finally {
@@ -109,33 +174,22 @@ export default function useDogs(options = {}) {
     [userId, cacheKey]
   );
 
+  useEffect(() => {
+    lastSuccessfulDogsRef.current = [];
+    hydratedFromStorageRef.current = false;
+  }, [cacheKey]);
+
   // Initial and userId change
   useEffect(() => {
     load();
   }, [load]);
 
-  // Invalidate when global invalidation timestamp changes (set in useFormData submit/update)
   useEffect(() => {
-    const iv = setInterval(() => {
-      const ts = globalThis.__DB_DOGS_INVALIDATE_TS__ || 0;
-      if (ts && ts !== invalidateTsRef.current) {
-        invalidateTsRef.current = ts;
-        load(true);
-      }
-    }, 1000);
-    return () => clearInterval(iv);
+    if (typeof window === "undefined") return undefined;
+    const handleInvalidate = () => load(true);
+    window.addEventListener("dogs:invalidate", handleInvalidate);
+    return () => window.removeEventListener("dogs:invalidate", handleInvalidate);
   }, [load]);
-
-  // Optional: refresh on window focus
-  useEffect(() => {
-    function onFocus() {
-      const cache = DOGS_CACHE[cacheKey];
-      const stale = !cache || Date.now() - (cache.lastFetch || 0) > FIVE_MIN;
-      if (stale) load(true);
-    }
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [cacheKey, load]);
 
   // Realtime: subscribe to changes to current user's dogs and update list/cache
   useEffect(() => {
@@ -157,7 +211,7 @@ export default function useDogs(options = {}) {
           const o = payload?.old || null;
 
           // For safety, if we don't have a current list yet, trigger a refetch
-          if (!dogs || dogs.length === 0) {
+          if (!lastSuccessfulDogsRef.current || lastSuccessfulDogsRef.current.length === 0) {
             load(true);
             return;
           }
@@ -175,6 +229,7 @@ export default function useDogs(options = {}) {
                 lastFetch: Date.now(),
                 error: null,
               };
+              lastSuccessfulDogsRef.current = next;
               return next;
             });
           } else if (type === "UPDATE" && n) {
@@ -187,6 +242,7 @@ export default function useDogs(options = {}) {
                 lastFetch: Date.now(),
                 error: null,
               };
+              lastSuccessfulDogsRef.current = next;
               return next;
             });
           } else if (type === "DELETE" && o) {
@@ -199,6 +255,7 @@ export default function useDogs(options = {}) {
                 lastFetch: Date.now(),
                 error: null,
               };
+              lastSuccessfulDogsRef.current = next;
               return next;
             });
           } else {
@@ -216,7 +273,7 @@ export default function useDogs(options = {}) {
         /* ignore */
       }
     };
-  }, [userId, cacheKey, load, dogs]);
+  }, [userId, cacheKey, load]);
 
   const toggleDogVisibility = useCallback(
     async (dogId, isVisible) => {

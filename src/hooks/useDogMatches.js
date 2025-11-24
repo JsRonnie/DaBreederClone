@@ -17,11 +17,39 @@ export default function useDogMatches(options = {}) {
   const userId = options.userId || user?.id || null;
   const cacheKey = userId ? `matches:${userId}` : "anon";
 
-  const [matches, setMatches] = useState([]);
+  const [matches, setMatches] = useState(() => CACHE[cacheKey]?.matches || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const activeRef = useRef(0);
+  const matchesRef = useRef(CACHE[cacheKey]?.matches || []);
+  const storageKey = userId ? `db:matches:${userId}` : null;
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.matches?.length && matchesRef.current.length === 0) {
+          setMatches(parsed.matches);
+          matchesRef.current = parsed.matches;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    matchesRef.current = matches;
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ matches, ts: Date.now() }));
+    } catch {
+      /* ignore quota */
+    }
+  }, [matches, storageKey]);
 
   const load = useCallback(
     async (force = false) => {
@@ -46,13 +74,22 @@ export default function useDogMatches(options = {}) {
         const rows = await fetchMatchesForUser(userId);
         const mapped = rows.map((row) => mapMatchRecord(row, userId));
         if (activeRef.current !== requestId) return mapped;
-        CACHE[cacheKey] = { matches: mapped, fetchedAt: Date.now(), error: null };
+        const fetchedAt = Date.now();
+        CACHE[cacheKey] = { matches: mapped, fetchedAt, error: null };
         setMatches(mapped);
         return mapped;
       } catch (err) {
         if (activeRef.current !== requestId) return [];
-        CACHE[cacheKey] = { matches: [], fetchedAt: Date.now(), error: err };
+        CACHE[cacheKey] = {
+          matches: matchesRef.current,
+          fetchedAt: Date.now(),
+          error: err,
+        };
         setError(err);
+        if (matchesRef.current.length) {
+          setMatches(matchesRef.current);
+          return matchesRef.current;
+        }
         setMatches([]);
         return [];
       } finally {

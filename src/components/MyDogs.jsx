@@ -8,6 +8,7 @@ import "../pages/FindMatchPage.css";
 import useDogs from "../hooks/useDogs";
 import LoadingState from "./LoadingState";
 import ErrorMessage from "./ErrorMessage";
+import { notifyDogsInvalidate } from "../lib/dogEvents";
 
 // Component now relies on central useDogs hook for data, caching, and invalidation.
 
@@ -50,12 +51,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
       if (delErr) throw delErr;
       // Optimistically update list
       setDogs((prev) => prev.filter((d) => d.id !== dogId));
-      try {
-        globalThis.__DB_DOGS_INVALIDATE_TS__ = Date.now();
-      } catch (err) {
-        // non-fatal: global invalidation not supported
-        void err;
-      }
+      notifyDogsInvalidate("dog-deleted");
       closeDeleteConfirmation();
       // Show toast notification
       window.dispatchEvent(
@@ -111,7 +107,6 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         <p className="page-description">
           Manage your dog profiles and find perfect breeding matches
         </p>
-        
       </div>
 
       {/* Main Content */}
@@ -139,6 +134,10 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
             <p className="empty-state-description">
               Add your first dog to get started with breeding matches and connect with other dog
               owners.
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              If you already have dogs or see an error, please refer to support so we can solve the
+              issue.
             </p>
 
             {userId && (
@@ -180,16 +179,16 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
         ) : (
           <div className="matches-grid">
             {displayDogs.map((dog) => {
-                // Removed unused variables as reported by lint
-                // const normalizedGender = (dog.sex || dog.gender || "").toString().toLowerCase();
-                // const maleSuccessRate =
-                //   typeof dog.male_success_rate === "number"
-                //     ? dog.male_success_rate
-                //     : Number.parseFloat(dog.male_success_rate || 0);
-                // const femaleMateCount = dog.female_successful_matings ?? 0;
-                // const requestsCount = dog.match_requests_count ?? 0;
-                // const completedCount = dog.match_completed_count ?? 0;
-                // const successCount = dog.match_success_count ?? 0;
+              // Removed unused variables as reported by lint
+              // const normalizedGender = (dog.sex || dog.gender || "").toString().toLowerCase();
+              // const maleSuccessRate =
+              //   typeof dog.male_success_rate === "number"
+              //     ? dog.male_success_rate
+              //     : Number.parseFloat(dog.male_success_rate || 0);
+              // const femaleMateCount = dog.female_successful_matings ?? 0;
+              // const requestsCount = dog.match_requests_count ?? 0;
+              // const completedCount = dog.match_completed_count ?? 0;
+              // const successCount = dog.match_success_count ?? 0;
 
               return (
                 <div

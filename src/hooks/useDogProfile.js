@@ -1,6 +1,80 @@
 import { useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabaseClient";
 
+function parseDogId(dogId) {
+  return dogId != null ? String(dogId) : null;
+}
+
+function readDogFromDetailCache(dogId) {
+  if (typeof window === "undefined" || !dogId) return null;
+  try {
+    const raw = window.localStorage.getItem(`db:dog:${dogId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.dog || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDogToDetailCache(dogId, dog) {
+  if (typeof window === "undefined" || !dogId || !dog) return;
+  try {
+    window.localStorage.setItem(`db:dog:${dogId}`, JSON.stringify({ dog, ts: Date.now() }));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+function readDogFromGlobalCache(dogId) {
+  if (!dogId) return null;
+  try {
+    const cache = globalThis.__DB_DOGS_CACHE__;
+    if (cache && typeof cache === "object") {
+      for (const key of Object.keys(cache)) {
+        const list = cache[key]?.dogs;
+        if (!Array.isArray(list)) continue;
+        const match = list.find((d) => String(d?.id) === dogId);
+        if (match) return match;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (typeof window === "undefined") return null;
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith("db:dogs:")) continue;
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(key));
+        if (!parsed?.dogs) continue;
+        const match = parsed.dogs.find((d) => String(d?.id) === dogId);
+        if (match) return match;
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return null;
+}
+
+function derivePhotoUrl(dogLike) {
+  if (!dogLike) return null;
+  const candidates = [dogLike.photoUrl, dogLike.image_url, dogLike.image];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.length > 0) {
+      if (/^https?:\/\//i.test(value)) return value;
+      if (value.startsWith("/")) return value;
+    }
+  }
+  return null;
+}
+
 /**
  * Load a single dog's profile by id.
  * - Fetches the dog row
@@ -12,7 +86,9 @@ export default function useDogProfile(dogId) {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [hasHydratedCache, setHasHydratedCache] = useState(false);
   const alive = useRef(true);
+  const dogKey = parseDogId(dogId);
 
   useEffect(() => {
     alive.current = true;
@@ -21,8 +97,26 @@ export default function useDogProfile(dogId) {
     };
   }, []);
 
+  // Instant hydration from any cached dog data.
   useEffect(() => {
-    if (!dogId) {
+    if (!dogKey) {
+      setDog(null);
+      setPhotoUrl(null);
+      setHasHydratedCache(true);
+      return;
+    }
+
+    const cachedDog = readDogFromDetailCache(dogKey) || readDogFromGlobalCache(dogKey);
+    if (cachedDog) {
+      setDog((prev) => (prev && prev.id === cachedDog.id ? { ...prev, ...cachedDog } : cachedDog));
+      const cachedPhoto = derivePhotoUrl(cachedDog);
+      if (cachedPhoto) setPhotoUrl(cachedPhoto);
+    }
+    setHasHydratedCache(true);
+  }, [dogKey]);
+
+  useEffect(() => {
+    if (!dogKey) {
       setDog(null);
       setPhotoUrl(null);
       return;
@@ -37,7 +131,7 @@ export default function useDogProfile(dogId) {
         const { data: dogRow, error: dogErr } = await supabase
           .from("dogs")
           .select("*")
-          .eq("id", dogId)
+          .eq("id", dogKey)
           .single();
 
         if (dogErr) throw dogErr;
@@ -45,11 +139,9 @@ export default function useDogProfile(dogId) {
 
         setDog(dogRow);
         // Prefer image_url if it's a full URL; otherwise just leave null and let UI show placeholder
-        const url =
-          typeof dogRow.image_url === "string" && dogRow.image_url.startsWith("http")
-            ? dogRow.image_url
-            : null;
+        const url = derivePhotoUrl(dogRow);
         setPhotoUrl(url);
+        writeDogToDetailCache(dogKey, dogRow);
       } catch (e) {
         if (!cancelled && alive.current) setError(e);
       } finally {
@@ -61,7 +153,7 @@ export default function useDogProfile(dogId) {
     return () => {
       cancelled = true;
     };
-  }, [dogId]);
+  }, [dogKey]);
 
-  return { dog, photoUrl, loading, error };
+  return { dog, photoUrl, loading, error, hasHydratedCache };
 }
