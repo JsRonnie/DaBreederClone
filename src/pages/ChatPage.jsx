@@ -429,31 +429,35 @@ export default function ChatPage() {
       )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {contacts.map((c) => {
-          // Determine the correct perspective based on current user
-          // If current user is the contact's owner_id (the person contacted),
-          // then dog_id is actually THEIR dog, and my_dog_id is the OTHER dog
-          const isOwner = c.owner_id === currentUserId;
-
+          // Always show the owner of the other dog
           let myDogForContact = null;
           let otherDogName = "";
           let otherDogImage = "";
+          let ownerName = "";
 
-          if (isOwner) {
-            // User is the owner (was contacted), so flip the perspective
-            myDogForContact =
-              userDogs && userDogs.length > 0 && c.dog_id
-                ? userDogs.find((d) => d.id === c.dog_id)
-                : null;
+          // Determine which dog belongs to the current user
+          const myDogId = userDogs?.map((d) => d.id) || [];
+          const isMyDogA = myDogId.includes(c.dog_id);
+          const isMyDogB = myDogId.includes(c.my_dog_id);
+
+          if (isMyDogA) {
+            // My dog is dog_id, so show info for my_dog_id (other dog)
+            myDogForContact = userDogs.find((d) => d.id === c.dog_id);
             otherDogName = c.my_dog_name || "Dog";
             otherDogImage = c.my_dog_image || "/shibaPor.jpg";
-          } else {
-            // User is the initiator, use normal perspective
-            myDogForContact =
-              userDogs && userDogs.length > 0 && c.my_dog_id
-                ? userDogs.find((d) => d.id === c.my_dog_id)
-                : null;
+            ownerName = c.my_dog_owner_name || "Owner";
+          } else if (isMyDogB) {
+            // My dog is my_dog_id, so show info for dog_id (other dog)
+            myDogForContact = userDogs.find((d) => d.id === c.my_dog_id);
             otherDogName = c.dog_name || "Dog";
             otherDogImage = c.dog_image || "/shibaPor.jpg";
+            ownerName = c.dog_owner_name || "Owner";
+          } else {
+            // Fallback: show info for dog_id as my dog, my_dog_id as other dog
+            myDogForContact = null;
+            otherDogName = c.my_dog_name || c.dog_name || "Dog";
+            otherDogImage = c.my_dog_image || c.dog_image || "/shibaPor.jpg";
+            ownerName = c.my_dog_owner_name || c.dog_owner_name || "Owner";
           }
 
           return (
@@ -552,8 +556,8 @@ export default function ChatPage() {
                       }}
                     >
                       {myDogForContact
-                        ? `${myDogForContact.name} & ${otherDogName}`
-                        : otherDogName || "Conversation"}
+                        ? `${myDogForContact.name} & ${otherDogName} (Owner: ${ownerName})`
+                        : `${otherDogName} (Owner: ${ownerName})`}
                     </div>
                     <div
                       style={{
@@ -583,27 +587,37 @@ export default function ChatPage() {
 
     let myDog = null;
     let otherDog = { name: "Dog", image: "/shibaPor.jpg" };
+    let ownerName = "";
 
-    if (isOwner) {
-      // User is the owner (was contacted), so flip the perspective
-      myDog =
-        userDogs && userDogs.length > 0 && activeContact?.dog_id
-          ? userDogs.find((d) => d.id === activeContact.dog_id)
-          : null;
+    // Always show the owner of the other dog
+    const myDogId = userDogs?.map((d) => d.id) || [];
+    const isMyDogA = activeContact?.dog_id && myDogId.includes(activeContact.dog_id);
+    const isMyDogB = activeContact?.my_dog_id && myDogId.includes(activeContact.my_dog_id);
+
+    if (isMyDogA) {
+      // My dog is dog_id, so show info for my_dog_id (other dog)
+      myDog = userDogs.find((d) => d.id === activeContact.dog_id);
       otherDog = {
         name: activeContact?.my_dog_name || "Dog",
         image: activeContact?.my_dog_image || "/shibaPor.jpg",
       };
-    } else {
-      // User is the initiator, use normal perspective
-      myDog =
-        userDogs && userDogs.length > 0 && activeContact?.my_dog_id
-          ? userDogs.find((d) => d.id === activeContact.my_dog_id)
-          : null;
+      ownerName = activeContact?.my_dog_owner_name || "Owner";
+    } else if (isMyDogB) {
+      // My dog is my_dog_id, so show info for dog_id (other dog)
+      myDog = userDogs.find((d) => d.id === activeContact.my_dog_id);
       otherDog = {
         name: activeContact?.dog_name || "Dog",
         image: activeContact?.dog_image || "/shibaPor.jpg",
       };
+      ownerName = activeContact?.dog_owner_name || "Owner";
+    } else {
+      // Fallback: show info for dog_id as my dog, my_dog_id as other dog
+      myDog = null;
+      otherDog = {
+        name: activeContact?.my_dog_name || activeContact?.dog_name || "Dog",
+        image: activeContact?.my_dog_image || activeContact?.dog_image || "/shibaPor.jpg",
+      };
+      ownerName = activeContact?.my_dog_owner_name || activeContact?.dog_owner_name || "Owner";
     }
 
     const requesterDogIdForRequest = isOwner ? activeContact?.dog_id : activeContact?.my_dog_id;
@@ -731,7 +745,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Dog names */}
+          {/* Dog names and owner */}
           <div style={{ minWidth: 0, flex: 1 }}>
             <h3
               style={{
@@ -745,7 +759,9 @@ export default function ChatPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              {myDog ? `${myDog.name} & ${otherDog.name}` : otherDog.name}
+              {myDog
+                ? `${myDog.name} & ${otherDog.name} (Owner: ${ownerName})`
+                : `${otherDog.name} (Owner: ${ownerName})`}
             </h3>
           </div>
           <div

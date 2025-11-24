@@ -4,6 +4,7 @@
 // const { contacts, messages, activeContactId, openContact, sendText, uploadFile } = useChat();
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import supabase from "../lib/supabaseClient";
 import {
   listContacts,
   listMessages,
@@ -36,13 +37,55 @@ export default function useChat() {
   // Load contacts on mount
   const refreshContacts = useCallback(async () => {
     try {
-      const data = await listContacts();
+      const contactsRaw = await listContacts();
       if (!mountedRef.current) return;
-      if (Array.isArray(data)) {
-        setContacts(data);
+      if (!Array.isArray(contactsRaw)) return;
+
+      // Gather all dog IDs from contacts
+      const dogIds = Array.from(
+        new Set(
+          contactsRaw
+            .map((c) => [c.dog_id, c.my_dog_id])
+            .flat()
+            .filter(Boolean)
+        )
+      );
+
+      // Fetch all dog records for these IDs
+      let dogsMap = {};
+      if (dogIds.length > 0) {
+        const { data: dogs, error: dogsError } = await supabase
+          .from("dogs")
+          .select("id, user_id")
+          .in("id", dogIds);
+        if (!dogsError && Array.isArray(dogs)) {
+          dogsMap = Object.fromEntries(dogs.map((d) => [d.id, d.user_id]));
+        }
       }
+
+      // Gather all user IDs from dog records
+      const userIds = Array.from(new Set(Object.values(dogsMap).filter(Boolean)));
+      let ownerMap = {};
+      if (userIds.length > 0) {
+        const { data: owners, error: ownersError } = await supabase
+          .from("users")
+          .select("id, name")
+          .in("id", userIds);
+        if (!ownersError && Array.isArray(owners)) {
+          ownerMap = Object.fromEntries(owners.map((u) => [u.id, u.name]));
+        }
+      }
+
+      // Attach owner names to contacts
+      setContacts(
+        contactsRaw.map((c) => ({
+          ...c,
+          dog_owner_name: ownerMap[dogsMap[c.dog_id]] || "Owner",
+          my_dog_owner_name: ownerMap[dogsMap[c.my_dog_id]] || "Owner",
+        }))
+      );
     } catch (e) {
-      console.error("listContacts failed", e);
+      console.error("refreshContacts failed", e);
     }
   }, []);
 
