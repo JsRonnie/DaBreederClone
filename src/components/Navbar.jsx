@@ -29,8 +29,8 @@ export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user
             </svg>
           </button>
         </div>
-        {/* Center: DaBreeder Logo - navigate based on login status */}
-        <div className="absolute left-1/2 transform -translate-x-1/2">
+        {/* Center: DaBreeder Logo - hidden on small screens */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:block">
           <Link
             to={user ? "/my-dog" : "/"}
             className="font-bold text-2xl text-slate-800 hover:opacity-80 transition-opacity"
