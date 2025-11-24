@@ -82,6 +82,7 @@ const steps = [
 
 export default function HowItWorks() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState("signup");
 
   return (
     <section id="how" className="py-24 bg-gray-50">
@@ -146,7 +147,10 @@ export default function HowItWorks() {
         {/* CTA */}
         <div className="text-center mt-16">
           <button
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => {
+              setAuthMode("signup");
+              setShowAuthModal(true);
+            }}
             className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,9 +168,12 @@ export default function HowItWorks() {
         {/* Auth Modal */}
         <AuthModal
           open={showAuthModal}
-          mode="signup"
+          mode={authMode}
           onClose={() => setShowAuthModal(false)}
-          onSwitch={() => {}} // We only want signup here
+          onSwitch={(m) => {
+            setAuthMode(m);
+            setShowAuthModal(true);
+          }}
           onAuthSuccess={() => {
             setShowAuthModal(false);
             // Redirect to dashboard or dog adding page

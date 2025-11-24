@@ -456,6 +456,8 @@ export default function ChatPage() {
             otherDogImage = c.dog_image || "/shibaPor.jpg";
           }
 
+          // Calculate unread count for this contact
+          const unreadCount = c.unread_count || 0;
           return (
             <li key={c.id} style={{ marginBottom: "0.375rem" }}>
               <button
@@ -473,6 +475,7 @@ export default function ChatPage() {
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                   boxShadow: c.id === activeContactId ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  position: "relative",
                 }}
                 onMouseEnter={(e) => {
                   if (c.id !== activeContactId) {
@@ -568,6 +571,26 @@ export default function ChatPage() {
                       {c.last_message ? truncatePreview(c.last_message, 50) : "No messages yet"}
                     </div>
                   </div>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        background: "#ef4444",
+                        color: "#fff",
+                        borderRadius: "999px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        marginLeft: "8px",
+                        minWidth: "24px",
+                        textAlign: "center",
+                        display: "inline-block",
+                        boxShadow: "0 1px 4px rgba(239,68,68,0.12)",
+                      }}
+                      title={`${unreadCount} unread message${unreadCount > 1 ? "s" : ""}`}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
                 </div>
               </button>
             </li>
