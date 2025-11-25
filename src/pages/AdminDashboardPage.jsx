@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
   };
 
   const getRecentActivity = async () => {
-    const [users, dogs, reports, contactMessages] = await Promise.all([
+    const [users, dogs, reports, contactMessages, dogMatches, forumPosts] = await Promise.all([
       supabase
         .from("users")
         .select("id, name, email, created_at, avatar_url")
@@ -112,7 +112,56 @@ export default function AdminDashboardPage() {
         .select("id, name, subject, status, created_at")
         .order("created_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("dog_match_requests")
+        .select(
+          `
+          id, 
+          status, 
+          requested_at, 
+          accepted_at, 
+          declined_at,
+          requester_dog:requester_dog_id(name),
+          requested_dog:requested_dog_id(name)
+        `
+        )
+        .in("status", [
+          "accepted",
+          "declined",
+          "awaiting_confirmation",
+          "completed_success",
+          "completed_failed",
+        ])
+        .order("requested_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("threads")
+        .select("id, title, image_url, created_at, user_id")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
+
+    // Fetch user names for forum posts separately
+    let enrichedForumPosts = forumPosts.data || [];
+    if (enrichedForumPosts.length > 0) {
+      try {
+        const userIds = [...new Set(enrichedForumPosts.map((p) => p.user_id).filter(Boolean))];
+        if (userIds.length > 0) {
+          const { data: postUsers } = await supabase
+            .from("users")
+            .select("id, name")
+            .in("id", userIds);
+
+          const userMap = Object.fromEntries((postUsers || []).map((u) => [u.id, u]));
+          enrichedForumPosts = enrichedForumPosts.map((post) => ({
+            ...post,
+            author: userMap[post.user_id] || null,
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching forum post authors:", err);
+      }
+    }
 
     const activities = [
       ...(users.data || []).map((user) => ({
@@ -150,6 +199,31 @@ export default function AdminDashboardPage() {
         details: `Status: ${message.status}`,
         timestamp: message.created_at,
       })),
+      ...(dogMatches.data || []).map((match) => ({
+        id: `match-${match.id}`,
+        type: "match",
+        title: `${match.requester_dog?.name || "Dog"} ↔ ${match.requested_dog?.name || "Dog"}`,
+        subtitle: `Match ${match.status.replace("_", " ")}`,
+        details:
+          match.status === "accepted" || match.status === "awaiting_confirmation"
+            ? "Breeding agreed"
+            : match.status === "declined"
+              ? "Breeding declined"
+              : `Status: ${match.status.replace("_", " ")}`,
+        timestamp: match.accepted_at || match.declined_at || match.requested_at,
+      })),
+      ...enrichedForumPosts.map((post) => {
+        const userName = post.author?.name || "Unknown User";
+        const postTitle = post.title || (post.image_url ? "New Photo Post" : "Untitled");
+        return {
+          id: `post-${post.id}`,
+          type: "post",
+          title: "New Forum Post",
+          subtitle: userName,
+          details: postTitle,
+          timestamp: post.created_at,
+        };
+      }),
     ]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       .slice(0, 15);
@@ -207,33 +281,47 @@ export default function AdminDashboardPage() {
 
   const renderActivityItem = (item) => {
     return (
-      <div key={item.id} className="py-2">
-        <div className="flex items-center space-x-3">
+      <div key={item.id} className="py-2 px-1 hover:bg-accent/50 rounded-lg transition-colors">
+        <div className="flex items-start space-x-3">
           {/* Avatar/Icon */}
           {item.type === "user" ? (
-            <Avatar className="h-8 w-8">
+            <Avatar className="h-9 w-9 shrink-0">
               <AvatarImage src={item.avatar_url} alt={item.title} />
               <AvatarFallback>{item.title?.charAt(0) || "U"}</AvatarFallback>
             </Avatar>
           ) : item.type === "dog" ? (
-            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-secondary flex items-center justify-center">
               <PawPrint className="h-4 w-4" />
             </div>
           ) : item.type === "report" ? (
-            <div className="h-8 w-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
               <AlertTriangle className="h-4 w-4" />
             </div>
           ) : item.type === "contact" ? (
-            <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+              <MessageSquare className="h-4 w-4" />
+            </div>
+          ) : item.type === "match" ? (
+            <div className="h-9 w-9 shrink-0 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+              <Dog className="h-4 w-4" />
+            </div>
+          ) : item.type === "post" ? (
+            <div className="h-9 w-9 shrink-0 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
               <MessageSquare className="h-4 w-4" />
             </div>
           ) : null}
           {/* Details */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{item.title}</p>
-            <p className="text-xs text-muted-foreground">{item.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-1">{item.details}</p>
-            <span className="text-xs text-muted-foreground">{formatTimeAgo(item.timestamp)}</span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{item.title}</p>
+                <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                {formatTimeAgo(item.timestamp)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.details}</p>
           </div>
         </div>
       </div>
@@ -324,15 +412,15 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Latest actions across the platform</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-4">
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-1">
                 {recentActivity.length > 0 ? (
                   recentActivity.map(renderActivityItem)
                 ) : (
@@ -346,7 +434,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Alerts & Notifications</CardTitle>
             <CardDescription>Items requiring your attention</CardDescription>
