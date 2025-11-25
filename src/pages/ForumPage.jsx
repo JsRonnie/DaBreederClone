@@ -7,6 +7,7 @@ import { uploadFileToBucket } from "../lib/storage";
 import { safeGetUser } from "../lib/auth";
 import { fetchThreads, toggleThreadVote } from "../lib/forum";
 import "./FindMatchPage.css";
+import "./ForumPage.css"; // warm dog-lover theme
 import { getCookie, setCookie } from "../utils/cookies";
 import LoadingState from "../components/LoadingState";
 import ErrorMessage from "../components/ErrorMessage";

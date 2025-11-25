@@ -6,6 +6,7 @@ import useDogMatches from "../hooks/useDogMatches";
 import ReportModal from "../components/ReportModal";
 import { useAuth } from "../hooks/useAuth";
 import "./FindMatchPage.css"; // reuse shared loading styles
+import "./DogProfilePage.css"; // warm dog-lover theme
 import LoadingState from "../components/LoadingState";
 
 export default function DogProfilePage() {
@@ -28,11 +29,11 @@ export default function DogProfilePage() {
 
   if (error || !dog) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="dog-profile-error">
+        <div className="dog-profile-error-card">
+          <div className="dog-profile-error-icon">
             <svg
-              className="w-8 h-8 text-red-600"
+              className="w-12 h-12 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -45,8 +46,8 @@ export default function DogProfilePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="dog-profile-error-title">Profile Not Found</h1>
+          <p className="dog-profile-error-message">
             The dog profile you're looking for doesn't exist or has been removed.
           </p>
           <button
@@ -62,7 +63,7 @@ export default function DogProfilePage() {
                 navigate("/my-dog");
               }
             }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="dog-profile-error-btn"
           >
             {location.state?.fromFindMatch ? "Back to Find Match" : "Back to Dashboard"}
           </button>
@@ -79,11 +80,11 @@ export default function DogProfilePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="dog-profile-page">
+        <div className="dog-profile-container">
           {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
+          <div className="dog-profile-header">
+            <div className="dog-profile-header-content">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <button
@@ -99,7 +100,7 @@ export default function DogProfilePage() {
                         navigate("/my-dog");
                       }
                     }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="dog-profile-back-btn"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -111,10 +112,8 @@ export default function DogProfilePage() {
                     </svg>
                   </button>
                   <div className="flex flex-col">
-                    <span className="text-2xl font-bold text-gray-900">{dog.name}</span>
-                    <span className="text-base text-gray-500 font-medium">
-                      {dog.breed || "Breed not specified"}
-                    </span>
+                    <span className="dog-profile-name">{dog.name}</span>
+                    <span className="dog-profile-breed">{dog.breed || "Breed not specified"}</span>
                   </div>
                   {/* ...existing code... */}
                 </div>
@@ -122,7 +121,7 @@ export default function DogProfilePage() {
                   {isOwner ? (
                     <Link
                       to={`/dog/${dog.id}/edit`}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      className="dog-profile-edit-btn flex items-center space-x-2"
                     >
                       <svg
                         className="w-4 h-4"
@@ -142,7 +141,7 @@ export default function DogProfilePage() {
                   ) : (
                     <button
                       onClick={() => setReportOpen(true)}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                      className="dog-profile-report-btn flex items-center space-x-2"
                     >
                       <svg
                         className="w-4 h-4"
@@ -167,15 +166,15 @@ export default function DogProfilePage() {
 
           {/* Hero Section with Photo */}
           <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-sm w-full p-6 flex flex-col lg:flex-row lg:space-x-8">
+            <div className="dog-profile-hero flex flex-col lg:flex-row lg:space-x-8">
               {/* Photo */}
               <div className="shrink-0 mb-6 lg:mb-0">
-                <div className="w-64 h-64 mx-auto lg:mx-0 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-gray-200">
+                <div className="dog-profile-photo-container mx-auto lg:mx-0">
                   {photoUrl ? (
                     <img
                       src={photoUrl}
                       alt={dog.name}
-                      className="w-full h-full object-cover"
+                      className="dog-profile-photo"
                       onError={(e) => {
                         e.target.style.display = "none";
                         e.target.nextSibling.style.display = "flex";
@@ -210,46 +209,40 @@ export default function DogProfilePage() {
               <div className="flex-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-                      Basic Information
-                    </h3>
+                    <h3 className="dog-profile-section-title">Basic Information</h3>
                     <div className="space-y-3">
-                      <div>
-                        <dt className="text-sm text-gray-500">Gender</dt>
-                        <dd className="text-base text-gray-900 font-medium">{dog.gender || "—"}</dd>
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Gender</dt>
+                        <dd className="dog-profile-info-value">{dog.gender || "—"}</dd>
                       </div>
-                      <div>
-                        <dt className="text-sm text-gray-500">Size</dt>
-                        <dd className="text-base text-gray-900 font-medium">{dog.size || "—"}</dd>
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Size</dt>
+                        <dd className="dog-profile-info-value">{dog.size || "—"}</dd>
                       </div>
-                      <div>
-                        <dt className="text-sm text-gray-500">Color</dt>
-                        <dd className="text-base text-gray-900 font-medium">{dog.color || "—"}</dd>
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Color</dt>
+                        <dd className="dog-profile-info-value">{dog.color || "—"}</dd>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-                      Details
-                    </h3>
+                    <h3 className="dog-profile-section-title">Details</h3>
                     <div className="space-y-3">
-                      <div>
-                        <dt className="text-sm text-gray-500">Age</dt>
-                        <dd className="text-base text-gray-900 font-medium">
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Age</dt>
+                        <dd className="dog-profile-info-value">
                           {dog.age_years ? `${dog.age_years} years` : "—"}
                         </dd>
                       </div>
-                      <div>
-                        <dt className="text-sm text-gray-500">Weight</dt>
-                        <dd className="text-base text-gray-900 font-medium">
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Weight</dt>
+                        <dd className="dog-profile-info-value">
                           {dog.weight_kg ? `${dog.weight_kg} kg` : "—"}
                         </dd>
                       </div>
-                      <div>
-                        <dt className="text-sm text-gray-500">Coat Type</dt>
-                        <dd className="text-base text-gray-900 font-medium">
-                          {dog.coat_type || "—"}
-                        </dd>
+                      <div className="dog-profile-info-item">
+                        <dt className="dog-profile-info-label">Coat Type</dt>
+                        <dd className="dog-profile-info-value">{dog.coat_type || "—"}</dd>
                       </div>
                     </div>
                   </div>
@@ -261,117 +254,117 @@ export default function DogProfilePage() {
           {/* Content Sections */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Dog Characteristics */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Dog Characteristics</h2>
+            <div className="dog-profile-card">
+              <div className="dog-profile-card-header">
+                <h2 className="dog-profile-card-title">Dog Characteristics</h2>
               </div>
-              <div className="px-6 py-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-500">Activity Level</dt>
-                    <dd className="text-sm text-gray-900 font-medium">
+              <div className="dog-profile-card-body">
+                <div className="space-y-3">
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">Activity Level</dt>
+                    <dd className="dog-profile-characteristic-value">
                       {dog.activity_level || "—"}
                     </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-500">Sociability</dt>
-                    <dd className="text-sm text-gray-900 font-medium">{dog.sociability || "—"}</dd>
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">Sociability</dt>
+                    <dd className="dog-profile-characteristic-value">{dog.sociability || "—"}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-500">Trainability</dt>
-                    <dd className="text-sm text-gray-900 font-medium">{dog.trainability || "—"}</dd>
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">Trainability</dt>
+                    <dd className="dog-profile-characteristic-value">{dog.trainability || "—"}</dd>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Health & Verification */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Health & Verification</h2>
+            <div className="dog-profile-card">
+              <div className="dog-profile-card-header">
+                <h2 className="dog-profile-card-title">Health & Verification</h2>
               </div>
-              <div className="px-6 py-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">Vaccinated</dt>
+              <div className="dog-profile-card-body">
+                <div className="space-y-3">
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">Vaccinated</dt>
                     <dd className="flex items-center">
                       {dog.vaccinated ? (
-                        <div className="flex items-center text-green-600">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-yes">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">Yes</span>
+                          <span className="text-sm">Yes</span>
                         </div>
                       ) : (
-                        <div className="flex items-center text-gray-400">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-no">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">No</span>
+                          <span className="text-sm">No</span>
                         </div>
                       )}
                     </dd>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">DNA Tested</dt>
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">DNA Tested</dt>
                     <dd className="flex items-center">
                       {dog.dna_tested ? (
-                        <div className="flex items-center text-green-600">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-yes">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">Yes</span>
+                          <span className="text-sm">Yes</span>
                         </div>
                       ) : (
-                        <div className="flex items-center text-gray-400">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-no">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">No</span>
+                          <span className="text-sm">No</span>
                         </div>
                       )}
                     </dd>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">Pedigree Certified</dt>
+                  <div className="dog-profile-characteristic-item">
+                    <dt className="dog-profile-characteristic-label">Pedigree Certified</dt>
                     <dd className="flex items-center">
                       {dog.pedigree_certified ? (
-                        <div className="flex items-center text-green-600">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-yes">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">Yes</span>
+                          <span className="text-sm">Yes</span>
                         </div>
                       ) : (
-                        <div className="flex items-center text-gray-400">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="dog-profile-health-no">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="text-sm font-medium">No</span>
+                          <span className="text-sm">No</span>
                         </div>
                       )}
                     </dd>
@@ -383,35 +376,27 @@ export default function DogProfilePage() {
 
           {/* Dog History Card - separate, styled, renamed */}
           {/* Dog History Card - styled like other cards, outside main info card */}
-          <div className="bg-white rounded-lg shadow-sm w-full mt-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Dog History</h2>
+          <div className="dog-profile-card mt-8">
+            <div className="dog-profile-card-header">
+              <h2 className="dog-profile-card-title">Dog History</h2>
             </div>
-            <div className="px-6 py-6">
+            <div className="dog-profile-card-body">
               {matchesLoading ? (
                 <div className="text-gray-500">Loading dog history...</div>
               ) : dogHistoryMatches.length === 0 ? (
                 <div className="text-gray-500">No history found for this dog.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
+                  <table className="dog-profile-history-table">
+                    <thead className="dog-profile-history-header">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Date
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Partner
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Status
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Outcome
-                        </th>
+                        <th>Date</th>
+                        <th>Partner</th>
+                        <th>Status</th>
+                        <th>Outcome</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
+                    <tbody>
                       {dogHistoryMatches.map((match) => {
                         const isRequester = match.requester_dog_id === dog.id;
                         const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
@@ -428,15 +413,13 @@ export default function DogProfilePage() {
                               ? "Failed"
                               : match.status.charAt(0).toUpperCase() + match.status.slice(1));
                         return (
-                          <tr key={match.id}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {date ? new Date(date).toLocaleDateString() : "—"}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                          <tr key={match.id} className="dog-profile-history-row">
+                            <td>{date ? new Date(date).toLocaleDateString() : "—"}</td>
+                            <td>
                               {partnerDog?.id ? (
                                 <Link
                                   to={`/dog/${partnerDog.id}`}
-                                  className="text-blue-700 font-medium underline hover:text-blue-900 transition"
+                                  className="dog-profile-history-link"
                                 >
                                   {partnerDog.name}
                                 </Link>
@@ -444,12 +427,10 @@ export default function DogProfilePage() {
                                 <span className="text-gray-500">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                            <td>
                               {match.status.replace("completed_", "Completed: ").replace("_", " ")}
                             </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {outcome}
-                            </td>
+                            <td>{outcome}</td>
                           </tr>
                         );
                       })}

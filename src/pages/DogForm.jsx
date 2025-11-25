@@ -8,6 +8,7 @@ import Step4Documents from "../stepComponents/Step4Documents";
 import StepNavigation from "../stepComponents/StepNavigation";
 import "../stepComponents/stepbystepUI.css";
 import "./FindMatchPage.css";
+import "./AddDogForm.css"; // warm dog-lover theme for form
 import { createCache } from "../lib/cache";
 import { getCookie, setCookie, deleteCookie } from "../utils/cookies";
 
@@ -86,6 +87,8 @@ export default function DogForm({ onSubmitted }) {
       }
     }
     if (!data.breed || !data.breed.trim()) errors.breed = "Breed is required";
+    // Photo is now required
+    if (!data.photo) errors.photo = "Dog photo is required";
     return errors;
   };
 
@@ -125,24 +128,10 @@ export default function DogForm({ onSubmitted }) {
   const submit = async () => {
     const id = await form.submit();
     if (id) {
-      // Modern success notification
+      // Warm-themed success notification
       const successDiv = document.createElement("div");
-      successDiv.innerHTML = `
-				<div style="
-					position: fixed;
-					top: 20px;
-					right: 20px;
-					background: #10b981;
-					color: white;
-					padding: 1rem 1.5rem;
-					border-radius: 8px;
-					box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-					z-index: 1000;
-					font-weight: 600;
-				">
-					✓ Dog registered successfully!
-				</div>
-			`;
+      successDiv.className = "success-toast";
+      successDiv.innerHTML = `✓ Dog registered successfully!`;
       document.body.appendChild(successDiv);
       setTimeout(() => {
         document.body.removeChild(successDiv);

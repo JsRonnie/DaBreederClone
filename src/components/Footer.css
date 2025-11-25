@@ -1,0 +1,66 @@
+/* Footer - Warm Dog Lover Theme 🐾 */
+
+/* Footer Container */
+footer.bg-slate-900 {
+  background: linear-gradient(to bottom, #7c2d12, #431407) !important;
+  /* Warm dark brown gradient */
+  color: #fffbf5 !important;
+  /* Cream text */
+  border-top: 6px solid #fb923c !important;
+  /* Orange top border */
+  position: relative;
+  overflow: hidden;
+}
+
+footer.bg-slate-900::before {
+  content: "🐾";
+  position: absolute;
+  top: -20px;
+  left: 20px;
+  font-size: 150px;
+  opacity: 0.05;
+  transform: rotate(-15deg);
+  pointer-events: none;
+  color: #fff;
+}
+
+footer.bg-slate-900::after {
+  content: "🐾";
+  position: absolute;
+  bottom: -20px;
+  right: 20px;
+  font-size: 120px;
+  opacity: 0.05;
+  transform: rotate(15deg);
+  pointer-events: none;
+  color: #fff;
+}
+
+/* Brand */
+footer .text-2xl {
+  font-weight: 900 !important;
+  letter-spacing: -0.02em;
+}
+
+footer .text-blue-400 {
+  color: #fb923c !important;
+  /* Orange */
+}
+
+/* Description */
+footer .text-slate-300 {
+  color: #fed7aa !important;
+  /* Light orange-cream */
+  font-weight: 500;
+}
+
+/* Copyright Section */
+footer .border-slate-700 {
+  border-color: rgba(254, 215, 170, 0.2) !important;
+}
+
+footer .text-slate-400 {
+  color: #fdba74 !important;
+  /* Muted orange */
+  font-weight: 600;
+}

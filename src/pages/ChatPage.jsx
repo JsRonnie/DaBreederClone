@@ -7,6 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import ReportModal from "../components/ReportModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { createMatchRequest } from "../lib/matches";
+import "./ChatPage.css"; // warm dog-lover theme
 
 // Helper: truncate long preview messages for contact list
 function truncatePreview(text, max = 80) {
@@ -380,12 +381,13 @@ export default function ChatPage() {
     <div
       className="chat-contact-list"
       style={{
-        borderRight: "1px solid #e5e7eb",
+        borderRight: "3px solid #fef3e8",
         padding: "1.5rem 1rem",
         overflowY: "auto",
         height: "100%",
         minHeight: 0,
-        background: "#fafafa",
+        background: "linear-gradient(145deg, #ffffff, #fff9f5)",
+        boxShadow: "4px 0 12px rgba(251, 146, 60, 0.08)",
       }}
     >
       <style>
@@ -405,10 +407,14 @@ export default function ChatPage() {
         className="contact-list-title"
         style={{
           marginBottom: "1.5rem",
-          fontSize: "1.25rem",
-          fontWeight: 600,
-          color: "#111827",
+          fontSize: "1.5rem",
+          fontWeight: 900,
+          background: "linear-gradient(135deg, #7c2d12, #9a3412)",
+          backgroundClip: "text",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
           letterSpacing: "-0.025em",
+          textTransform: "uppercase",
         }}
       >
         Messages
@@ -416,10 +422,11 @@ export default function ChatPage() {
       {contacts.length === 0 && (
         <p
           style={{
-            fontSize: "0.875rem",
-            color: "#6b7280",
+            fontSize: "0.9375rem",
+            color: "#9a3412",
             textAlign: "center",
             marginTop: "3rem",
+            fontWeight: 700,
           }}
         >
           No conversations yet.
@@ -471,21 +478,30 @@ export default function ChatPage() {
                   width: "100%",
                   textAlign: "left",
                   padding: "0.875rem 1rem",
-                  border: "none",
-                  borderRadius: 12,
-                  background: c.id === activeContactId ? "#ffffff" : "transparent",
+                  border: c.id === activeContactId ? "2px solid #fb923c" : "2px solid transparent",
+                  borderRadius: 16,
+                  background:
+                    c.id === activeContactId
+                      ? "linear-gradient(145deg, #fff9f5, #fef3e8)"
+                      : "transparent",
                   cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow: c.id === activeContactId ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  boxShadow:
+                    c.id === activeContactId ? "0 4px 12px rgba(251, 146, 60, 0.15)" : "none",
                 }}
                 onMouseEnter={(e) => {
                   if (c.id !== activeContactId) {
-                    e.currentTarget.style.background = "#f3f4f6";
+                    e.currentTarget.style.background =
+                      "linear-gradient(to right, #fef9f3, #fef3e8)";
+                    e.currentTarget.style.borderColor = "#fed7aa";
+                    e.currentTarget.style.transform = "translateX(4px)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (c.id !== activeContactId) {
                     e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.borderColor = "transparent";
+                    e.currentTarget.style.transform = "translateX(0)";
                   }
                 }}
               >
@@ -511,8 +527,8 @@ export default function ChatPage() {
                           borderRadius: "50%",
                           overflow: "hidden",
                           background: "#e5e7eb",
-                          border: "2px solid #ffffff",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                          border: "3px solid #fb923c",
+                          boxShadow: "0 2px 8px rgba(251, 146, 60, 0.25)",
                           zIndex: 1,
                         }}
                       >
@@ -535,8 +551,8 @@ export default function ChatPage() {
                         borderRadius: "50%",
                         overflow: "hidden",
                         background: "#e5e7eb",
-                        border: "2px solid #ffffff",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                        border: "3px solid #fb923c",
+                        boxShadow: "0 2px 8px rgba(251, 146, 60, 0.25)",
                       }}
                     >
                       <img
@@ -546,13 +562,16 @@ export default function ChatPage() {
                       />
                     </div>
                   </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ flex: 1, overflow: "hidden" }}>
                     <div
                       style={{
-                        fontWeight: 600,
+                        fontWeight: 800,
                         fontSize: "0.9375rem",
-                        color: "#111827",
+                        color: "#7c2d12",
                         marginBottom: "0.25rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {myDogForContact
@@ -562,14 +581,15 @@ export default function ChatPage() {
                     <div
                       style={{
                         fontSize: "0.8125rem",
-                        color: "#6b7280",
+                        color: "#9a3412",
                         lineHeight: "1.25",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        fontWeight: 600,
                       }}
                     >
-                      {c.last_message ? truncatePreview(c.last_message, 50) : "No messages yet"}
+                      {c.last_message ? truncatePreview(c.last_message, 40) : "No messages yet"}
                     </div>
                   </div>
                 </div>
@@ -654,7 +674,7 @@ export default function ChatPage() {
           flexDirection: "column",
           height: "100%",
           minHeight: 0,
-          background: "#ffffff",
+          background: "linear-gradient(145deg, #ffffff, #fff9f5)",
         }}
       >
         <div
@@ -662,9 +682,10 @@ export default function ChatPage() {
             display: "flex",
             alignItems: "center",
             gap: "0.875rem",
-            borderBottom: "1px solid #e5e7eb",
+            borderBottom: "3px solid #fef3e8",
             padding: "1rem 1.5rem",
-            background: "#ffffff",
+            background: "linear-gradient(145deg, #ffffff, #fff9f5)",
+            boxShadow: "0 2px 8px rgba(251, 146, 60, 0.08)",
           }}
         >
           <button
@@ -709,8 +730,8 @@ export default function ChatPage() {
                   borderRadius: "50%",
                   overflow: "hidden",
                   background: "#e5e7eb",
-                  border: "3px solid #ffffff",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  border: "3px solid #fb923c",
+                  boxShadow: "0 2px 8px rgba(251, 146, 60, 0.25)",
                   zIndex: 1,
                 }}
               >
@@ -733,8 +754,8 @@ export default function ChatPage() {
                 borderRadius: "50%",
                 overflow: "hidden",
                 background: "#e5e7eb",
-                border: "3px solid #ffffff",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                border: "3px solid #fb923c",
+                boxShadow: "0 2px 8px rgba(251, 146, 60, 0.25)",
               }}
             >
               <img
@@ -746,13 +767,13 @@ export default function ChatPage() {
           </div>
 
           {/* Dog names and owner */}
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ flex: 1, overflow: "hidden" }}>
             <h3
               style={{
                 margin: 0,
-                fontSize: "1.0625rem",
-                fontWeight: 600,
-                color: "#111827",
+                fontSize: "1.125rem",
+                fontWeight: 900,
+                color: "#7c2d12",
                 letterSpacing: "-0.0125em",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -780,25 +801,34 @@ export default function ChatPage() {
               disabled={requestButtonDisabled}
               title={requestButtonDisabledReason || "Request a breeding match for these dogs"}
               style={{
-                padding: "0.5rem 1rem",
-                borderRadius: 9999,
-                border: "none",
-                fontWeight: 600,
+                padding: "0.625rem 1.25rem",
+                borderRadius: 20,
+                border: requestButtonDisabled
+                  ? "2px solid #e5e7eb"
+                  : "2px solid rgba(255, 255, 255, 0.3)",
+                fontWeight: 800,
                 fontSize: "0.875rem",
-                backgroundColor: requestButtonDisabled ? "#e5e7eb" : "#2563eb",
+                background: requestButtonDisabled
+                  ? "linear-gradient(to bottom, #e5e7eb, #d1d5db)"
+                  : "linear-gradient(135deg, #fb923c, #f97316)",
                 color: requestButtonDisabled ? "#9ca3af" : "#ffffff",
                 cursor: requestButtonDisabled ? "not-allowed" : "pointer",
-                boxShadow: requestButtonDisabled ? "none" : "0 4px 10px rgba(37,99,235,0.25)",
-                transition: "transform 0.15s ease, background 0.15s ease",
+                boxShadow: requestButtonDisabled ? "none" : "0 4px 12px rgba(251, 146, 60, 0.35)",
+                transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                textTransform: "uppercase",
+                letterSpacing: "0.03em",
               }}
               onMouseEnter={(e) => {
                 if (requestButtonDisabled) return;
-                e.currentTarget.style.backgroundColor = "#1d4ed8";
+                e.currentTarget.style.background = "linear-gradient(135deg, #f97316, #ea580c)";
+                e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(251, 146, 60, 0.5)";
               }}
               onMouseLeave={(e) => {
                 if (requestButtonDisabled) return;
-                e.currentTarget.style.backgroundColor = "#2563eb";
+                e.currentTarget.style.background = "linear-gradient(135deg, #fb923c, #f97316)";
                 e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(251, 146, 60, 0.35)";
               }}
               onMouseDown={(e) => {
                 if (requestButtonDisabled) return;

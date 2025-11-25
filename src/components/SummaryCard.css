@@ -1,0 +1,138 @@
+/* Summary Card - Warm Dog Lover Theme 🐾 */
+
+.summary-card {
+  border-radius: 20px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.08);
+  border: 3px solid;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card::before {
+  content: "🐾";
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  font-size: 80px;
+  opacity: 0.03;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+.summary-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(251, 146, 60, 0.15);
+}
+
+.summary-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.summary-card-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.summary-card-label {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-card-value {
+  font-size: 2.5rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Pending Card */
+.summary-card-pending {
+  background: linear-gradient(145deg, #fef9c3, #fef08a);
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.summary-card-pending .summary-card-icon {
+  color: #d97706;
+}
+
+/* Declined Card */
+.summary-card-declined {
+  background: linear-gradient(145deg, #fecaca, #fca5a5);
+  border-color: #ef4444;
+  color: #7f1d1d;
+}
+
+.summary-card-declined .summary-card-icon {
+  color: #dc2626;
+}
+
+/* Awaiting Card */
+.summary-card-awaiting {
+  background: linear-gradient(145deg, #e9d5ff, #d8b4fe);
+  border-color: #a78bfa;
+  color: #5b21b6;
+}
+
+.summary-card-awaiting .summary-card-icon {
+  color: #7c3aed;
+}
+
+/* Success Card */
+.summary-card-success {
+  background: linear-gradient(145deg, #d1fae5, #a7f3d0);
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.summary-card-success .summary-card-icon {
+  color: #059669;
+}
+
+/* Failed Card */
+.summary-card-failed {
+  background: linear-gradient(145deg, #fecaca, #fca5a5);
+  border-color: #dc2626;
+  color: #7f1d1d;
+}
+
+.summary-card-failed .summary-card-icon {
+  color: #b91c1c;
+}
+
+/* Accepted Card */
+.summary-card-accepted {
+  background: linear-gradient(145deg, #dbeafe, #bfdbfe);
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.summary-card-accepted .summary-card-icon {
+  color: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .summary-card {
+    padding: 1.25rem;
+  }
+
+  .summary-card-value {
+    font-size: 2rem;
+  }
+
+  .summary-card-label {
+    font-size: 0.75rem;
+  }
+}

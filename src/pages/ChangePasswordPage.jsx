@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import { useAuth } from "../hooks/useAuth";
 import { validatePassword, passwordPolicyNote } from "../utils/passwordRules";
+import "./ChangePasswordPage.css"; // warm dog-lover theme
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();

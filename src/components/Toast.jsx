@@ -1,4 +1,5 @@
 import React from "react";
+import "./Toast.css"; // warm dog-lover theme
 
 export default function Toast() {
   const [toast, setToast] = React.useState(null); // { message, type }
