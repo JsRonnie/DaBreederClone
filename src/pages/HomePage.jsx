@@ -5,6 +5,7 @@ import HowItWorks from "../components/HowItWorks";
 import Community from "../components/Community";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import "./HomePage.css"; // warm dog-lover theme
 
 export default function HomePage() {
   const { user } = useAuth();

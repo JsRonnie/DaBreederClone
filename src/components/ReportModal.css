@@ -1,0 +1,127 @@
+/* Report Modal - Warm Dog Lover Theme 🐾 */
+
+/* Modal Overlay */
+.fixed.inset-0.bg-black\/50 {
+  background-color: rgba(124, 45, 18, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+/* Modal Card */
+.bg-white.rounded-xl.max-w-md {
+  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
+  border: 3px solid #fef3e8 !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 60px rgba(251, 146, 60, 0.25) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-white.rounded-xl.max-w-md::before {
+  content: "🐾";
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  font-size: 120px;
+  opacity: 0.03;
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+/* Title */
+h2.text-2xl {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #7c2d12 !important;
+}
+
+/* Close Button */
+button.text-slate-400:hover {
+  color: #fb923c !important;
+  transform: scale(1.1);
+}
+
+/* Form Labels */
+label.block.text-sm {
+  color: #7c2d12 !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+/* Select & Inputs */
+select,
+input[type="text"],
+textarea {
+  border: 2px solid #fef3e8 !important;
+  background: linear-gradient(to right, #fffbf5, #fef9f3) !important;
+  color: #7c2d12 !important;
+  font-weight: 600;
+  border-radius: 12px !important;
+  transition: all 0.3s ease;
+}
+
+select:focus,
+input[type="text"]:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: #fb923c !important;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15) !important;
+  background: white !important;
+}
+
+/* Submit Button */
+button.bg-red-600 {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: white !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+button.bg-red-600:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Cancel Button */
+button.bg-slate-100 {
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8) !important;
+  border: 2px solid #fef3e8 !important;
+  color: #7c2d12 !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  transition: all 0.3s ease;
+}
+
+button.bg-slate-100:hover {
+  background: linear-gradient(to bottom, #fed7aa, #fdba74) !important;
+  border-color: #fdba74 !important;
+  transform: translateY(-2px);
+}
+
+/* Success State */
+.bg-green-100 {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
+  color: #15803d !important;
+}
+
+.text-green-600 {
+  color: #15803d !important;
+}
+
+/* Notes Box */
+.bg-blue-50 {
+  background: linear-gradient(to right, #eff6ff, #dbeafe) !important;
+  border: 2px solid #bfdbfe !important;
+  border-radius: 12px !important;
+}
+
+.text-blue-700 {
+  color: #1e40af !important;
+}

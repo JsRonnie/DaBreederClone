@@ -1,0 +1,41 @@
+/* Toast Notification - Warm Dog Lover Theme 🐾 */
+
+/* Toast Container */
+.shadow-xl {
+  border-radius: 16px !important;
+  box-shadow: 0 12px 36px rgba(251, 146, 60, 0.25) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Success Toast */
+.bg-emerald-600 {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+/* Error Toast */
+.bg-rose-600 {
+  background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
+}
+
+/* Warning Toast */
+.bg-amber-600 {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+/* Info Toast */
+.bg-slate-800 {
+  background: linear-gradient(135deg, #475569, #334155) !important;
+}
+
+/* Text */
+.text-sm.font-medium {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Close Button */
+button.bg-white\/20:hover {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+  transform: scale(1.1);
+}

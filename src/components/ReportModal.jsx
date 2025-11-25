@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useReporting } from "../hooks/useReporting";
 import { useAuth } from "../hooks/useAuth";
+import "./ReportModal.css"; // warm dog-lover theme
 
 /**
  * Reusable Report Modal for reporting dog profiles, chat messages, forum threads, and forum comments

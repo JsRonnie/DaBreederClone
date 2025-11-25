@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import "./Navbar.css"; // warm dog-lover theme
 
 export default function Navbar({ onMenuClick, onSignInClick, onSignUpClick, user }) {
   const [open, setOpen] = useState(false);

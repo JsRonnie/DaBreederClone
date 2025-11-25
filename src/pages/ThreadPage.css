@@ -1,0 +1,292 @@
+/* Thread Page - Warm Dog Lover Theme 🐾 */
+
+/* Full-width background */
+body {
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+  min-height: 100vh;
+}
+
+/* Container styling */
+.max-w-3xl {
+  padding-bottom: 3rem;
+}
+
+/* Thread Page Header */
+.max-w-3xl > div:first-child {
+  border-bottom: 3px solid #fef3e8;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Back Button */
+.max-w-3xl button[aria-label="Back to forum"],
+.max-w-3xl a[aria-label="Back to forum"] {
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8);
+  color: #7c2d12;
+  font-weight: 800;
+  border: 2px solid #fef3e8;
+  border-radius: 12px;
+  padding: 0.625rem 1.25rem;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.max-w-3xl button[aria-label="Back to forum"]:hover,
+.max-w-3xl a[aria-label="Back to forum"]:hover {
+  background: linear-gradient(to bottom, #fed7aa, #fdba74);
+  border-color: #fdba74;
+  transform: translateX(-4px);
+}
+
+/* Thread Title */
+.max-w-3xl h1 {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #7c2d12;
+  text-shadow: 0 1px 2px rgba(251, 146, 60, 0.1);
+}
+
+/* Thread Author & Date */
+.max-w-3xl .text-xs.text-slate-600 {
+  color: #9a3412 !important;
+  font-weight: 700;
+}
+
+.max-w-3xl .font-medium.text-slate-800 {
+  color: #7c2d12 !important;
+  font-weight: 900;
+}
+
+/* Thread Body */
+.max-w-3xl .text-slate-700 {
+  color: #9a3412 !important;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+/* Thread Image */
+.max-w-3xl img.max-h-96 {
+  border: 3px solid #fef3e8;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+}
+
+/* Vote Section */
+.max-w-3xl .flex.items-center.gap-4 {
+  background: linear-gradient(145deg, #ffffff, #fff9f5);
+  border: 3px solid #fef3e8;
+  border-radius: 20px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+}
+
+/* Vote Buttons */
+.max-w-3xl button[aria-label*="Upvote"],
+.max-w-3xl button[aria-label*="Downvote"] {
+  border-radius: 12px;
+  padding: 0.625rem;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid #fef3e8;
+  font-weight: 800;
+}
+
+.max-w-3xl button[aria-label*="Upvote"]:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #d1fae5, #a7f3d0) !important;
+  border-color: #10b981;
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.max-w-3xl button[aria-label*="Downvote"]:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #fecaca, #fca5a5) !important;
+  border-color: #ef4444;
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Vote active states */
+.max-w-3xl button[aria-label*="Upvote"].text-green-600 {
+  background: linear-gradient(to bottom, #d1fae5, #a7f3d0) !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+.max-w-3xl button[aria-label*="Downvote"].text-red-600 {
+  background: linear-gradient(to bottom, #fecaca, #fca5a5) !important;
+  border-color: #ef4444 !important;
+  color: #7f1d1d !important;
+}
+
+/* Delete Button */
+.max-w-3xl button.text-red-600 {
+  background: linear-gradient(to bottom, #fecaca, #fca5a5);
+  color: #7f1d1d !important;
+  font-weight: 800;
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  padding: 0.625rem 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.max-w-3xl button.text-red-600:hover {
+  background: linear-gradient(to bottom, #fca5a5, #f87171);
+  border-color: #dc2626;
+  transform: translateY(-2px);
+}
+
+/* Comment Form */
+.max-w-3xl form {
+  background: linear-gradient(145deg, #ffffff, #fff9f5);
+  border: 3px solid #fef3e8;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  position: relative;
+}
+
+.max-w-3xl form::before {
+  content: "🐾";
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  font-size: 80px;
+  opacity: 0.02;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+.max-w-3xl textarea {
+  border: 2px solid #fef3e8;
+  background: linear-gradient(to right, #fffbf5, #fef9f3);
+  color: #7c2d12;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.max-w-3xl textarea:focus {
+  outline: none !important;
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15) !important;
+  background: white;
+}
+
+/* Submit Button */
+.max-w-3xl button[type="submit"] {
+  background: linear-gradient(135deg, #fb923c, #f97316) !important;
+  color: white;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 12px;
+  padding: 0.625rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.35);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.max-w-3xl button[type="submit"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.5);
+}
+
+/* Comment Card */
+.max-w-3xl .rounded-lg.border.border-slate-200 {
+  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
+  border: 3px solid #fef3e8 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12) !important;
+  transition: all 0.3s ease !important;
+  position: relative;
+}
+
+.max-w-3xl .rounded-lg.border.border-slate-200::before {
+  content: "🐾";
+  position: absolute;
+  bottom: -15px;
+  right: -15px;
+  font-size: 70px;
+  opacity: 0.02;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+.max-w-3xl .rounded-lg.border.border-slate-200:hover {
+  border-color: #fed7aa !important;
+  box-shadow: 0 12px 36px rgba(251, 146, 60, 0.18) !important;
+}
+
+/* Nested Comment Indentation */
+.max-w-3xl .ml-6.pl-4.border-l-2 {
+  border-left: 3px solid #fef3e8 !important;
+  padding-left: 1.5rem;
+}
+
+/* Comment Author */
+.max-w-3xl .text-sm.font-semibold.text-slate-900 {
+  color: #7c2d12 !important;
+  font-weight: 900;
+}
+
+/* Comment Body */
+.max-w-3xl .text-sm {
+  color: #9a3412 !important;
+  font-weight: 600;
+}
+
+/* Reply Button */
+.max-w-3xl button.text-blue-600 {
+  background: linear-gradient(to bottom, #dbeafe, #bfdbfe);
+  color: #1e40af !important;
+  font-weight: 800;
+  border: 2px solid #93c5fd;
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.max-w-3xl button.text-blue-600:hover {
+  background: linear-gradient(to bottom, #bfdbfe, #93c5fd);
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+}
+
+/* Featured Dog Section */
+.max-w-3xl .bg-slate-50.rounded-lg {
+  background: linear-gradient(to right, #fef9f3, #fef3e8) !important;
+  border: 2px solid #fef3e8;
+  border-radius: 16px !important;
+}
+
+/* Cancel Button */
+.max-w-3xl button.border.border-slate-300 {
+  border: 2px solid #fef3e8 !important;
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8);
+  color: #7c2d12;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.max-w-3xl button.border.border-slate-300:hover {
+  background: linear-gradient(to bottom, #fed7aa, #fdba74);
+  border-color: #fdba74 !important;
+}
+
+/* Divider */
+.max-w-3xl .border-b.border-slate-200 {
+  border-bottom: 2px solid #fef3e8 !important;
+}
+
+/* Comments Section Header */
+.max-w-3xl h2 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #7c2d12;
+  text-shadow: 0 1px 2px rgba(251, 146, 60, 0.1);
+}
+
+/* Empty State */
+.max-w-3xl .text-center.py-8 {
+  color: #9a3412;
+  font-weight: 700;
+}

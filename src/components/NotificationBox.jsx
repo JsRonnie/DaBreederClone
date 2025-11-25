@@ -1,4 +1,5 @@
 import "../pages/FindMatchPage.css";
+import "./NotificationBox.css"; // warm dog-lover theme
 import React, { useEffect, useState } from "react";
 import { fetchReportRepliesForUser } from "../lib/reportReplies";
 import { useAuth } from "../context/useAuth";
@@ -39,9 +40,7 @@ export default function NotificationBox() {
       {/* Header Section - matches MyDogs */}
       <div className="header-section">
         <h1 className="page-title">Report Replies</h1>
-        <p className="page-description">
-          View responses to your submitted reports from admins
-        </p>
+        <p className="page-description">View responses to your submitted reports from admins</p>
       </div>
 
       {/* Main Content */}

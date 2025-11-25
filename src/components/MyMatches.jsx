@@ -1,4 +1,5 @@
 import "../pages/FindMatchPage.css";
+import "./MyMatches.css"; // warm dog-lover theme
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useDogMatches from "../hooks/useDogMatches";
@@ -61,22 +62,34 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
   const requestedDate = match.requested_at ? new Date(match.requested_at) : null;
   const progressMessage = getProgressMessage(match);
 
+  // Helper to get badge class
+  const getBadgeClass = (status) => {
+    const statusMap = {
+      pending: "status-badge-pending",
+      accepted: "status-badge-accepted",
+      declined: "status-badge-declined",
+      cancelled: "status-badge-cancelled",
+      awaiting_confirmation: "status-badge-awaiting",
+      completed_success: "status-badge-success",
+      completed_failed: "status-badge-failed",
+    };
+    return statusMap[status] || "status-badge-cancelled";
+  };
+
   function DogInfoCard({ dog, title, isPartner, partnerId }) {
     if (!dog)
-      return <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-400">No info</div>;
+      return (
+        <div className="dog-info-card">
+          <div className="text-xs text-slate-400">No info</div>
+        </div>
+      );
     const cardContent = (
-      <div className="rounded-lg bg-slate-50 p-2 flex gap-2 items-center">
-        {dog.image_url && (
-          <img
-            src={dog.image_url}
-            alt={dog.name}
-            className="w-12 h-12 rounded-full object-cover border border-slate-200"
-          />
-        )}
+      <div className="dog-info-card">
+        {dog.image_url && <img src={dog.image_url} alt={dog.name} className="dog-avatar" />}
         <div>
-          <div className="text-xs text-slate-400 mb-1">{title}</div>
-          <div className="text-sm font-semibold text-slate-800">{dog.name}</div>
-          <div className="text-xs text-slate-400">
+          <div className="dog-info-label">{title}</div>
+          <div className="dog-info-name">{dog.name}</div>
+          <div className="dog-info-details">
             {dog.breed || "Unknown"} • {dog.gender || "Unknown"}
           </div>
         </div>
@@ -84,7 +97,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
     );
     if (isPartner && partnerId) {
       return (
-        <Link to={`/dog/${partnerId}`} className="block" style={{ textDecoration: "none" }}>
+        <Link to={`/dog/${partnerId}`} style={{ textDecoration: "none" }}>
           {cardContent}
         </Link>
       );
@@ -93,27 +106,23 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
   }
 
   return (
-    <div className="p-5 border border-slate-100 rounded-2xl bg-white transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-2 mb-2">
+    <div className="match-card">
+      <div className="match-card-header">
         <div>
-          <h3 className="text-base font-medium text-slate-900 mb-1">
+          <h3 className="match-card-title">
             {match.myDog?.name} <span className="mx-1 text-slate-400">↔</span>{" "}
             {match.partnerDog?.name || "Owner pending"}
           </h3>
-          <div className="text-xs text-slate-400">
+          <div className="match-card-date">
             {match.direction === "sent" ? "Sent" : "Received"} ·{" "}
             {requestedDate ? requestedDate.toLocaleDateString() : "—"}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.color} bg-opacity-60`}
-          >
-            {badge.label}
-          </span>
+          <span className={`status-badge ${getBadgeClass(statusKey)}`}>{badge.label}</span>
           <button
             type="button"
-            className="w-5 h-5 rounded-full border border-slate-300 text-[10px] font-semibold text-slate-500 flex items-center justify-center hover:bg-slate-100"
+            className="info-button"
             title={progressMessage}
             aria-label="Breeding progress info"
           >
@@ -130,44 +139,31 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
           partnerId={match.partnerDog?.id}
         />
       </div>
-      {/* Removed separate View partner profile link */}
       {match.outcome && (
-        <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-700">
+        <div className="outcome-display">
           Outcome: <span className="font-medium">{match.outcome.outcome.replace("_", " ")}</span>{" "}
           {match.outcome.notes && `· ${match.outcome.notes}`}
         </div>
       )}
-      <div className="mt-3 flex gap-2">
+      <div className="match-actions">
         {showAcceptDecline && (
           <>
-            <button
-              className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-medium transition hover:bg-emerald-600 disabled:opacity-50"
-              onClick={() => onAccept(match)}
-              disabled={busy}
-            >
+            <button className="btn-accept" onClick={() => onAccept(match)} disabled={busy}>
               Accept
             </button>
-            <button
-              className="px-3 py-1 rounded-full bg-rose-500 text-white text-xs font-medium transition hover:bg-rose-600 disabled:opacity-50"
-              onClick={() => onDecline(match)}
-              disabled={busy}
-            >
+            <button className="btn-decline" onClick={() => onDecline(match)} disabled={busy}>
               Decline
             </button>
           </>
         )}
         {showCancel && (
-          <button
-            className="px-3 py-1 rounded-full border border-slate-300 text-xs font-medium transition hover:bg-slate-100 disabled:opacity-50"
-            onClick={() => onCancel(match)}
-            disabled={busy}
-          >
+          <button className="btn-cancel" onClick={() => onCancel(match)} disabled={busy}>
             Cancel
           </button>
         )}
         {showRecordOutcome && (
           <button
-            className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-medium transition hover:bg-blue-700 disabled:opacity-50"
+            className="btn-record-outcome"
             onClick={() => onRecordOutcome(match)}
             disabled={busy}
           >
@@ -373,11 +369,11 @@ export default function MyMatches({ userId }) {
           <ErrorMessage message={error.message} onRetry={refetch} />
         ) : (
           <>
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6 flex-wrap">
               {tabOptions.map((option) => (
                 <button
                   key={option.id}
-                  className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${tab === option.id ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-100"}`}
+                  className={`tab-button ${tab === option.id ? "active" : ""}`}
                   onClick={() => setTab(option.id)}
                 >
                   {option.label}
@@ -385,30 +381,25 @@ export default function MyMatches({ userId }) {
               ))}
             </div>
             {visibleMatches.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="mb-4">
-                  <svg
-                    className="w-10 h-10 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">No matches yet</h3>
-                <p className="text-sm text-slate-500 mb-6">
+              <div className="empty-state-matches">
+                <svg
+                  className="empty-state-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                <h3 className="empty-state-title">No matches yet</h3>
+                <p className="empty-state-message">
                   Start conversations on Find Match to see them appear here.
                 </p>
-                <Link
-                  to="/find-match"
-                  className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50"
-                >
+                <Link to="/find-match" className="btn-find-match">
                   <svg
                     className="w-6 h-6 mr-3"
                     fill="none"
@@ -440,17 +431,17 @@ export default function MyMatches({ userId }) {
                     />
                   ))}
                 </div>
-                <div className="flex justify-center items-center gap-2 mt-6">
+                <div className="pagination">
                   <button
-                    className="px-3 py-1 rounded border text-xs font-medium bg-white hover:bg-slate-100 disabled:opacity-50"
+                    className="pagination-button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
                     Previous
                   </button>
-                  <span className="text-xs text-slate-600">Page {page}</span>
+                  <span className="pagination-text">Page {page}</span>
                   <button
-                    className="px-3 py-1 rounded border text-xs font-medium bg-white hover:bg-slate-100 disabled:opacity-50"
+                    className="pagination-button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={visibleMatches.length < PAGE_SIZE}
                   >

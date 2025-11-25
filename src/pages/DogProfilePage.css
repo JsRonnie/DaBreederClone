@@ -1,0 +1,450 @@
+/* Dog Profile Page - Warm Dog Lover Theme 🐾 */
+
+/* Background */
+.dog-profile-page {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+}
+
+.dog-profile-container {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Header Card - Warm & Friendly */
+.dog-profile-header {
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  margin-bottom: 2rem;
+  border: 3px solid #fef3e8;
+  position: relative;
+  overflow: hidden;
+}
+
+.dog-profile-header::before {
+  content: "🐾";
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  font-size: 150px;
+  opacity: 0.03;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+.dog-profile-header-content {
+  padding: 1.5rem;
+  border-bottom: 2px solid #fef3e8;
+}
+
+.dog-profile-back-btn {
+  color: #fb923c;
+  transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 12px;
+}
+
+.dog-profile-back-btn:hover {
+  color: #f97316;
+  background: #fef3e8;
+  transform: translateX(-4px);
+}
+
+.dog-profile-name {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #7c2d12;
+  text-shadow: 0 2px 4px rgba(251, 146, 60, 0.1);
+}
+
+.dog-profile-breed {
+  font-size: 1.125rem;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+/* Action Buttons - Playful */
+.dog-profile-edit-btn {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 16px;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+}
+
+.dog-profile-edit-btn:hover {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 10px 30px rgba(251, 146, 60, 0.5);
+}
+
+.dog-profile-report-btn {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #991b1b;
+  padding: 0.75rem 1.25rem;
+  border-radius: 16px;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  border: 2px solid #fecaca;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+}
+
+.dog-profile-report-btn:hover {
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border-color: #fca5a5;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25);
+  color: #7f1d1d;
+}
+
+/* Hero Section - Photo & Info */
+.dog-profile-hero {
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 3px solid #fef3e8;
+  position: relative;
+}
+
+.dog-profile-hero::after {
+  content: "🐾";
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 40px;
+  opacity: 0.05;
+  transform: rotate(-15deg);
+}
+
+.dog-profile-photo-container {
+  width: 16rem;
+  height: 16rem;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fef3e8 0%, #fed7aa 100%);
+  border: 4px solid #fef3e8;
+  box-shadow: 0 12px 32px rgba(251, 146, 60, 0.2);
+  position: relative;
+}
+
+.dog-profile-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(1.02) saturate(1.1);
+  transition: transform 0.4s ease;
+}
+
+.dog-profile-photo:hover {
+  transform: scale(1.05);
+}
+
+/* Info Sections */
+.dog-profile-section-title {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px dotted rgba(251, 146, 60, 0.2);
+}
+
+.dog-profile-info-item {
+  margin-bottom: 1rem;
+}
+
+.dog-profile-info-label {
+  font-size: 0.875rem;
+  color: #9a3412;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.dog-profile-info-value {
+  font-size: 1.125rem;
+  color: #431407;
+  font-weight: 800;
+}
+
+/* Content Cards */
+.dog-profile-card {
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  border: 3px solid #fef3e8;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.dog-profile-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(251, 146, 60, 0.18);
+  border-color: #fed7aa;
+}
+
+.dog-profile-card-header {
+  padding: 1.5rem;
+  border-bottom: 3px solid #fef3e8;
+  background: linear-gradient(to right, #fffbf5, #fef9f3);
+}
+
+.dog-profile-card-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #7c2d12;
+  text-shadow: 0 1px 2px rgba(251, 146, 60, 0.1);
+}
+
+.dog-profile-card-body {
+  padding: 1.5rem;
+}
+
+/* Characteristics List */
+.dog-profile-characteristic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, #fffbf5, #fef9f3);
+  border-radius: 16px;
+  border: 2px solid #fef3e8;
+  transition: all 0.3s ease;
+}
+
+.dog-profile-characteristic-item:hover {
+  background: linear-gradient(90deg, rgba(251, 146, 60, 0.08), transparent);
+  transform: translateX(8px);
+  border-color: #fed7aa;
+}
+
+.dog-profile-characteristic-label {
+  font-size: 0.9375rem;
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.dog-profile-characteristic-value {
+  font-size: 0.9375rem;
+  color: #431407;
+  font-weight: 800;
+  padding: 0.375rem 0.875rem;
+  background: linear-gradient(135deg, #fed7aa, #fdba74);
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.2);
+}
+
+/* Health Checkmarks */
+.dog-profile-health-yes {
+  color: #16a34a;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border-radius: 20px;
+  border: 2px solid #bbf7d0;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15);
+}
+
+.dog-profile-health-no {
+  color: #dc2626;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border-radius: 20px;
+  border: 2px solid #fecaca;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+}
+
+/* History Table */
+.dog-profile-history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
+}
+
+.dog-profile-history-header {
+  background: linear-gradient(to right, #fef3e8, #fed7aa);
+  border-radius: 12px;
+}
+
+.dog-profile-history-header th {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #7c2d12;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dog-profile-history-row {
+  background: linear-gradient(145deg, #ffffff, #fffbf5);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.dog-profile-history-row:hover {
+  background: linear-gradient(145deg, #fef9f3, #fef3e8);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
+}
+
+.dog-profile-history-row td {
+  padding: 1rem;
+  font-size: 0.9375rem;
+  color: #431407;
+  font-weight: 600;
+  border-top: 2px solid #fef3e8;
+  border-bottom: 2px solid #fef3e8;
+}
+
+.dog-profile-history-row td:first-child {
+  border-left: 2px solid #fef3e8;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.dog-profile-history-row td:last-child {
+  border-right: 2px solid #fef3e8;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.dog-profile-history-link {
+  color: #fb923c;
+  font-weight: 800;
+  text-decoration: underline;
+  transition: all 0.3s ease;
+}
+
+.dog-profile-history-link:hover {
+  color: #f97316;
+  text-decoration: none;
+}
+
+/* Error State */
+.dog-profile-error {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dog-profile-error-card {
+  text-align: center;
+  padding: 3rem;
+  background: linear-gradient(145deg, #ffffff, #fff9f5);
+  border-radius: 32px;
+  border: 3px solid #fef3e8;
+  box-shadow: 0 12px 40px rgba(251, 146, 60, 0.15);
+  max-width: 500px;
+}
+
+.dog-profile-error-icon {
+  width: 5rem;
+  height: 5rem;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  border: 4px solid #fef2f2;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.2);
+}
+
+.dog-profile-error-title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #7c2d12;
+  margin-bottom: 1rem;
+}
+
+.dog-profile-error-message {
+  font-size: 1.125rem;
+  color: #9a3412;
+  margin-bottom: 2rem;
+  font-weight: 600;
+}
+
+.dog-profile-error-btn {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 16px;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9375rem;
+}
+
+.dog-profile-error-btn:hover {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 10px 30px rgba(251, 146, 60, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .dog-profile-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .dog-profile-photo-container {
+    width: 14rem;
+    height: 14rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dog-profile-name {
+    font-size: 1.5rem;
+  }
+
+  .dog-profile-breed {
+    font-size: 1rem;
+  }
+
+  .dog-profile-photo-container {
+    width: 12rem;
+    height: 12rem;
+    margin: 0 auto 1.5rem;
+  }
+
+  .dog-profile-hero {
+    padding: 1.5rem;
+  }
+
+  .dog-profile-card-header,
+  .dog-profile-card-body {
+    padding: 1.25rem;
+  }
+}

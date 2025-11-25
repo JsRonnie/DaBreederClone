@@ -1,0 +1,235 @@
+/* Forum Page - Warm Dog Lover Theme 🐾 */
+
+/* Full-width background */
+body {
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+  min-height: 100vh;
+}
+
+/* Container styling */
+.max-w-3xl {
+  padding-bottom: 3rem;
+}
+
+/* Forum Header */
+.max-w-3xl > div:first-child h1 {
+  font-size: 2.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #7c2d12, #9a3412);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 4px rgba(251, 146, 60, 0.1);
+}
+
+/* Sort Select */
+.max-w-3xl select {
+  border: 2px solid #fef3e8;
+  background: linear-gradient(to right, #fffbf5, #fef9f3);
+  color: #7c2d12;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.max-w-3xl select:focus {
+  outline: none;
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15);
+}
+
+/* Create Post Button */
+.max-w-3xl button.bg-blue-600 {
+  background: linear-gradient(135deg, #fb923c, #f97316) !important;
+  color: white;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 16px;
+  padding: 0.625rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.35);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.max-w-3xl button.bg-blue-600:hover {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.5);
+}
+
+/* Thread Cards */
+.max-w-3xl ul li {
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%) !important;
+  border: 3px solid #fef3e8 !important;
+  border-radius: 24px !important;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  position: relative;
+}
+
+.max-w-3xl ul li::before {
+  content: "🐾";
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  font-size: 100px;
+  opacity: 0.02;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+.max-w-3xl ul li:hover {
+  border-color: #fed7aa !important;
+  box-shadow: 0 16px 48px rgba(251, 146, 60, 0.2) !important;
+  transform: translateY(-4px);
+}
+
+/* Thread Title */
+.max-w-3xl ul li .text-lg {
+  color: #7c2d12;
+  font-weight: 900;
+}
+
+/* Thread Author */
+.max-w-3xl ul li .font-medium.text-slate-800 {
+  color: #9a3412 !important;
+  font-weight: 800;
+}
+
+/* Thread Body */
+.max-w-3xl ul li p.text-slate-700 {
+  color: #9a3412 !important;
+  font-weight: 600;
+}
+
+/* Vote Buttons */
+.max-w-3xl ul li button[aria-label*="Upvote"],
+.max-w-3xl ul li button[aria-label*="Downvote"] {
+  border-radius: 12px;
+  padding: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid #fef3e8;
+}
+
+.max-w-3xl ul li button[aria-label*="Upvote"]:hover {
+  background: linear-gradient(to bottom, #d1fae5, #a7f3d0) !important;
+  border-color: #10b981;
+  transform: translateY(-2px);
+}
+
+.max-w-3xl ul li button[aria-label*="Downvote"]:hover {
+  background: linear-gradient(to bottom, #fecaca, #fca5a5) !important;
+  border-color: #ef4444;
+  transform: translateY(-2px);
+}
+
+/* Vote Count */
+.max-w-3xl ul li button span {
+  font-weight: 800;
+  color: #7c2d12;
+}
+
+/* Comment Count */
+.max-w-3xl ul li .flex.items-center.gap-1 {
+  color: #9a3412;
+  font-weight: 700;
+}
+
+/* Modal */
+div[role="dialog"] .rounded-2xl {
+  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
+  border: 3px solid #fef3e8 !important;
+  box-shadow: 0 20px 60px rgba(251, 146, 60, 0.2) !important;
+}
+
+div[role="dialog"] h2 {
+  color: #7c2d12;
+  font-weight: 900;
+}
+
+div[role="dialog"] input,
+div[role="dialog"] textarea {
+  border: 2px solid #fef3e8;
+  background: linear-gradient(to right, #fffbf5, #fef9f3);
+  color: #7c2d12;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+div[role="dialog"] input:focus,
+div[role="dialog"] textarea:focus {
+  outline: none !important;
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15) !important;
+  background: white;
+}
+
+div[role="dialog"] button[type="submit"] {
+  background: linear-gradient(135deg, #fb923c, #f97316) !important;
+  border-radius: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+div[role="dialog"] button[type="submit"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.5);
+}
+
+div[role="dialog"] button[type="button"]:not([aria-label="Close"]) {
+  border: 2px solid #fef3e8;
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8);
+  color: #7c2d12;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+div[role="dialog"] button[type="button"]:hover {
+  background: linear-gradient(to bottom, #fed7aa, #fdba74);
+  border-color: #fdba74;
+}
+
+/* Segmented Control */
+div[role="dialog"] .inline-flex.rounded-lg {
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8) !important;
+  border: 2px solid #fef3e8 !important;
+}
+
+div[role="dialog"] .inline-flex button.bg-white {
+  background: linear-gradient(to bottom, #ffffff, #fff9f5) !important;
+  border: 2px solid #fb923c !important;
+  color: #7c2d12;
+  font-weight: 800;
+}
+
+/* Image Upload Area */
+div[role="dialog"] label.border-dashed {
+  border: 2px dashed #fef3e8;
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8);
+  color: #9a3412;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+div[role="dialog"] label.border-dashed:hover {
+  border-color: #fb923c;
+  background: linear-gradient(to bottom, #fed7aa, #fdba74);
+}
+
+/* Featured Dog Section */
+.max-w-3xl ul li .rounded-lg.border.bg-slate-50 {
+  background: linear-gradient(to right, #fef9f3, #fef3e8) !important;
+  border: 2px solid #fef3e8 !important;
+  border-radius: 16px !important;
+}
+
+.max-w-3xl ul li .font-semibold.text-slate-900 {
+  color: #7c2d12 !important;
+  font-weight: 900;
+}

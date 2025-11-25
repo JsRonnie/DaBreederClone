@@ -15,6 +15,7 @@ import {
   getMyCommentVotes,
 } from "../lib/forum";
 import "./FindMatchPage.css";
+import "./ThreadPage.css"; // warm dog-lover theme
 import { getCookie, setCookie } from "../utils/cookies";
 
 export default function ThreadPage() {

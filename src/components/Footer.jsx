@@ -1,4 +1,5 @@
 import React from "react";
+import "./Footer.css"; // warm dog-lover theme
 
 export default function Footer() {
   return (
@@ -13,7 +14,7 @@ export default function Footer() {
 
           {/* Description */}
           <p className="text-slate-300 text-base leading-relaxed max-w-2xl">
-            Connecting responsible dog breeders through advanced genetic matching, health record
+            Connecting responsible dog breeders through dog traits matching, health record
             verification, and community support.
           </p>
 

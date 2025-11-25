@@ -1,0 +1,104 @@
+/* About Page - Warm Dog Lover Theme 🐾 */
+
+/* Section Background */
+#about {
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%) !important;
+}
+
+/* Header */
+#about h2 {
+  color: #7c2d12 !important;
+  font-weight: 900 !important;
+}
+
+#about .w-16.h-0\.5 {
+  background: linear-gradient(to right, #fb923c, #f97316) !important;
+}
+
+#about p.text-gray-600 {
+  color: #9a3412 !important;
+  font-weight: 500;
+}
+
+/* Mission & Vision Cards */
+#about .bg-gradient-to-br.from-blue-50,
+#about .bg-gradient-to-br.from-green-50 {
+  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
+  border: 3px solid #fef3e8 !important;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.1) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+#about .bg-gradient-to-br.from-blue-50::before,
+#about .bg-gradient-to-br.from-green-50::before {
+  content: "🐾";
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  font-size: 100px;
+  opacity: 0.03;
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+#about .bg-gradient-to-br.from-blue-50:hover,
+#about .bg-gradient-to-br.from-green-50:hover {
+  border-color: #fed7aa !important;
+  box-shadow: 0 16px 48px rgba(251, 146, 60, 0.2) !important;
+  transform: translateY(-4px);
+}
+
+/* Mission & Vision Icons */
+#about .w-16.h-16 {
+  background: linear-gradient(135deg, #fb923c, #f97316) !important;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3) !important;
+}
+
+#about h3 {
+  color: #7c2d12 !important;
+  font-weight: 800 !important;
+}
+
+#about p.text-gray-700 {
+  color: #9a3412 !important;
+  font-weight: 500;
+}
+
+/* Core Values Header */
+#about h3.text-4xl {
+  color: #7c2d12 !important;
+  font-weight: 900 !important;
+}
+
+/* Core Value Cards */
+#about .group.bg-white {
+  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
+  border: 3px solid #fef3e8 !important;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.1) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+#about .group.bg-white:hover {
+  border-color: #fed7aa !important;
+  box-shadow: 0 16px 48px rgba(251, 146, 60, 0.2) !important;
+  transform: translateY(-4px);
+}
+
+/* Core Value Icons */
+#about .group.bg-white .w-16.h-16 {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+  box-shadow: none !important;
+}
+
+#about .group.bg-white svg {
+  color: #ea580c !important;
+}
+
+#about h4 {
+  color: #7c2d12 !important;
+  font-weight: 800 !important;
+}

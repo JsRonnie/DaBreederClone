@@ -9,6 +9,7 @@ import Step3Traits from "../stepComponents/Step3Traits";
 import DocumentManager from "../components/DocumentManager";
 import supabase from "../lib/supabaseClient";
 import { listDogDocuments, mapDogDocumentsToForm, removeDocumentsByIds } from "../lib/dogDocuments";
+import "./DogEditPage.css"; // warm dog-lover theme
 
 export default function DogEditPage() {
   const { id } = useParams();
@@ -359,10 +360,10 @@ export default function DogEditPage() {
 
   if (profileLoading || initializing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+      <div className="dog-edit-loading">
+        <div className="dog-edit-loading-content">
+          <div className="dog-edit-spinner"></div>
+          <p className="dog-edit-loading-text">Loading profile...</p>
         </div>
       </div>
     );
@@ -370,11 +371,11 @@ export default function DogEditPage() {
 
   if (profileError || !dog) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="dog-profile-error">
+        <div className="dog-profile-error-card">
+          <div className="dog-profile-error-icon">
             <svg
-              className="w-8 h-8 text-red-600"
+              className="w-12 h-12 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -387,12 +388,11 @@ export default function DogEditPage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h1>
-          <p className="text-gray-600 mb-6">The dog profile you're trying to edit doesn't exist.</p>
-          <button
-            onClick={() => navigate("/my-dog")}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
+          <h1 className="dog-profile-error-title">Profile Not Found</h1>
+          <p className="dog-profile-error-message">
+            The dog profile you're trying to edit doesn't exist.
+          </p>
+          <button onClick={() => navigate("/my-dog")} className="dog-profile-error-btn">
             Back to Dashboard
           </button>
         </div>
@@ -401,17 +401,14 @@ export default function DogEditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="dog-edit-page">
+      <div className="dog-edit-container">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="dog-profile-header">
+          <div className="dog-profile-header-content">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleCancel}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
+                <button onClick={handleCancel} className="dog-profile-back-btn">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -422,8 +419,8 @@ export default function DogEditPage() {
                   </svg>
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Edit {dog.name}'s Profile</h1>
-                  <p className="text-sm text-gray-700">Update your dog's information</p>
+                  <h1 className="dog-profile-name">Edit {dog.name}'s Profile</h1>
+                  <p className="dog-profile-breed">Update your dog's information</p>
                 </div>
               </div>
             </div>
@@ -433,14 +430,14 @@ export default function DogEditPage() {
         {/* Form Sections */}
         <div className="space-y-8">
           {/* Basic Information & Photo */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Basic Information & Photo</h2>
-              <p className="text-sm text-gray-700 mt-1">
+          <div className="dog-edit-section">
+            <div className="dog-edit-section-header">
+              <h2 className="dog-edit-section-title">Basic Information & Photo</h2>
+              <p className="dog-edit-section-description">
                 Update your dog's basic details and profile photo
               </p>
             </div>
-            <div className="px-6 py-6">
+            <div className="dog-edit-section-body">
               <Step1DogInfo
                 data={form.data}
                 updateField={form.updateField}
@@ -451,27 +448,27 @@ export default function DogEditPage() {
           </div>
 
           {/* Traits & Physical Characteristics */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Traits & Physical Characteristics
-              </h2>
-              <p className="text-sm text-gray-700 mt-1">
+          <div className="dog-edit-section">
+            <div className="dog-edit-section-header">
+              <h2 className="dog-edit-section-title">Traits & Physical Characteristics</h2>
+              <p className="dog-edit-section-description">
                 Describe your dog's personality and physical features
               </p>
             </div>
-            <div className="px-6 py-6">
+            <div className="dog-edit-section-body">
               <Step3Traits data={form.data} updateField={form.updateField} />
             </div>
           </div>
 
           {/* Health & Verification */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Health & Verification</h2>
-              <p className="text-sm text-gray-700 mt-1">Update health records and certifications</p>
+          <div className="dog-edit-section">
+            <div className="dog-edit-section-header">
+              <h2 className="dog-edit-section-title">Health & Verification</h2>
+              <p className="dog-edit-section-description">
+                Update health records and certifications
+              </p>
             </div>
-            <div className="px-6 py-6">
+            <div className="dog-edit-section-body">
               <Step2Health data={form.data} updateCheckbox={form.updateCheckbox} />
 
               {/* Conditional Documents Section */}
@@ -489,10 +486,10 @@ export default function DogEditPage() {
                     <p className="text-sm text-gray-700">
                       Please upload the following documents for the certifications you've checked:
                     </p>
-                    <div className="mt-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <div className="flex">
+                    <div className="dog-edit-warning">
+                      <div className="dog-edit-warning-content">
                         <svg
-                          className="w-4 h-4 mr-2 mt-0.5"
+                          className="w-5 h-5 dog-edit-warning-icon"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -502,7 +499,7 @@ export default function DogEditPage() {
                             clipRule="evenodd"
                           />
                         </svg>
-                        <span>
+                        <span className="dog-edit-warning-text">
                           Documents are required for checked certifications before saving.
                         </span>
                       </div>
@@ -522,35 +519,27 @@ export default function DogEditPage() {
         </div>
 
         {/* Dog History Table */}
-        <div className="bg-white rounded-lg shadow-sm w-full mt-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Dog History</h2>
+        <div className="dog-profile-card mt-8">
+          <div className="dog-profile-card-header">
+            <h2 className="dog-profile-card-title">Dog History</h2>
           </div>
-          <div className="px-6 py-6">
+          <div className="dog-profile-card-body">
             {matchesLoading ? (
               <div className="text-gray-500">Loading dog history...</div>
             ) : paginatedHistory.length === 0 ? (
               <div className="text-gray-500">No history found for this dog.</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead>
+                <table className="dog-profile-history-table">
+                  <thead className="dog-profile-history-header">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Date
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Partner
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Status
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Outcome
-                      </th>
+                      <th>Date</th>
+                      <th>Partner</th>
+                      <th>Status</th>
+                      <th>Outcome</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
+                  <tbody>
                     {paginatedHistory.map((match) => {
                       const isRequester = match.requester_dog_id === dog.id;
                       const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
@@ -567,15 +556,13 @@ export default function DogEditPage() {
                             ? "Failed"
                             : match.status.charAt(0).toUpperCase() + match.status.slice(1));
                       return (
-                        <tr key={match.id}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                            {date ? new Date(date).toLocaleDateString() : "—"}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        <tr key={match.id} className="dog-profile-history-row">
+                          <td>{date ? new Date(date).toLocaleDateString() : "—"}</td>
+                          <td>
                             {partnerDog?.id ? (
                               <a
                                 href={`/dog/${partnerDog.id}`}
-                                className="text-blue-700 font-medium underline hover:text-blue-900 transition"
+                                className="dog-profile-history-link"
                               >
                                 {partnerDog.name}
                               </a>
@@ -583,31 +570,29 @@ export default function DogEditPage() {
                               <span className="text-gray-500">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          <td>
                             {match.status.replace("completed_", "Completed: ").replace("_", " ")}
                           </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                            {outcome}
-                          </td>
+                          <td>{outcome}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
                 {/* Pagination Controls */}
-                <div className="flex justify-end items-center mt-4 gap-2">
+                <div className="dog-edit-pagination">
                   <button
-                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    className="dog-edit-pagination-btn"
                     disabled={historyPage === 1}
                     onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
                   >
                     Previous
                   </button>
-                  <span className="text-sm">
+                  <span className="dog-edit-pagination-text">
                     Page {historyPage} of {totalPages}
                   </span>
                   <button
-                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    className="dog-edit-pagination-btn"
                     disabled={historyPage === totalPages}
                     onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
                   >
@@ -619,15 +604,10 @@ export default function DogEditPage() {
           </div>
         </div>
         {saveSuccess && (
-          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-green-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+          <div className="dog-edit-success">
+            <div className="dog-edit-success-content">
+              <div className="dog-edit-success-icon">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -636,9 +616,9 @@ export default function DogEditPage() {
                   />
                 </svg>
               </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">Changes saved successfully!</h3>
-                <div className="mt-2 text-sm text-green-700">
+              <div>
+                <h3 className="dog-edit-success-title">Changes saved successfully!</h3>
+                <div className="dog-edit-success-message">
                   <p>Your dog's profile has been updated and all files have been uploaded.</p>
                 </div>
               </div>
@@ -648,15 +628,10 @@ export default function DogEditPage() {
 
         {/* Error Display */}
         {form.error && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="s">
-                <svg
-                  className="h-5 w-5 text-red-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+          <div className="dog-edit-error">
+            <div className="dog-edit-error-content">
+              <div className="dog-edit-error-icon">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -665,9 +640,9 @@ export default function DogEditPage() {
                   />
                 </svg>
               </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error saving changes</h3>
-                <div className="mt-2 text-sm text-red-700">
+              <div>
+                <h3 className="dog-edit-error-title">Error saving changes</h3>
+                <div className="dog-edit-error-message">
                   <p>{form.error.message || "An unexpected error occurred"}</p>
                 </div>
               </div>
@@ -676,12 +651,12 @@ export default function DogEditPage() {
         )}
 
         {/* Sticky Save Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 sm:px-6">
-          <div className="max-w-4xl mx-auto">
+        <div className="dog-edit-save-bar">
+          <div className="dog-edit-save-bar-content">
             {/* Progress Bar */}
             {saving && uploadProgress > 0 && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+              <div className="dog-edit-progress-container">
+                <div className="dog-edit-progress-header">
                   <span>
                     {uploadProgress < 30
                       ? "Validating..."
@@ -693,43 +668,33 @@ export default function DogEditPage() {
                   </span>
                   <span>{uploadProgress}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="dog-edit-progress-bar">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    className="dog-edit-progress-fill"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">
+            <div className="dog-edit-save-bar-actions">
+              <p className="dog-edit-save-bar-message">
                 {saveSuccess ? "Changes saved successfully!" : "Don't forget to save your changes"}
               </p>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleCancel}
-                  disabled={saving}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+              <div className="dog-edit-save-bar-buttons">
+                <button onClick={handleCancel} disabled={saving} className="dog-edit-btn-cancel">
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className={`px-6 py-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
-                    saveSuccess
-                      ? "bg-green-600 text-white"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  } ${saving ? "opacity-75" : ""}`}
+                  className={`dog-edit-btn-save ${
+                    saveSuccess ? "dog-edit-btn-save-success" : "dog-edit-btn-save-default"
+                  }`}
                 >
                   {saving ? (
-                    <div className="flex items-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle
                           className="opacity-25"
                           cx="12"
@@ -745,11 +710,11 @@ export default function DogEditPage() {
                         ></path>
                       </svg>
                       Saving...
-                    </div>
+                    </>
                   ) : saveSuccess ? (
-                    <div className="flex items-center">
+                    <>
                       <svg
-                        className="mr-2 h-4 w-4"
+                        className="h-4 w-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -762,7 +727,7 @@ export default function DogEditPage() {
                         />
                       </svg>
                       Saved!
-                    </div>
+                    </>
                   ) : (
                     "Save Changes"
                   )}
@@ -779,8 +744,8 @@ export default function DogEditPage() {
       {/* Toast Notification */}
       {showToast && (
         <div
-          className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 text-white font-medium transition-all duration-300 ${
-            toastType === "success" ? "bg-green-500" : "bg-red-500"
+          className={`dog-edit-toast ${
+            toastType === "success" ? "dog-edit-toast-success" : "dog-edit-toast-error"
           }`}
         >
           {toastType === "success" ? (
