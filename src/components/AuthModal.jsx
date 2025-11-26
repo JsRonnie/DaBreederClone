@@ -5,6 +5,7 @@ import TermsModal from "./TermsModal";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
 import { validatePassword } from "../utils/passwordRules";
+import "./AuthModal.css"; // warm dog-lover theme
 
 export default function AuthModal({ open, mode = "signin", onClose, onSwitch, onAuthSuccess }) {
   const navigate = useNavigate();
@@ -185,7 +186,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
           <button
             aria-label="Close"
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 inline-flex items-center justify-center rounded-full p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+            className="auth-close-btn absolute right-3 top-3 z-10 inline-flex items-center justify-center rounded-full p-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
           >
             <svg
               viewBox="0 0 24 24"
@@ -200,13 +201,13 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
 
           <div className="grid grid-cols-1 sm:grid-cols-2 min-h-[600px]">
             {/* Left: form */}
-            <div className="bg-slate-50 p-6 sm:p-10 flex items-center justify-center">
+            <div className="auth-form-container p-6 sm:p-10 flex items-center justify-center">
               <div className="w-full max-w-md text-center">
-                <div className="transition-all duration-300 ease-in-out transform">
-                  <h2 className="text-2xl font-semibold text-slate-900 transition-all duration-300">
-                    {isSignUp ? "Get Started Now" : "Welcome back!"}
+                <div className="auth-header transition-all duration-300 ease-in-out transform">
+                  <h2 className="text-2xl font-semibold transition-all duration-300">
+                    {isSignUp ? "Get Started Now 🐾" : "Welcome back! 🐾"}
                   </h2>
-                  <p className="mt-2 text-sm text-slate-600 transition-all duration-300">
+                  <p className="mt-2 text-sm transition-all duration-300">
                     {isSignUp
                       ? "Join our community of responsible dog breeders"
                       : "Enter your credentials to access your account"}
@@ -222,9 +223,9 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                 >
                   {isSignUp && (
                     <div>
-                      <label className="text-sm font-medium text-slate-700">Name</label>
+                      <label className="auth-input-label">Name</label>
                       <input
-                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="auth-input mt-1 w-full text-sm"
                         placeholder="Enter your name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -232,9 +233,9 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                     </div>
                   )}
                   <div>
-                    <label className="text-sm font-medium text-slate-700">Email address</label>
+                    <label className="auth-input-label">Email address</label>
                     <input
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="auth-input mt-1 w-full text-sm"
                       placeholder="Enter your email"
                       type="email"
                       value={email}
@@ -244,7 +245,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-slate-700">Password</label>
+                      <label className="auth-input-label">Password</label>
                       {!isSignUp && (
                         <button
                           type="button"
@@ -257,7 +258,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                               setTimeout(() => navigate("/forgot-password"), 0);
                             }
                           }}
-                          className="text-xs text-slate-600 hover:text-slate-900"
+                          className="forgot-password-link text-xs"
                         >
                           Forgot password
                         </button>
@@ -265,7 +266,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                     </div>
                     <div className="relative mt-1">
                       <input
-                        className="w-full rounded-md border border-slate-300 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-slate-400"
+                        className="auth-input w-full pr-10 text-sm"
                         placeholder="Password"
                         type={showPassword ? "text" : "password"}
                         value={password}
@@ -274,7 +275,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-slate-400 hover:text-slate-600 transition-colors"
+                        className="password-toggle absolute inset-y-0 right-0 flex items-center justify-center w-10"
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
@@ -317,17 +318,17 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                       </button>
                     </div>
                     {isSignUp && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        At least 8 characters. Don’t use your email or username.
+                      <p className="password-hint mt-1 text-xs">
+                        At least 8 characters. Don't use your email or username.
                       </p>
                     )}
                   </div>
 
                   {isSignUp && (
-                    <label className="mt-1 flex items-center gap-2 text-xs text-slate-600">
+                    <label className="terms-label">
                       <input
                         type="checkbox"
-                        className="size-4 accent-blue-600"
+                        className="auth-checkbox size-4"
                         checked={agreedToTerms}
                         onChange={(e) => setAgreedToTerms(e.target.checked)}
                       />
@@ -338,32 +339,20 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                           e.preventDefault();
                           setShowTermsModal(true);
                         }}
-                        className="underline hover:text-blue-600 transition-colors"
+                        className="terms-link underline"
                       >
                         terms & policy
                       </button>
                     </label>
                   )}
 
-                  {errorMsg && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-                      {errorMsg}
-                    </div>
-                  )}
-                  {infoMsg && (
-                    <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-                      {infoMsg}
-                    </div>
-                  )}
+                  {errorMsg && <div className="auth-error text-sm">{errorMsg}</div>}
+                  {infoMsg && <div className="auth-info text-sm">{infoMsg}</div>}
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`mt-2 inline-flex items-center justify-center rounded-md px-4 py-2 text-white font-medium ${
-                      loading
-                        ? "bg-green-600/60 cursor-not-allowed"
-                        : "bg-green-700 hover:bg-green-800"
-                    }`}
+                    className="auth-submit-btn mt-2 inline-flex items-center justify-center"
                   >
                     {loading
                       ? isSignUp
@@ -380,7 +369,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                         Have an account?{" "}
                         <button
                           type="button"
-                          className="text-blue-600 hover:underline"
+                          className="auth-switch-link"
                           onClick={() => onSwitch?.("signin")}
                         >
                           Sign In
@@ -391,7 +380,7 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
                         Don't have an account?{" "}
                         <button
                           type="button"
-                          className="text-blue-600 hover:underline"
+                          className="auth-switch-link"
                           onClick={() => onSwitch?.("signup")}
                         >
                           Sign Up
@@ -405,11 +394,8 @@ export default function AuthModal({ open, mode = "signin", onClose, onSwitch, on
 
             {/* Right: image */}
             {windowWidth >= 640 && (
-              <div
-                className="relative w-full h-full min-h-[600px] bg-[url('/shibaPor.jpg')] bg-cover bg-center"
-                style={{ backgroundColor: "#e2e8f0" }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10" />
+              <div className="auth-image-side relative w-full h-full min-h-[600px] bg-[url('/shibaPor.jpg')] bg-cover bg-center">
+                <div className="auth-image-overlay absolute inset-0" />
               </div>
             )}
           </div>

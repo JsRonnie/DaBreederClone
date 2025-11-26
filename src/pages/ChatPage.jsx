@@ -94,6 +94,14 @@ export default function ChatPage() {
     }
   }, [user, navigate]);
 
+  // Set page title
+  useEffect(() => {
+    const contactName = activeContact?.dog_name || activeContact?.my_dog_name;
+    document.title = contactName
+      ? `Chat with ${contactName} 🐾 | DaBreeder`
+      : "Messages 🐾 | DaBreeder";
+  }, [activeContact]);
+
   // Activate contact when param changes
   useEffect(() => {
     if (!contactId && activeContactId) {

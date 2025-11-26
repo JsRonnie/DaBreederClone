@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MyDogs from "../components/MyDogs";
 import { useAuth } from "../hooks/useAuth";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -7,6 +7,10 @@ export default function MyDogPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [dashboardKey] = useState(0);
+
+  useEffect(() => {
+    document.title = "My Dogs 🐾 | DaBreeder";
+  }, []);
 
   // While auth is resolving, render nothing (or a spinner if desired)
   if (loading) return null;

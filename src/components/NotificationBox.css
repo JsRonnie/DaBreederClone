@@ -1,62 +1,181 @@
 /* NotificationBox - Warm Dog Lover Theme 🐾 */
 
-/* Card Styling */
-.find-match-container .shadow-lg {
-  background: linear-gradient(145deg, #ffffff, #fff9f5) !important;
-  border: 3px solid #fef3e8 !important;
-  box-shadow: 0 16px 48px rgba(251, 146, 60, 0.2) !important;
+/* Page Container */
+.find-match-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+  padding: 2rem 1rem;
+}
+
+/* Header Section */
+.header-section {
+  text-align: center;
+  margin-bottom: 3rem;
   position: relative;
 }
 
-.find-match-container .shadow-lg::before {
+.header-section::after {
   content: "🐾";
   position: absolute;
-  bottom: -20px;
-  right: -20px;
-  font-size: 120px;
-  opacity: 0.02;
+  top: -20px;
+  right: 10%;
+  font-size: 80px;
+  opacity: 0.05;
   transform: rotate(-25deg);
   pointer-events: none;
 }
 
-/* Card Title */
-.find-match-container .text-2xl {
-  color: #7c2d12 !important;
+.page-title {
+  font-size: 3rem;
   font-weight: 900;
-  text-shadow: 0 1px 2px rgba(251, 146, 60, 0.1);
+  color: #7c2d12;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(251, 146, 60, 0.1);
 }
 
-/* Loading Spinner */
-.find-match-container .animate-spin {
+.page-description {
+  font-size: 1.25rem;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+/* Content Section */
+.content-section {
+  max-width: 1000px;
+  margin: 0 auto 3rem;
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  border: 3px solid #fef3e8;
+  position: relative;
+}
+
+.content-section::before {
+  content: "🐾";
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 60px;
+  opacity: 0.03;
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+/* Neutralize inner Card styles to let content-section be the main container */
+.content-section .shadow-lg {
+  box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.content-section .card-header {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.content-section .card-title {
+  color: #7c2d12 !important;
+  font-size: 1.5rem;
+}
+
+/* Accordion List Items */
+.content-section .border-slate-200 {
+  border-color: #fef3e8 !important;
+  background: linear-gradient(145deg, #ffffff, #fffbf5) !important;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.08) !important;
+  border-radius: 16px !important;
+  margin-bottom: 1rem;
+}
+
+.content-section .border-slate-200:hover {
+  border-color: #fed7aa !important;
+  box-shadow: 0 8px 20px rgba(251, 146, 60, 0.15) !important;
+  transform: translateY(-2px);
+}
+
+/* Text Colors */
+.content-section .text-slate-900 {
+  color: #7c2d12 !important;
+}
+
+.content-section .text-slate-500,
+.content-section .text-slate-600,
+.content-section .text-slate-700 {
+  color: #9a3412 !important;
+}
+
+/* Badges */
+/* Review / Secondary */
+.content-section .bg-secondary {
+  background-color: #fef3e8 !important;
+  color: #9a3412 !important;
+  border: 1px solid #fed7aa;
+}
+
+/* Resolved / Default (Green) */
+.content-section .bg-primary,
+.content-section .bg-slate-900 {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  color: white !important;
+  border: none;
+}
+
+/* Rejected / Destructive (Red) */
+.content-section .bg-destructive {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: white !important;
+  border: none;
+}
+
+/* Show/Hide Link */
+.content-section .text-blue-500 {
   color: #fb923c !important;
 }
 
-.find-match-container .text-muted-foreground {
+.content-section .text-blue-500:hover {
+  color: #ea580c !important;
+  text-decoration: underline;
+}
+
+/* Expanded Content */
+.content-section .border-slate-100 {
+  border-color: #fef3e8 !important;
+}
+
+/* Pagination Buttons */
+.content-section button.bg-slate-100 {
+  background: linear-gradient(135deg, #fffbf5, #fef9f3) !important;
+  border: 1px solid #fed7aa !important;
   color: #9a3412 !important;
   font-weight: 700;
 }
 
-/* Error Message */
-.find-match-container .text-red-600 {
-  color: #9a3412 !important;
-  background: linear-gradient(to right, #fed7aa, #fdba74);
-  padding: 1rem;
-  border-radius: 12px;
-  font-weight: 700;
+.content-section button.bg-slate-100:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fed7aa, #fdba74) !important;
+  color: #7c2d12 !important;
+}
+
+.content-section button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.animate-spin {
+  color: #fb923c !important;
 }
 
 /* Empty State */
-.find-match-container .text-center.py-12 {
+.content-section .text-muted-foreground {
   color: #9a3412 !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* Sign In Message */
-.find-match-container .p-6.text-center {
-  color: #9a3412 !important;
-  font-weight: 700;
-  background: linear-gradient(145deg, #ffffff, #fff9f5);
-  border: 3px solid #fef3e8;
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+/* Error Message */
+.content-section .text-red-600 {
+  color: #991b1b !important;
+  background: #fee2e2;
+  padding: 1rem;
+  border-radius: 12px;
 }

@@ -91,15 +91,15 @@ export default function ChangePasswordPage() {
 
   if (arrivingViaRecovery) {
     return (
-      <div className="max-w-md mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Set a new password</h1>
+      <div className="change-password-page">
+        <div className="change-password-card">
+          <div className="change-password-header">
+            <h1>Set a new password 🐾</h1>
+          </div>
           {message && (
             <div
-              className={`mb-4 p-4 rounded-md ${
-                message.includes("Error")
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-green-50 text-green-700 border border-green-200"
+              className={`change-password-message ${
+                message.includes("Error") ? "message-error" : "message-success"
               }`}
             >
               {message}
@@ -107,7 +107,7 @@ export default function ChangePasswordPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="newPassword" className="change-password-label">
                 New Password
               </label>
               <input
@@ -118,15 +118,12 @@ export default function ChangePasswordPage() {
                 onChange={(e) => setPasswords((p) => ({ ...p, newPassword: e.target.value }))}
                 required
                 minLength={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="change-password-input"
                 placeholder="Enter new password"
               />
             </div>
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="confirmPassword" className="change-password-label">
                 Confirm New Password
               </label>
               <input
@@ -142,15 +139,11 @@ export default function ChangePasswordPage() {
                 }
                 required
                 minLength={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="change-password-input"
                 placeholder="Confirm new password"
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-green-400 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={loading} className="change-password-btn w-full">
               {loading ? "Updating..." : "Save New Password"}
             </button>
             <p className="text-xs text-gray-500">
@@ -163,16 +156,16 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Change Password</h1>
+    <div className="change-password-page">
+      <div className="change-password-card">
+        <div className="change-password-header">
+          <h1>Change Password 🐾</h1>
+        </div>
 
         {message && (
           <div
-            className={`mb-4 p-4 rounded-md ${
-              message.includes("Error")
-                ? "bg-red-50 text-red-700 border border-red-200"
-                : "bg-green-50 text-green-700 border border-green-200"
+            className={`change-password-message ${
+              message.includes("Error") ? "message-error" : "message-success"
             }`}
           >
             {message}
@@ -181,7 +174,7 @@ export default function ChangePasswordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="newPassword" className="change-password-label">
               New Password
             </label>
             <input
@@ -192,16 +185,13 @@ export default function ChangePasswordPage() {
               onChange={handleChange}
               required
               minLength={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="change-password-input"
               placeholder="Enter new password"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="confirmPassword" className="change-password-label">
               Confirm New Password
             </label>
             <input
@@ -212,32 +202,24 @@ export default function ChangePasswordPage() {
               onChange={handleChange}
               required
               minLength={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="change-password-input"
               placeholder="Confirm new password"
             />
           </div>
 
           <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={loading} className="change-password-btn flex-1">
               {loading ? "Updating..." : "Change Password"}
             </button>
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-            >
+            <button type="button" onClick={() => window.history.back()} className="cancel-btn">
               Cancel
             </button>
           </div>
         </form>
 
-        <div className="mt-6 p-4 bg-gray-50 rounded-md">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">Password Requirements:</h3>
-          <pre className="text-sm text-gray-600 whitespace-pre-wrap">{passwordPolicyNote}</pre>
+        <div className="password-requirements">
+          <h3>Password Requirements:</h3>
+          <pre>{passwordPolicyNote}</pre>
         </div>
       </div>
     </div>

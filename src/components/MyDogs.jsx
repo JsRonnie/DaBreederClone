@@ -4,7 +4,6 @@ import supabase from "../lib/supabaseClient";
 import { removeAllDocumentsForDog } from "../lib/dogDocuments";
 import ConfirmDialog from "./ConfirmDialog";
 import "./DogCard.css";
-import "../pages/FindMatchPage.css";
 import useDogs from "../hooks/useDogs";
 import LoadingState from "./LoadingState";
 import ErrorMessage from "./ErrorMessage";

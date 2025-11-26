@@ -1,4 +1,3 @@
-import "../pages/FindMatchPage.css";
 import "./NotificationBox.css"; // warm dog-lover theme
 import React, { useEffect, useState } from "react";
 import { fetchReportRepliesForUser } from "../lib/reportReplies";

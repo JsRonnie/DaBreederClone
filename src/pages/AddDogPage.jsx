@@ -1,11 +1,16 @@
+import { useEffect } from "react";
 import DogForm from "./DogForm";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import "./FindMatchPage.css";
+import "./AddDogForm.css";
 
 export default function AddDogPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Add New Dog 🐾 | DaBreeder";
+  }, []);
 
   if (!user) {
     navigate("/");

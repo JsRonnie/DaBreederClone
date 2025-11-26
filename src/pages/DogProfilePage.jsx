@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import useDogMatches from "../hooks/useDogMatches";
 // ...existing code...
 import ReportModal from "../components/ReportModal";
 import { useAuth } from "../hooks/useAuth";
-import "./FindMatchPage.css"; // reuse shared loading styles
+
 import "./DogProfilePage.css"; // warm dog-lover theme
 import LoadingState from "../components/LoadingState";
 
@@ -18,6 +18,10 @@ export default function DogProfilePage() {
   const { user } = useAuth();
   // ...existing code...
   const [reportOpen, setReportOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = dog?.name ? `${dog.name} 🐾 | DaBreeder` : "Dog Profile 🐾 | DaBreeder";
+  }, [dog]);
 
   // ...existing code...
 
@@ -386,57 +390,99 @@ export default function DogProfilePage() {
               ) : dogHistoryMatches.length === 0 ? (
                 <div className="text-gray-500">No history found for this dog.</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="dog-profile-history-table">
-                    <thead className="dog-profile-history-header">
-                      <tr>
-                        <th>Date</th>
-                        <th>Partner</th>
-                        <th>Status</th>
-                        <th>Outcome</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dogHistoryMatches.map((match) => {
-                        const isRequester = match.requester_dog_id === dog.id;
-                        const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
-                        const date =
-                          match.completed_at ||
-                          match.declined_at ||
-                          match.cancelled_at ||
-                          match.requested_at;
-                        const outcome =
-                          match.outcome?.outcome ||
-                          (match.status === "completed_success"
-                            ? "Success"
-                            : match.status === "completed_failed"
-                              ? "Failed"
-                              : match.status.charAt(0).toUpperCase() + match.status.slice(1));
-                        return (
-                          <tr key={match.id} className="dog-profile-history-row">
-                            <td>{date ? new Date(date).toLocaleDateString() : "—"}</td>
-                            <td>
-                              {partnerDog?.id ? (
-                                <Link
-                                  to={`/dog/${partnerDog.id}`}
-                                  className="dog-profile-history-link"
-                                >
-                                  {partnerDog.name}
-                                </Link>
-                              ) : (
-                                <span className="text-gray-500">—</span>
-                              )}
-                            </td>
-                            <td>
-                              {match.status.replace("completed_", "Completed: ").replace("_", " ")}
-                            </td>
-                            <td>{outcome}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="dog-profile-stat-card">
+                      <div className="dog-profile-stat-label">Requests</div>
+                      <div className="dog-profile-stat-value">{dogHistoryMatches.length}</div>
+                    </div>
+                    <div className="dog-profile-stat-card">
+                      <div className="dog-profile-stat-label">Completed</div>
+                      <div className="dog-profile-stat-value">
+                        {dogHistoryMatches.filter((m) => m.status.includes("completed")).length}
+                      </div>
+                    </div>
+                    <div className="dog-profile-stat-card">
+                      <div className="dog-profile-stat-label">Successes</div>
+                      <div className="dog-profile-stat-value">
+                        {dogHistoryMatches.filter((m) => m.status === "completed_success").length}
+                      </div>
+                    </div>
+                    <div className="dog-profile-stat-card">
+                      <div className="dog-profile-stat-label">Success Rate</div>
+                      <div className="dog-profile-stat-value">
+                        {dogHistoryMatches.filter((m) => m.status.includes("completed")).length > 0
+                          ? (
+                              (dogHistoryMatches.filter((m) => m.status === "completed_success")
+                                .length /
+                                dogHistoryMatches.filter((m) => m.status.includes("completed"))
+                                  .length) *
+                              100
+                            ).toFixed(0)
+                          : 0}
+                        %
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* History Table */}
+                  <div className="overflow-x-auto">
+                    <table className="dog-profile-history-table">
+                      <thead className="dog-profile-history-header">
+                        <tr>
+                          <th>Date</th>
+                          <th>Partner</th>
+                          <th>Status</th>
+                          <th>Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dogHistoryMatches.map((match) => {
+                          const isRequester = match.requester_dog_id === dog.id;
+                          const partnerDog = isRequester
+                            ? match.requested_dog
+                            : match.requester_dog;
+                          const date =
+                            match.completed_at ||
+                            match.declined_at ||
+                            match.cancelled_at ||
+                            match.requested_at;
+                          const outcome =
+                            match.outcome?.outcome ||
+                            (match.status === "completed_success"
+                              ? "Success"
+                              : match.status === "completed_failed"
+                                ? "Failed"
+                                : match.status.charAt(0).toUpperCase() + match.status.slice(1));
+                          return (
+                            <tr key={match.id} className="dog-profile-history-row">
+                              <td>{date ? new Date(date).toLocaleDateString() : "—"}</td>
+                              <td>
+                                {partnerDog?.id ? (
+                                  <Link
+                                    to={`/dog/${partnerDog.id}`}
+                                    className="dog-profile-history-link"
+                                  >
+                                    {partnerDog.name}
+                                  </Link>
+                                ) : (
+                                  <span className="text-gray-500">—</span>
+                                )}
+                              </td>
+                              <td>
+                                {match.status
+                                  .replace("completed_", "Completed: ")
+                                  .replace("_", " ")}
+                              </td>
+                              <td>{outcome}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -23,6 +23,11 @@ export default function HomePage() {
     }
   }, [user, navigate]);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "DaBreeder 🐾 | Find Your Perfect Breeding Match";
+  }, []);
+
   const handleGetStarted = () => {
     if (user) {
       navigate("/my-dog");

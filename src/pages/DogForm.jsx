@@ -7,7 +7,6 @@ import Step3Traits from "../stepComponents/Step3Traits";
 import Step4Documents from "../stepComponents/Step4Documents";
 import StepNavigation from "../stepComponents/StepNavigation";
 import "../stepComponents/stepbystepUI.css";
-import "./FindMatchPage.css";
 import "./AddDogForm.css"; // warm dog-lover theme for form
 import { createCache } from "../lib/cache";
 import { getCookie, setCookie, deleteCookie } from "../utils/cookies";

@@ -3,7 +3,7 @@ import supabase from "../lib/supabaseClient";
 import { safeGetUser } from "../lib/auth";
 import { calculateMatchScore } from "../utils/matchmaking";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import "./FindMatchPage.css";
+
 import { AuthContext } from "../context/AuthContext";
 import { createCache } from "../lib/cache";
 import { getCookie, setCookie } from "../utils/cookies";
@@ -11,6 +11,7 @@ import useDogs from "../hooks/useDogs";
 import LoadingState from "../components/LoadingState";
 import { ensureContact } from "../lib/chat";
 import { fetchAwaitingDogIds } from "../lib/matches";
+import "./FindMatchPage.css"; // warm dog-lover theme
 
 // Shared invalidation timestamp is managed inside useDogs; keep usage here only for matches caching.
 
@@ -25,6 +26,11 @@ export default function FindMatchPage() {
       navigate("/admin/dashboard", { replace: true });
     }
   }, [authUser, navigate]);
+
+  // Set page title
+  useEffect(() => {
+    document.title = "Find Matches 🐾 | DaBreeder";
+  }, []);
 
   // Debug logger for this page
   const FM_LOG = (...args) => console.log("🔎 [FindMatch]", ...args);

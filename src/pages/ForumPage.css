@@ -233,3 +233,14 @@ div[role="dialog"] label.border-dashed:hover {
   color: #7c2d12 !important;
   font-weight: 900;
 }
+
+/* Forum Empty State */
+.forum-empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(145deg, #fef9f3, #fef3e8) !important;
+  border-radius: 24px !important;
+  border: 3px dashed #fed7aa !important;
+  list-style: none;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.08) !important;
+}

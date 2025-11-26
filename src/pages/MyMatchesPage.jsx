@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import MyMatches from "../components/MyMatches";
@@ -6,6 +6,10 @@ import MyMatches from "../components/MyMatches";
 export default function MyMatchesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "My Matches 🐾 | DaBreeder";
+  }, []);
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;

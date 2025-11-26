@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import supabase from "../lib/supabaseClient";
 import ErrorMessage from "../components/ErrorMessage";
+import "./ForgotPasswordPage.css"; // warm dog-lover theme
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -98,29 +99,23 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center bg-slate-50 p-6 sm:p-12">
+    <div className="forgot-password-page">
       <div className="w-full max-w-md">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-semibold text-slate-900">Password recovery</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Enter your email to receive a one-time recovery code, then paste it below.
-            </p>
+        <div className="forgot-password-card">
+          <div className="forgot-password-header text-center mb-6">
+            <h1>Password recovery 🐾</h1>
+            <p>Enter your email to receive a one-time recovery code, then paste it below.</p>
           </div>
 
           {error && <ErrorMessage message={error} />}
-          {info && (
-            <div className="mb-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-              {info}
-            </div>
-          )}
+          {info && <div className="forgot-password-info">{info}</div>}
 
           {/* Send code */}
           <form onSubmit={handleSubmit} className="grid gap-4 mb-6">
             <div>
-              <label className="text-sm font-medium text-slate-700">Email address</label>
+              <label className="forgot-password-label">Email address</label>
               <input
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="forgot-password-input"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -129,13 +124,7 @@ export default function ForgotPasswordPage() {
                 required
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-white font-medium ${
-                loading ? "bg-blue-600/60 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
+            <button type="submit" disabled={loading} className="forgot-password-btn">
               {loading ? "Sending…" : "Send recovery code"}
             </button>
           </form>
@@ -143,9 +132,9 @@ export default function ForgotPasswordPage() {
           {/* Verify code */}
           <form onSubmit={handleVerifyCode} className="grid gap-4">
             <div>
-              <label className="text-sm font-medium text-slate-700">One-time code</label>
+              <label className="forgot-password-label">One-time code</label>
               <input
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="forgot-password-input"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="6-digit code"
@@ -154,26 +143,17 @@ export default function ForgotPasswordPage() {
                 required
               />
             </div>
-            <button
-              type="submit"
-              disabled={verifying}
-              className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-white font-medium ${
-                verifying ? "bg-green-600/60 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-              }`}
-            >
+            <button type="submit" disabled={verifying} className="forgot-password-btn verify-btn">
               {verifying ? "Verifying…" : "Verify code & continue"}
             </button>
           </form>
 
           <div className="mt-6 flex items-center justify-between text-sm">
-            <Link
-              to="/"
-              className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-2"
-            >
+            <Link to="/" className="forgot-password-link inline-flex items-center gap-2">
               <FaArrowLeft />
               <span>Back to home</span>
             </Link>
-            <Link to="/" className="text-blue-600 hover:underline">
+            <Link to="/" className="forgot-password-link-primary">
               Remembered it? Sign in
             </Link>
           </div>

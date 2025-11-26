@@ -1,29 +1,21 @@
 import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
+import "./Sidebar.css"; // warm dog-lover theme
+
 function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) {
-  const baseClasses = `group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-medium transition-all duration-200 ${
-    disabled
-      ? "text-slate-400 cursor-not-allowed opacity-50"
-      : active
-        ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm"
-        : danger
-          ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-          : "text-slate-700 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:text-slate-900 hover:shadow-sm hover:scale-[1.02]"
+  const baseClasses = `sidebar-nav-item ${
+    disabled ? "disabled" : active ? "active" : danger ? "danger" : ""
   }`;
   const showBadge = typeof badge === "number" ? badge > 0 : Boolean(badge);
   const badgeValue = typeof badge === "number" ? badge : badge;
 
   const content = (
     <>
-      <span
-        className={`size-5 transition-transform duration-200 ${!disabled && "group-hover:scale-110"} ${active ? "text-blue-600" : danger ? "text-rose-600" : "text-slate-600"}`}
-      >
-        {icon}
-      </span>
+      <span className="sidebar-icon">{icon}</span>
       <span className="flex-1">{label}</span>
       {showBadge && (
-        <span className="ml-auto inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+        <span className="ml-auto inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
           {badgeValue}
         </span>
       )}
@@ -82,36 +74,34 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
       {/* Scrim */}
       <div
         onClick={onClose}
-        className={`absolute inset-0 bg-gradient-to-br from-black/60 via-black/50 to-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`absolute inset-0 sidebar-scrim transition-opacity duration-300 ${
           open ? "opacity-100" : "opacity-0"
         }`}
       />
 
       {/* Panel */}
       <aside
-        className={`absolute left-0 top-0 h-full w-[280px] sm:w-[320px] bg-white shadow-2xl border-r border-slate-200/80 transition-transform duration-300 ease-out ${
+        className={`sidebar-panel absolute left-0 top-0 h-full w-[280px] sm:w-[320px] transition-transform duration-300 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Header */}
-        <div className="relative p-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-b border-slate-200/80">
+        <div className="sidebar-header">
           {loggedIn ? (
             <div className="flex items-center gap-3">
               <div className="relative">
                 <img
                   src={user.avatarUrl}
                   alt="Avatar"
-                  className="size-12 rounded-full object-cover ring-2 ring-white shadow-md"
+                  className="size-12 rounded-full object-cover ring-2 ring-orange-200 shadow-md"
                 />
                 <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-green-500 rounded-full ring-2 ring-white"></div>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">
-                  {user.role}
-                </div>
-                <div className="font-semibold text-slate-900 truncate">{user.name}</div>
+                <div className="sidebar-user-role">{user.role}</div>
+                <div className="sidebar-user-name truncate">{user.name}</div>
                 {user.id && (
-                  <div className="text-[10px] text-slate-500 mt-0.5 font-mono" title={user.id}>
+                  <div className="sidebar-user-id mt-0.5" title={user.id}>
                     ID: {String(user.id).slice(0, 8)}…
                   </div>
                 )}
@@ -119,12 +109,12 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
             </div>
           ) : (
             <div className="flex items-start gap-3 text-sm">
-              <div className="size-12 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-500 font-semibold text-lg shadow-sm">
+              <div className="size-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 font-semibold text-lg shadow-sm">
                 ?
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-slate-900">You are signed out</div>
-                <p className="text-slate-600 text-xs mt-1">
+                <div className="sidebar-user-name">You are signed out</div>
+                <p className="text-orange-800/70 text-xs mt-1">
                   Please sign in to access your dashboard.
                 </p>
               </div>
@@ -134,9 +124,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 
         {/* Main */}
         <div className="px-4 py-4">
-          <div className="text-[10px] uppercase tracking-wider font-semibold bg-gradient-to-r from-slate-600 to-slate-500 bg-clip-text text-transparent mb-3">
-            Main
-          </div>
+          <div className="sidebar-section-title">Main</div>
           <nav className="grid gap-1.5">
             <NavItem
               label="My Dogs"
@@ -193,10 +181,8 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
 
         {/* Settings */}
         <div className="px-4 py-4">
-          <hr className="border-slate-200 mb-4" />
-          <div className="text-[10px] uppercase tracking-wider font-semibold bg-gradient-to-r from-slate-600 to-slate-500 bg-clip-text text-transparent mb-3">
-            Settings
-          </div>
+          <hr className="border-orange-200/50 mb-4" />
+          <div className="sidebar-section-title">Settings</div>
           <nav className="grid gap-1.5">
             <NavItem
               label="Change Password"
@@ -209,11 +195,11 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
         </div>
 
         {/* Bottom */}
-        <div className="mt-auto px-4 pb-6 absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-4">
+        <div className="mt-auto px-4 pb-6 absolute bottom-0 left-0 right-0 sidebar-bottom">
           {loggedIn ? (
             <NavItem label="Logout Account" icon={<LogoutIcon />} danger onClick={onLogout} />
           ) : (
-            <p className="text-xs text-slate-500 px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs text-orange-800/70 px-4 py-3 bg-orange-50 rounded-lg border border-orange-100">
               Sign in from the top bar to unlock all features.
             </p>
           )}

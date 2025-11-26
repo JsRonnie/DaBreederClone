@@ -866,7 +866,11 @@ export default function ForumPage() {
             );
           })}
           {!threads.length && (
-            <li className="text-slate-500">No threads yet. Be the first to post.</li>
+            <li className="forum-empty-state">
+              <div className="text-6xl mb-4">🐾</div>
+              <p className="text-xl font-bold text-[#7c2d12] mb-2">No threads yet</p>
+              <p className="text-[#9a3412] font-semibold">Be the first to start a conversation!</p>
+            </li>
           )}
         </ul>
       )}

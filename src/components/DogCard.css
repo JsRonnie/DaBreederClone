@@ -1,124 +1,126 @@
 /* My Dogs Cards - Dog Lover's Design 🐾 */
 
-/* Grid Layout */
-.matches-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.5rem;
+/* Page Container */
+.find-match-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
+  padding: 2rem 1rem;
 }
 
-/* Match Card - Warm & Friendly Design */
-.match-card {
-  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
-  border: 3px solid #fef3e8;
-  border-radius: 24px;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* Header Section */
+.header-section {
+  text-align: center;
+  margin-bottom: 3rem;
   position: relative;
-  box-shadow:
-    0 8px 16px rgba(251, 146, 60, 0.08),
-    0 4px 8px rgba(251, 146, 60, 0.04);
 }
 
-.match-card::before {
+.header-section::after {
   content: "🐾";
   position: absolute;
   top: -20px;
-  right: -20px;
-  font-size: 120px;
-  opacity: 0.03;
+  right: 10%;
+  font-size: 80px;
+  opacity: 0.05;
   transform: rotate(-25deg);
   pointer-events: none;
-  z-index: 0;
+}
+
+.page-title {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #7c2d12;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(251, 146, 60, 0.1);
+}
+
+.page-description {
+  font-size: 1.25rem;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+/* Content Section */
+.content-section {
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+  background: linear-gradient(145deg, #ffffff 0%, #fff9f5 100%);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  border: 3px solid #fef3e8;
+  position: relative;
+}
+
+.content-section::before {
+  content: "🐾";
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 60px;
+  opacity: 0.03;
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+/* Grid Layout */
+.matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+/* Match Card - Warm & Friendly Design (Matched to FindMatchPage) */
+.match-card {
+  background: linear-gradient(145deg, #ffffff, #fff9f5);
+  border: 3px solid #fef3e8;
+  border-radius: 24px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  position: relative;
 }
 
 .match-card:hover {
-  transform: translateY(-12px) rotate(-1deg);
+  transform: translateY(-8px);
   border-color: #fed7aa;
-  box-shadow:
-    0 20px 40px rgba(251, 146, 60, 0.15),
-    0 10px 20px rgba(251, 146, 60, 0.1),
-    0 0 0 4px rgba(251, 146, 60, 0.05);
-}
-
-/* Playful paw print decoration on hover */
-.match-card::after {
-  content: "🐾";
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  font-size: 24px;
-  opacity: 0;
-  transform: scale(0) rotate(-45deg);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  z-index: 10;
-}
-
-.match-card:hover::after {
-  opacity: 0.15;
-  transform: scale(1) rotate(0deg);
+  box-shadow: 0 16px 40px rgba(251, 146, 60, 0.2);
 }
 
 /* Hidden Badge - Friendly Style */
 .match-rank {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 1rem;
+  left: 1rem;
   background: linear-gradient(135deg, #fb923c, #f97316);
   color: white;
-  padding: 8px 18px;
-  border-radius: 30px;
-  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
   font-weight: 800;
-  z-index: 2;
-  box-shadow: 0 4px 16px rgba(251, 146, 60, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  animation: gentle-bounce 2s ease-in-out infinite;
-}
-
-@keyframes gentle-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
+  font-size: 0.875rem;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+  z-index: 10;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Card Image - Warm & Inviting */
 .card-image-wrapper {
-  position: relative;
   width: 100%;
-  height: 280px;
+  height: 250px;
   overflow: hidden;
-  background: linear-gradient(135deg, #fef3e8 0%, #fed7aa 100%);
-  border-bottom: 4px solid #fef3e8;
-}
-
-.card-image-wrapper::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent 0%, rgba(251, 146, 60, 0.03) 100%);
-  pointer-events: none;
+  position: relative;
 }
 
 .match-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: brightness(1.02) saturate(1.1);
+  transition: transform 0.4s ease;
 }
 
 .match-card:hover .match-image {
-  transform: scale(1.08);
-  filter: brightness(1.05) saturate(1.15);
+  transform: scale(1.1);
 }
 
 /* Hidden Dog Styling */
@@ -135,61 +137,38 @@
 /* Card Content - Cozy & Warm */
 .card-content {
   padding: 1.5rem;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 249, 245, 0.95));
-  position: relative;
-  z-index: 1;
 }
 
 .match-name {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 900;
   color: #7c2d12;
   margin-bottom: 1rem;
-  text-align: left;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 4px rgba(251, 146, 60, 0.1);
-  font-family:
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    sans-serif;
 }
 
 .match-details {
-  margin-bottom: 1.25rem;
-  background: linear-gradient(135deg, #fffbf5, #fef9f3);
-  padding: 1rem;
-  border-radius: 16px;
-  border: 2px solid #fef3e8;
-  box-shadow: inset 0 2px 4px rgba(251, 146, 60, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.625rem 0.5rem;
-  border-bottom: 2px dotted rgba(251, 146, 60, 0.15);
-  transition: all 0.3s ease;
-  border-radius: 8px;
-}
-
-.detail-item:hover {
-  background: linear-gradient(90deg, rgba(251, 146, 60, 0.05), transparent);
-  padding-left: 1rem;
-  transform: translateX(4px);
-}
-
-.detail-item:last-child {
-  border-bottom: none;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #fffbf5, #fef9f3);
+  border-radius: 12px;
+  border: 2px solid #fef3e8;
 }
 
 .detail-label {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: #9a3412;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
 }
 
 .detail-value {
@@ -198,50 +177,36 @@
   font-weight: 800;
 }
 
-.gender-icon {
-  display: inline-block;
-  vertical-align: middle;
-  flex: none;
-}
-
 .gender-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  color: white;
-  font-weight: 900;
-  font-size: 0.875rem;
-  min-width: 70px;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.gender-pill:hover {
-  transform: scale(1.1) rotate(-2deg);
-}
-
-.gender-pill .gender-label {
-  text-transform: lowercase;
-  color: inherit;
-  font-weight: 900;
+  padding: 0.375rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  border: 2px solid;
+  min-width: unset;
+  box-shadow: none;
 }
 
 .gender-pill.male {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+  border-color: #93c5fd;
 }
 
 .gender-pill.female {
-  background: linear-gradient(135deg, #ec4899, #db2777);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4);
+  background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+  color: #be185d;
+  border-color: #f9a8d4;
 }
 
 .gender-pill.unknown {
-  background: linear-gradient(135deg, #94a3b8, #64748b);
-  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  color: #4b5563;
+  border-color: #d1d5db;
 }
 
 .capitalize {
@@ -259,62 +224,53 @@
   flex: 1;
   padding: 0.875rem 1rem;
   border-radius: 16px;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-align: center;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border: none;
+  border: 2px solid;
   cursor: pointer;
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: 0.8125rem;
 }
 
+/* View Profile - Light Style (Matched to FindMatchPage) */
 .view-profile-btn {
-  background: linear-gradient(135deg, #fb923c, #f97316);
-  color: white;
-  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.35);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
-.view-profile-btn::before {
-  content: "👀";
-  position: absolute;
-  left: -30px;
-  font-size: 18px;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.view-profile-btn:hover::before {
-  left: 10px;
-  opacity: 1;
+  background: linear-gradient(135deg, #fffbf5, #fef9f3);
+  color: #fb923c;
+  border-color: #fed7aa;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1);
 }
 
 .view-profile-btn:hover {
+  background: linear-gradient(135deg, #fef9f3, #fef3e8);
+  border-color: #fb923c;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(251, 146, 60, 0.2);
+}
+
+/* Contact Button (for toggle visibility) */
+.contact-btn {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.35);
+}
+
+.contact-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #f97316, #ea580c);
-  transform: translateY(-3px) scale(1.02);
+  transform: translateY(-3px) scale(1.05);
   box-shadow: 0 10px 30px rgba(251, 146, 60, 0.5);
 }
 
-.contact-btn {
-  background: linear-gradient(135deg, #fef3e8, #fed7aa);
-  color: #9a3412;
-  border: 2px solid #fdba74;
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
-}
-
-.contact-btn:hover {
-  background: linear-gradient(135deg, #fed7aa, #fdba74);
-  color: #7c2d12;
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.25);
+.contact-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Delete Button - Gentle Warning Style */
@@ -338,24 +294,8 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
-  position: relative;
-  overflow: hidden;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.delete-btn::before {
-  content: "🗑️";
-  position: absolute;
-  right: -30px;
-  font-size: 18px;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.delete-btn:hover::before {
-  right: 10px;
-  opacity: 1;
 }
 
 .delete-btn:hover {
@@ -369,8 +309,6 @@
 .delete-btn:active {
   transform: translateY(0);
 }
-
-/* Header styles are now inherited from FindMatchPage.css */
 
 /* Empty State - Warm & Welcoming */
 .empty-state-modern {
