@@ -360,7 +360,7 @@ export default function ChatPage() {
       const partnerDogName = requestContext.partnerDogName || "their dog";
       // Use markdown-style link for chat rendering, or plain text with instructions
       const messageText = `${myDogName} wants to breed with your dog ${partnerDogName}. Please go to My Matches to see the request.`;
-      await sendText(messageText);
+      await sendText(messageText, "system");
 
       setRequestDialogOpen(false);
       setRequestContext(null);
@@ -708,7 +708,7 @@ export default function ChatPage() {
               cursor: "pointer",
               padding: "0.5rem",
               marginLeft: "-0.5rem",
-              color: "#374151",
+              color: "#7c2d12",
             }}
           >
             <svg
@@ -931,14 +931,19 @@ export default function ChatPage() {
                   className="message-bubble"
                   style={{
                     padding: "0.75rem 1rem",
-                    background: isOwn ? "#2563eb" : "#ffffff",
-                    color: isOwn ? "#ffffff" : "#111827",
+                    background: isOwn ? "linear-gradient(135deg, #fb923c, #f97316)" : "#ffffff",
+                    color: isOwn ? "#ffffff" : "#7c2d12",
                     borderRadius: isOwn ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                    boxShadow: isOwn
+                      ? "0 2px 8px rgba(251, 146, 60, 0.25)"
+                      : "0 2px 4px rgba(0,0,0,0.05)",
+                    border: isOwn ? "none" : "1px solid #fef3e8",
                     fontSize: "0.9375rem",
                     lineHeight: "1.5",
                     wordWrap: "break-word",
-                    flex: 1,
+                    width: "fit-content",
+                    maxWidth: "70%",
+                    minWidth: "50px",
                   }}
                 >
                   {m.deleted_at && (
@@ -978,7 +983,7 @@ export default function ChatPage() {
                                   target="_blank"
                                   rel="noreferrer"
                                   style={{
-                                    color: isOwn ? "#bfdbfe" : "#2563eb",
+                                    color: isOwn ? "#ffedd5" : "#f97316",
                                     textDecoration: url ? "underline" : "none",
                                     pointerEvents: url ? "auto" : "none",
                                     fontSize: "0.875rem",
@@ -1363,26 +1368,27 @@ export default function ChatPage() {
               style={{
                 flex: 1,
                 padding: "0.875rem 1rem",
-                border: "2px solid #e5e7eb",
+                border: "2px solid #fed7aa",
                 borderRadius: 24,
                 fontSize: "0.9375rem",
                 outline: "none",
                 transition: "border-color 0.2s ease",
-                background: "#fafafa",
+                background: "#fffbf5",
                 resize: "none",
                 overflowY: "hidden", // Hide scrollbar initially
                 lineHeight: "1.5",
                 fontFamily: "inherit",
                 minHeight: "auto",
                 maxHeight: "7.5em", // 5 lines (1.5em line-height * 5)
+                color: "#7c2d12",
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#2563eb";
+                e.currentTarget.style.borderColor = "#fb923c";
                 e.currentTarget.style.background = "#ffffff";
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#e5e7eb";
-                e.currentTarget.style.background = "#fafafa";
+                e.currentTarget.style.borderColor = "#fed7aa";
+                e.currentTarget.style.background = "#fffbf5";
               }}
             />
             <input
@@ -1429,7 +1435,9 @@ export default function ChatPage() {
               style={{
                 padding: "0.875rem 1.5rem",
                 background:
-                  !input.trim() && pendingAttachments.length === 0 ? "#d1d5db" : "#2563eb",
+                  !input.trim() && pendingAttachments.length === 0
+                    ? "#fed7aa"
+                    : "linear-gradient(135deg, #fb923c, #f97316)",
                 color: "white",
                 border: "none",
                 borderRadius: 24,
@@ -1439,16 +1447,20 @@ export default function ChatPage() {
                 fontSize: "0.9375rem",
                 transition: "all 0.2s ease",
                 minWidth: 80,
+                boxShadow:
+                  !input.trim() && pendingAttachments.length === 0
+                    ? "none"
+                    : "0 4px 12px rgba(251, 146, 60, 0.25)",
               }}
               onMouseEnter={(e) => {
                 if (input.trim() || pendingAttachments.length > 0) {
-                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.background = "linear-gradient(135deg, #f97316, #ea580c)";
                   e.currentTarget.style.transform = "scale(1.02)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (input.trim() || pendingAttachments.length > 0) {
-                  e.currentTarget.style.background = "#2563eb";
+                  e.currentTarget.style.background = "linear-gradient(135deg, #fb923c, #f97316)";
                   e.currentTarget.style.transform = "scale(1)";
                 }
               }}

@@ -233,9 +233,9 @@ export default function useChat() {
   }, []);
 
   const sendText = useCallback(
-    async (text) => {
+    async (text, kind = "text") => {
       if (!activeContactId) throw new Error("No active contact");
-      const msg = await sendMessage({ contactId: activeContactId, content: text, kind: "text" });
+      const msg = await sendMessage({ contactId: activeContactId, content: text, kind });
       setMessages((prev) => {
         const exists = prev.some((m) => m.id === msg.id);
         if (exists) {
