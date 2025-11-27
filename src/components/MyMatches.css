@@ -181,6 +181,13 @@
   font-weight: 600;
 }
 
+.dog-extra-info {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: #7c2d12;
+  font-weight: 700;
+}
+
 /* Outcome Display */
 .outcome-display {
   margin-top: 1rem;
@@ -320,6 +327,50 @@ button:disabled {
   color: white;
   border-color: #fb923c;
   box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-chip-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  border: 2px solid #fef3e8;
+  background: linear-gradient(to bottom, #fef9f3, #fef3e8);
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-chip.active,
+.filter-chip:hover {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: white;
+  border-color: #fb923c;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.25);
 }
 
 /* Empty State - Warm Theme */

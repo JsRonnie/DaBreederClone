@@ -146,12 +146,8 @@ export function mapMatchRecord(row, userId) {
   const myDog = myselfIsRequester ? row.requester_dog : row.requested_dog;
   const partnerDog = myselfIsRequester ? row.requested_dog : row.requester_dog;
   const myDogGender = (myDog?.gender || "").toString().toLowerCase();
-  const awaitingMyOutcome =
-    row.status === "awaiting_confirmation" && !myselfIsRequester && myDogGender === "female";
-  let userStatus = row.status;
-  if (row.status === "awaiting_confirmation" && myselfIsRequester) {
-    userStatus = "accepted";
-  }
+  const awaitingMyOutcome = row.status === "awaiting_confirmation" && myDogGender === "female";
+  const userStatus = row.status;
   const outcomeRel = row.dog_match_outcomes;
   const outcome = Array.isArray(outcomeRel) ? outcomeRel[0] || null : outcomeRel || null;
   const isCompleted = row.status === "completed_success" || row.status === "completed_failed";

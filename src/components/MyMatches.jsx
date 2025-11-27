@@ -17,6 +17,27 @@ const STATUS_BADGES = {
   completed_failed: { label: "Unsuccessful", color: "bg-rose-100 text-rose-700" },
 };
 
+const BREED_BUCKET_LABELS = {
+  same: "Same-breed",
+  cross: "Cross-breed",
+};
+
+const normalizeBreed = (value) => (typeof value === "string" ? value.trim().toLowerCase() : "");
+const normalizeGender = (value) => (typeof value === "string" ? value.trim().toLowerCase() : "");
+
+function getBreedBucket(primaryBreed, partnerBreed) {
+  const a = normalizeBreed(primaryBreed);
+  const b = normalizeBreed(partnerBreed);
+  if (!a || !b) return null;
+  return a === b ? "same" : "cross";
+}
+
+const GENDER_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "male", label: "Male" },
+  { id: "female", label: "Female" },
+];
+
 function getProgressMessage(match) {
   const status = match.userStatus || match.status;
   if (status === "pending") {
@@ -47,19 +68,32 @@ function getProgressMessage(match) {
   return "Status updated.";
 }
 
-function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy }) {
+function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy, successRates }) {
   const statusKey = match.userStatus || match.status;
   const badge = STATUS_BADGES[statusKey] || {
     label: statusKey,
     color: "bg-slate-100 text-slate-700",
   };
   // Allow both male and female dog owners to accept if they are the receiving owner
-  const showAcceptDecline =
-    match.status === "pending" && match.requiresResponse && match.isReceivingOwner;
+  const showAcceptDecline = match.status === "pending" && match.isReceivingOwner;
   const showCancel = match.canCancel;
   const showRecordOutcome = match.awaitingMyOutcome;
   const requestedDate = match.requested_at ? new Date(match.requested_at) : null;
   const progressMessage = getProgressMessage(match);
+  const dogId = match.myDog?.id ? String(match.myDog.id) : null;
+  const bucketKey = getBreedBucket(match.myDog?.breed, match.partnerDog?.breed);
+  let successInfo = null;
+  if (dogId && bucketKey && successRates) {
+    const stats = successRates[dogId]?.[bucketKey];
+    if (stats) {
+      if (stats.total > 0) {
+        const percent = Math.round((stats.success / stats.total) * 100);
+        successInfo = `${BREED_BUCKET_LABELS[bucketKey]} success: ${percent}% (${stats.success}/${stats.total})`;
+      } else {
+        successInfo = `${BREED_BUCKET_LABELS[bucketKey]} success: —`;
+      }
+    }
+  }
 
   // Helper to get badge class
   const getBadgeClass = (status) => {
@@ -75,7 +109,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
     return statusMap[status] || "status-badge-cancelled";
   };
 
-  function DogInfoCard({ dog, title, isPartner, partnerId }) {
+  function DogInfoCard({ dog, title, isPartner, partnerId, extraInfo }) {
     if (!dog)
       return (
         <div className="dog-info-card">
@@ -91,6 +125,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
           <div className="dog-info-details">
             {dog.breed || "Unknown"} • {dog.gender || "Unknown"}
           </div>
+          {extraInfo && <div className="dog-extra-info">{extraInfo}</div>}
         </div>
       </div>
     );
@@ -130,7 +165,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <DogInfoCard dog={match.myDog} title="Your dog" />
+        <DogInfoCard dog={match.myDog} title="Your dog" extraInfo={successInfo} />
         <DogInfoCard
           dog={match.partnerDog}
           title="Partner"
@@ -181,9 +216,7 @@ export default function MyMatches({ userId }) {
   const {
     matches,
     pendingMatches,
-    acceptedMatches,
     awaitingConfirmationMatches,
-    historyMatches,
     summary,
     loading,
     error,
@@ -193,9 +226,33 @@ export default function MyMatches({ userId }) {
     submitOutcome,
   } = useDogMatches({ userId });
   const [tab, setTab] = useState("pending");
+  const [genderFilter, setGenderFilter] = useState("all");
   const [busyMap, setBusyMap] = useState({});
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
   const [outcomeMatch, setOutcomeMatch] = useState(null);
+
+  const successRates = useMemo(() => {
+    const stats = {};
+    matches.forEach((match) => {
+      const dogId = match.myDog?.id ? String(match.myDog.id) : null;
+      if (!dogId || !match.partnerDog) return;
+      const bucket = getBreedBucket(match.myDog?.breed, match.partnerDog?.breed);
+      if (!bucket) return;
+      if (!stats[dogId]) {
+        stats[dogId] = {
+          same: { success: 0, total: 0 },
+          cross: { success: 0, total: 0 },
+        };
+      }
+      if (match.status === "completed_success" || match.status === "completed_failed") {
+        stats[dogId][bucket].total += 1;
+        if (match.status === "completed_success") {
+          stats[dogId][bucket].success += 1;
+        }
+      }
+    });
+    return stats;
+  }, [matches]);
 
   const tabOptions = useMemo(
     () => [
@@ -208,7 +265,7 @@ export default function MyMatches({ userId }) {
     []
   );
 
-  const visibleMatches = useMemo(() => {
+  const visibleData = useMemo(() => {
     // Move helper functions inside useMemo
     const normalizedUserId = userId ? String(userId) : null;
     const isOwner = (dog) => {
@@ -259,40 +316,33 @@ export default function MyMatches({ userId }) {
       isReceivingOwner: isReceivingOwner(m),
       isFemaleDogOwner: isFemaleDogOwner(m),
     }));
+    const filteredByGender = matchesWithHelpers.filter((match) => {
+      if (genderFilter === "all") return true;
+      return normalizeGender(match.myDog?.gender) === genderFilter;
+    });
     const start = (page - 1) * PAGE_SIZE;
-    return matchesWithHelpers.slice(start, start + PAGE_SIZE);
-  }, [tab, pendingMatches, awaitingConfirmationMatches, matches, page, userId]);
+    return {
+      items: filteredByGender.slice(start, start + PAGE_SIZE),
+      total: filteredByGender.length,
+    };
+  }, [tab, pendingMatches, awaitingConfirmationMatches, matches, page, userId, genderFilter]);
+
+  const visibleMatches = visibleData.items;
+  const totalFiltered = visibleData.total;
 
   React.useEffect(() => {
-    let total = 0;
-    switch (tab) {
-      case "pending":
-        total = pendingMatches.length;
-        break;
-      case "accepted":
-        total = acceptedMatches.length;
-        break;
-      case "awaiting":
-        total = awaitingConfirmationMatches.length;
-        break;
-      case "history":
-        total = historyMatches.length;
-        break;
-      default:
-        total = matches.length;
+    if (totalFiltered === 0) {
+      if (page !== 1) setPage(1);
+      return;
     }
-    if ((page - 1) * PAGE_SIZE >= total) {
+    if ((page - 1) * PAGE_SIZE >= totalFiltered) {
       setPage(1);
     }
-  }, [
-    tab,
-    page,
-    pendingMatches.length,
-    acceptedMatches.length,
-    awaitingConfirmationMatches.length,
-    historyMatches.length,
-    matches.length,
-  ]);
+  }, [totalFiltered, page]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [tab, genderFilter]);
 
   const handleStatusChange = async (match, status) => {
     setBusyMap((prev) => ({ ...prev, [match.id]: true }));
@@ -368,6 +418,22 @@ export default function MyMatches({ userId }) {
           <ErrorMessage message={error.message} onRetry={refetch} />
         ) : (
           <>
+            <div className="filter-bar">
+              <span className="filter-label">Show</span>
+              <div className="filter-chip-group">
+                {GENDER_FILTERS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`filter-chip ${genderFilter === option.id ? "active" : ""}`}
+                    onClick={() => setGenderFilter(option.id)}
+                    aria-pressed={genderFilter === option.id}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2 mb-6 flex-wrap">
               {tabOptions.map((option) => (
                 <button
@@ -427,6 +493,7 @@ export default function MyMatches({ userId }) {
                       onCancel={(m) => handleStatusChange(m, "cancelled")}
                       onRecordOutcome={handleRecordOutcome}
                       busy={!!busyMap[match.id]}
+                      successRates={successRates}
                     />
                   ))}
                 </div>
