@@ -243,14 +243,17 @@ export default function AdminMessagesPage() {
 
   const markAsResolved = async (messageId) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("contact_messages")
         .update({ status: "resolved" })
-        .eq("id", messageId);
+        .eq("id", messageId)
+        .select();
 
       if (error) throw error;
 
-      console.log("Message marked as resolved:", messageId);
+      console.log("Message marked as resolved:", messageId, data);
+
+      // Only refetch from DB to ensure sync
       await fetchMessages();
 
       // Close modal if it's open
@@ -332,29 +335,25 @@ export default function AdminMessagesPage() {
     });
   }, [messages, searchTerm, filterStatus]);
 
-  const handleStatusToggle = useCallback(
-    async (messageId, currentStatus) => {
-      try {
-        const newStatus = currentStatus === "pending" ? "resolved" : "pending";
-        const { error } = await supabase
-          .from("contact_messages")
-          .update({ status: newStatus })
-          .eq("id", messageId);
+  const handleStatusToggle = useCallback(async (messageId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === "pending" ? "resolved" : "pending";
+      const { error } = await supabase
+        .from("contact_messages")
+        .update({ status: newStatus })
+        .eq("id", messageId);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setMessages(
-          messages.map((msg) => (msg.id === messageId ? { ...msg, status: newStatus } : msg))
-        );
+      // Always refetch from DB for accuracy
+      await fetchMessages();
 
-        toast.success(`Message marked as ${newStatus}`);
-      } catch (error) {
-        console.error("Error updating message status:", error);
-        toast.error("Failed to update message status");
-      }
-    },
-    [messages]
-  );
+      toast.success(`Message marked as ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating message status:", error);
+      toast.error("Failed to update message status");
+    }
+  }, []);
 
   // Pagination
   const totalPages = Math.ceil(filteredMessages.length / ROWS_PER_PAGE);
@@ -567,7 +566,13 @@ export default function AdminMessagesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleStatusToggle(message.id, message.status)}
+                              onClick={() => {
+                                if (message.status === "pending") {
+                                  markAsResolved(message.id);
+                                } else {
+                                  handleStatusToggle(message.id, message.status);
+                                }
+                              }}
                               className={`h-8 w-8 ${
                                 message.status === "pending"
                                   ? "text-green-600 hover:bg-green-50"
@@ -676,7 +681,7 @@ export default function AdminMessagesPage() {
                     </p>
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex items-start gap-2">
-                        <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
+                        <Info className="h-4 w-4 mt-0.5 shrink-0 text-blue-600" />
                         <p className="text-xs text-blue-800 leading-relaxed">
                           This reply will be sent to {selectedMessage.email}
                         </p>
@@ -696,33 +701,23 @@ export default function AdminMessagesPage() {
                     Close
                   </Button>
                   {selectedMessage.status === "pending" ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={() => markAsResolved(selectedMessage.id)}
-                        className="min-w-[140px]"
-                      >
-                        <Check className="mr-2 h-4 w-4" />
-                        Mark as Resolved
-                      </Button>
-                      <Button
-                        onClick={sendReply}
-                        disabled={sending || !replyText.trim()}
-                        className="min-w-[140px]"
-                      >
-                        {sending ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="mr-2 h-4 w-4" />
-                            Send Reply
-                          </>
-                        )}
-                      </Button>
-                    </>
+                    <Button
+                      onClick={sendReply}
+                      disabled={sending || !replyText.trim()}
+                      className="min-w-[140px]"
+                    >
+                      {sending ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Send Reply
+                        </>
+                      )}
+                    </Button>
                   ) : (
                     <Button
                       onClick={() => markAsPending(selectedMessage.id)}

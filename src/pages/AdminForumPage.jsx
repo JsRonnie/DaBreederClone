@@ -46,6 +46,7 @@ export default function AdminForumPage() {
     itemTitle: "",
     userId: null,
     userName: "",
+    reason: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -169,22 +170,99 @@ export default function AdminForumPage() {
   };
 
   const handleDeleteClick = (action, itemId, itemTitle, userId = null, userName = "") => {
-    setConfirmDialog({ open: true, action, itemId, itemTitle, userId, userName });
+    setConfirmDialog({ open: true, action, itemId, itemTitle, userId, userName, reason: "" });
   };
 
   const confirmAction = async () => {
-    const { action, itemId, userId } = confirmDialog;
+    const { action, itemId, userId, itemTitle, reason } = confirmDialog;
 
     try {
       if (action === "deleteThread") {
-        await supabase.from("comments").delete().eq("thread_id", itemId);
-        const { error } = await supabase.from("threads").delete().eq("id", itemId);
-        if (error) throw error;
+        // Delete all comments for the thread
+        const { error: commentsError } = await supabase
+          .from("comments")
+          .delete()
+          .eq("thread_id", itemId);
+        if (commentsError) {
+          console.error(
+            "Failed to delete comments for thread:",
+            commentsError,
+            "Thread ID:",
+            itemId
+          );
+          setNotification({ type: "error", message: "Failed to delete comments for post." });
+          return;
+        }
+        // Delete the thread itself
+        const { data: deletedThread, error: threadError } = await supabase
+          .from("threads")
+          .delete()
+          .eq("id", itemId)
+          .select();
+        if (threadError) {
+          console.error("Failed to delete thread:", threadError, "Thread ID:", itemId);
+          setNotification({ type: "error", message: "Failed to delete post." });
+          return;
+        }
+        if (!deletedThread || deletedThread.length === 0) {
+          console.warn("No thread deleted. ID:", itemId);
+          setNotification({ type: "error", message: "No post deleted. Check permissions." });
+          return;
+        }
         setNotification({ type: "success", message: "Thread deleted." });
+        // Send notification to user
+        if (userId) {
+          const reasonText = reason && reason.trim() !== "" ? reason : "No reason provided.";
+          const notifMsg = `Your post "${itemTitle}" was deleted by an admin. Reason: ${reasonText}`;
+          console.log("Sending thread deletion notification:", notifMsg);
+          const notifInsertRes = await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "Post Deleted",
+            type: "thread_deleted",
+            message: notifMsg,
+            created_at: new Date().toISOString(),
+          });
+          console.log("Notification insert response (thread):", notifInsertRes);
+          if (notifInsertRes.error) {
+            console.error("Failed to send notification to user:", notifInsertRes.error);
+          }
+        }
       } else if (action === "deleteComment") {
-        const { error } = await supabase.from("comments").delete().eq("id", itemId);
-        if (error) throw error;
+        const { data: deletedComment, error: commentError } = await supabase
+          .from("comments")
+          .delete()
+          .eq("id", itemId)
+          .select();
+        if (commentError) {
+          console.error("Failed to delete comment:", commentError, "Comment ID:", itemId);
+          setNotification({ type: "error", message: "Failed to delete comment." });
+          return;
+        }
+        if (!deletedComment || deletedComment.length === 0) {
+          console.warn("No comment deleted. ID:", itemId);
+          setNotification({ type: "error", message: "No comment deleted. Check permissions." });
+          return;
+        }
         setNotification({ type: "success", message: "Comment deleted." });
+        // Send notification to user
+        if (userId) {
+          const reasonText = reason && reason.trim() !== "" ? reason : "No reason provided.";
+          const notifMsg = `Your comment was deleted by an admin. Reason: ${reasonText}`;
+          console.log("Sending comment deletion notification:", notifMsg);
+          const notifInsertRes = await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "Comment Deleted",
+            type: "comment_deleted",
+            message: notifMsg,
+            created_at: new Date().toISOString(),
+          });
+          console.log("Notification insert response (comment):", notifInsertRes);
+          if (notifInsertRes.error) {
+            console.error("Failed to send notification to user:", notifInsertRes.error);
+          }
+        } else {
+          console.warn("No userId found for deleted comment. Notification not sent.");
+        }
       } else if (action === "banUser") {
         const { error } = await supabase
           .from("users")
@@ -192,6 +270,16 @@ export default function AdminForumPage() {
           .eq("id", userId);
         if (error) throw error;
         setNotification({ type: "success", message: "User banned." });
+        // Send notification to user
+        if (userId) {
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "User Banned",
+            type: "user_banned",
+            message: `You have been banned by an admin.`,
+            created_at: new Date().toISOString(),
+          });
+        }
       }
 
       await fetchForumData();
@@ -202,6 +290,7 @@ export default function AdminForumPage() {
         itemTitle: "",
         userId: null,
         userName: "",
+        reason: "",
       });
       setTimeout(() => setNotification(null), 4000);
     } catch (err) {
@@ -710,6 +799,44 @@ export default function AdminForumPage() {
         }
         cancelText="Cancel"
         variant={confirmDialog.action === "banUser" ? "destructive" : "default"}
+        // Add reason input for delete actions
+        extraContent={
+          (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium mb-1">Type of deletion</label>
+              <select
+                value={confirmDialog.reason}
+                onChange={(e) => setConfirmDialog({ ...confirmDialog, reason: e.target.value })}
+                className="w-full border rounded px-2 py-2 text-sm"
+              >
+                <option value="">Select a type...</option>
+                <option value="Harassment">Harassment</option>
+                <option value="Spam">Spam</option>
+                <option value="Explicit Content">Explicit Content</option>
+                <option value="Hate Speech">Hate Speech</option>
+                <option value="Misinformation">Misinformation</option>
+                <option value="Offensive Language">Offensive Language</option>
+              </select>
+              {confirmDialog.reason.trim() === "" && (
+                <p className="text-xs text-red-500 mt-1">Type is required to delete.</p>
+              )}
+            </div>
+          )
+        }
+        confirmButtonClass={
+          (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") &&
+          confirmDialog.reason.trim() === ""
+            ? "bg-gray-400 cursor-not-allowed text-white"
+            : confirmDialog.action === "banUser"
+              ? "bg-red-600 hover:bg-red-700 text-white"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+        }
+        onConfirm={
+          (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") &&
+          confirmDialog.reason.trim() === ""
+            ? undefined
+            : confirmAction
+        }
       />
     </div>
   );

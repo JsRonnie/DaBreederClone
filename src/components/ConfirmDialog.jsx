@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 
 export default function ConfirmDialog({
   isOpen,
+  open,
   onClose,
   onConfirm,
   title = "Confirm Action",
@@ -9,16 +10,17 @@ export default function ConfirmDialog({
   confirmText = "Confirm",
   cancelText = "Cancel",
   confirmButtonClass = "bg-red-600 hover:bg-red-700 text-white",
+  extraContent,
 }) {
   // Handle escape key to close modal
+  const isDialogOpen = typeof open !== "undefined" ? open : isOpen;
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isDialogOpen) return;
 
     const handleEscape = (e) => {
       if (e.key === "Escape") onClose();
     };
 
-    // Prevent body scroll when modal is open
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleEscape);
 
@@ -26,17 +28,17 @@ export default function ConfirmDialog({
       document.body.style.overflow = "unset";
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isDialogOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isDialogOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    <div className="fixed inset-0 z-90">
       {/* Backdrop: subtle darken, no heavy blur */}
       <div className="absolute inset-0 bg-black/10" onClick={onClose} aria-hidden="true" />
 
       {/* Centered modal */}
-      <div className="relative z-[91] flex min-h-full items-center justify-center p-4">
+      <div className="relative z-91 flex min-h-full items-center justify-center p-4">
         {/* Modal panel - minimalist */}
         <div className="relative w-full max-w-md rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
           {/* Close button */}
@@ -63,6 +65,8 @@ export default function ConfirmDialog({
             <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">{message}</p>
           ) : null}
 
+          {/* Extra content (e.g., reason input) */}
+          {extraContent}
           {/* Actions */}
           <div className="mt-4 flex items-center justify-end gap-2">
             <button
