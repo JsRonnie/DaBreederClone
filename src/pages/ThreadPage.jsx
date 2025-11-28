@@ -577,18 +577,18 @@ export default function ThreadPage() {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => window.history.back()}
-          className="text-sm px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 inline-flex items-center gap-2"
+          className="group flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#7c2d12] bg-gradient-to-b from-[#fef9f3] to-[#fef3e8] border-2 border-[#fef3e8] rounded-full shadow-sm hover:from-[#fed7aa] hover:to-[#fdba74] hover:border-[#fdba74] hover:-translate-x-1 transition-all duration-300"
         >
-          <FaArrowLeft className="text-sm" />
+          <FaArrowLeft className="text-sm transition-transform" />
           <span>Back to Forum</span>
         </button>
         <div className="relative">
           <button
             onClick={() => setThreadMenuOpen(!threadMenuOpen)}
-            className="text-sm px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50"
+            className="flex items-center justify-center w-9 h-9 text-[#7c2d12] bg-gradient-to-b from-[#fef9f3] to-[#fef3e8] border-2 border-[#fef3e8] rounded-full shadow-sm hover:from-[#fed7aa] hover:to-[#fdba74] hover:border-[#fdba74] transition-all duration-300"
             title="More options"
           >
-            ⋯
+            <span className="text-lg leading-none mb-2">...</span>
           </button>
           {threadMenuOpen && (
             <div
@@ -809,7 +809,7 @@ export default function ThreadPage() {
                 <span>{new Date(c.created_at).toLocaleString()}</span>
                 {/* collapse and share removed */}
                 {/* Reply removed by request */}
-                <div className="ml-auto relative">
+                <div className="ml-2 relative">
                   <button
                     onClick={() =>
                       setCommentMenuOpen((m) => ({
@@ -903,7 +903,7 @@ export default function ThreadPage() {
                         <span className="font-medium text-slate-700">{ch.author.name}</span>
                       ) : null}
                       <span>{new Date(ch.created_at).toLocaleString()}</span>
-                      <div className="ml-auto relative">
+                      <div className="ml-2 relative">
                         <button
                           onClick={() =>
                             setCommentMenuOpen((m) => ({
@@ -985,7 +985,15 @@ export default function ThreadPage() {
             )}
           </li>
         ))}
-        {!comments.length && <li className="text-slate-500">No comments yet.</li>}
+        {!comments.length && (
+          <li className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-slate-300 rounded-lg bg-slate-50/50">
+            <div className="w-12 h-12 mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+              <FaRegCommentDots className="text-xl" />
+            </div>
+            <p className="text-slate-600 font-medium">No comments yet</p>
+            <p className="text-sm text-slate-500 mt-1">Be the first to share your thoughts!</p>
+          </li>
+        )}
       </ul>
 
       {/* Removed standalone Add a comment button; use the comment icon in header */}

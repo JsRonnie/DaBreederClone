@@ -21,6 +21,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
     dogName: "",
   });
   const [togglingVisibility, setTogglingVisibility] = useState({});
+  const [deletingDogId, setDeletingDogId] = useState(null);
   const location = useLocation();
   const [initialDecisionComplete, setInitialDecisionComplete] = useState(
     () => overrideDogs.length > 0
@@ -48,6 +49,14 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
   const handleDeleteDog = useCallback(async () => {
     const { dogId, dogName } = confirmDialog;
     if (!dogId) return closeDeleteConfirmation();
+
+    // Set deleting state for animation
+    setDeletingDogId(dogId);
+    closeDeleteConfirmation();
+
+    // Wait for animation to complete
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
     try {
       // Remove all documents (storage + DB)
       await removeAllDocumentsForDog(dogId);
@@ -57,7 +66,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
       // Optimistically update list
       setDogs((prev) => prev.filter((d) => d.id !== dogId));
       notifyDogsInvalidate("dog-deleted");
-      closeDeleteConfirmation();
+      setDeletingDogId(null);
       // Show toast notification
       window.dispatchEvent(
         new CustomEvent("toast", {
@@ -68,12 +77,12 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
       setTimeout(() => refetch(), 250);
     } catch (e) {
       console.error("Delete dog failed", e);
+      setDeletingDogId(null);
       window.dispatchEvent(
         new CustomEvent("toast", {
           detail: { message: e.message || "Failed to delete dog", type: "error" },
         })
       );
-      closeDeleteConfirmation();
     }
   }, [confirmDialog, closeDeleteConfirmation, refetch, setDogs]);
 
@@ -260,7 +269,7 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
               return (
                 <div
                   key={dog.id}
-                  className={`match-card ${dog.is_visible === false ? "hidden-dog" : ""}`}
+                  className={`match-card ${dog.is_visible === false ? "hidden-dog" : ""} ${deletingDogId === dog.id ? "deleting" : ""}`}
                 >
                   {dog.is_visible === false && (
                     <div className="match-rank">Hidden from Matches</div>

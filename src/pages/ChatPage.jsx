@@ -928,12 +928,11 @@ export default function ChatPage() {
                 style={{
                   marginBottom: "0.25rem",
                   width: "100%",
-                  alignSelf: isOwn ? "flex-end" : "flex-start",
                   display: "flex",
                   alignItems: "flex-start",
-                  gap: "0.5rem",
+                  gap: "0.25rem",
                   flexDirection: isOwn ? "row-reverse" : "row",
-                  justifyContent: isOwn ? "flex-end" : "flex-start",
+                  justifyContent: "flex-start",
                 }}
               >
                 <div
@@ -952,9 +951,8 @@ export default function ChatPage() {
                     wordWrap: "break-word",
                     maxWidth: "min(75%, 420px)",
                     minWidth: "50px",
-                    display: "inline-block",
-                    marginLeft: isOwn ? "auto" : 0,
-                    marginRight: isOwn ? 0 : "auto",
+                    flex: "0 0 auto",
+                    width: "fit-content",
                   }}
                 >
                   {m.deleted_at && (
