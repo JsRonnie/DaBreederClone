@@ -1,68 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import supabase from "../lib/supabaseClient";
-import { DOG_LIST_COLUMNS } from "../lib/dogs";
 import { AuthContext } from "../context/AuthContext";
 import React from "react";
+import { fetchDogsForUser, mapDogRow } from "../lib/dogQueries";
 
 // Simple per-user cache to avoid refetching on quick navigations
 const DOGS_CACHE = (globalThis.__DB_DOGS_CACHE__ = globalThis.__DB_DOGS_CACHE__ || {});
 const FIVE_MIN = 5 * 60 * 1000;
 
-function mapDogRow(row) {
-  if (!row) return null;
-  const gender = row.gender || row.sex || null;
-  return {
-    id: row.id,
-    name: row.name || "Unnamed",
-    breed: row.breed || "Unknown",
-    age_years: row.age_years ?? null,
-    sex: gender,
-    gender: row.gender || row.sex || null,
-    size: row.size || null,
-    weight_kg: row.weight_kg ?? null,
-    coat_type: row.coat_type || null,
-    color: row.color || null,
-    activity_level: row.activity_level || null,
-    sociability: row.sociability || null,
-    trainability: row.trainability || null,
-    image: row.image || row.image_url || null,
-    hidden: !!row.hidden,
-    is_visible: row.is_visible ?? true,
-    user_id: row.user_id,
-    match_requests_count: row.match_requests_count ?? 0,
-    match_accept_count: row.match_accept_count ?? 0,
-    match_completed_count: row.match_completed_count ?? 0,
-    match_success_count: row.match_success_count ?? 0,
-    match_failure_count: row.match_failure_count ?? 0,
-    female_successful_matings: row.female_successful_matings ?? 0,
-    male_success_rate: typeof row.male_success_rate === "number" ? row.male_success_rate : 0,
-  };
-}
-
-async function fetchDogsForUser(userId) {
-  if (!userId) return [];
-  // Try selecting a stable subset of columns; if schema differences cause an error, fallback to *
-  const baseCols = Array.from(new Set([...DOG_LIST_COLUMNS, "sex"]));
-  let resp = await supabase
-    .from("dogs")
-    .select(baseCols.join(", "))
-    .eq("user_id", userId)
-    .order("id", { ascending: false });
-
-  if (resp.error && (resp.error.code === "42703" || /column/.test(resp.error.message || ""))) {
-    resp = await supabase
-      .from("dogs")
-      .select("*")
-      .eq("user_id", userId)
-      .order("id", { ascending: false });
-  }
-  if (resp.error) throw resp.error;
-  return (resp.data || []).map(mapDogRow);
-}
-
 export default function useDogs(options = {}) {
-  const { user } = React.useContext(AuthContext) || {};
+  const { user, sessionReady } = React.useContext(AuthContext) || {};
   const userId = options.userId || user?.id || null;
+  const canQuery = !!userId;
 
   const [dogs, setDogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -70,9 +19,32 @@ export default function useDogs(options = {}) {
 
   const lastSuccessfulDogsRef = useRef([]);
   const hydratedFromStorageRef = useRef(false);
+  const emptyRetryRef = useRef(false);
 
   const cacheKey = useMemo(() => (userId ? `u:${userId}` : "anon"), [userId]);
   const storageKey = useMemo(() => (userId ? `db:dogs:${userId}` : null), [userId]);
+
+  const applyCacheSnapshot = useCallback(() => {
+    const cache = DOGS_CACHE[cacheKey];
+    if (cache?.dogs) {
+      lastSuccessfulDogsRef.current = cache.dogs;
+      setDogs(cache.dogs);
+      setError(cache.error || null);
+      setLoading(false);
+      return cache.dogs;
+    }
+    if (lastSuccessfulDogsRef.current.length > 0) {
+      setDogs(lastSuccessfulDogsRef.current);
+      setError(null);
+      setLoading(false);
+      return lastSuccessfulDogsRef.current;
+    }
+    return null;
+  }, [cacheKey]);
+
+  useEffect(() => {
+    applyCacheSnapshot();
+  }, [applyCacheSnapshot]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") {
@@ -116,10 +88,15 @@ export default function useDogs(options = {}) {
   const load = useCallback(
     async (force = false) => {
       if (!userId) {
-        setDogs([]);
-        setLoading(false);
+        if (lastSuccessfulDogsRef.current.length > 0) {
+          setDogs(lastSuccessfulDogsRef.current);
+          setLoading(false);
+        } else {
+          setDogs([]);
+          setLoading(true);
+        }
         setError(null);
-        return [];
+        return lastSuccessfulDogsRef.current;
       }
 
       const cache = DOGS_CACHE[cacheKey];
@@ -135,7 +112,12 @@ export default function useDogs(options = {}) {
       }
 
       try {
-        setLoading(true);
+        const hadCache = lastSuccessfulDogsRef.current.length > 0;
+        if (hadCache) {
+          setDogs(lastSuccessfulDogsRef.current);
+          setError(null);
+        }
+        setLoading(!hadCache);
         setError(null);
         let rows = await fetchDogsForUser(userId);
 
@@ -190,6 +172,64 @@ export default function useDogs(options = {}) {
     window.addEventListener("dogs:invalidate", handleInvalidate);
     return () => window.removeEventListener("dogs:invalidate", handleInvalidate);
   }, [load]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handlePrefetch = (evt) => {
+      if (evt?.detail?.userId !== userId) return;
+      applyCacheSnapshot();
+    };
+    window.addEventListener("dogs:cache-prefetched", handlePrefetch);
+    return () => window.removeEventListener("dogs:cache-prefetched", handlePrefetch);
+  }, [applyCacheSnapshot, cacheKey, userId]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [load]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleFocus = () => load(true);
+    const handleOnline = () => load(true);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    if (!canQuery || loading) return;
+    if (!hydratedFromStorageRef.current) return;
+    if (dogs.length > 0) {
+      emptyRetryRef.current = false;
+      return;
+    }
+    if (emptyRetryRef.current) return;
+    emptyRetryRef.current = true;
+    (async () => {
+      try {
+        const rows = await load(true);
+        if (!rows || rows.length === 0) {
+          setError(
+            new Error("We couldn't reach your dog list. Please check your connection and retry.")
+          );
+        }
+      } finally {
+        if (lastSuccessfulDogsRef.current.length > 0) {
+          emptyRetryRef.current = false;
+        }
+      }
+    })();
+  }, [canQuery, dogs.length, load, loading]);
 
   // Realtime: subscribe to changes to current user's dogs and update list/cache
   useEffect(() => {
@@ -328,11 +368,14 @@ export default function useDogs(options = {}) {
     [cacheKey]
   );
 
+  const refetch = useCallback(() => load(true), [load]);
+
   return {
     dogs,
     loading,
     error,
-    refetch: () => load(true),
+    ready: sessionReady && !!userId,
+    refetch,
     toggleDogVisibility,
     deleteDog,
     // also expose setDogs for UI-level optimistic updates if needed

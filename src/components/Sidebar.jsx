@@ -4,6 +4,41 @@ import { Link } from "react-router-dom";
 import "./Sidebar.css"; // warm dog-lover theme
 import supabase from "../lib/supabaseClient";
 
+const MESSAGE_READ_COLUMNS = ["read_at", "is_read"];
+const MESSAGE_READ_STORAGE_KEY = "dabreeder_message_read_column";
+let messageReadColumnPreference = "unknown";
+
+if (typeof window !== "undefined") {
+  try {
+    const stored = window.localStorage.getItem(MESSAGE_READ_STORAGE_KEY);
+    if (stored && stored !== "none") {
+      messageReadColumnPreference = stored;
+    } else if (stored === "none") {
+      // Reprobe when user revisits instead of permanently disabling counts
+      window.localStorage.removeItem(MESSAGE_READ_STORAGE_KEY);
+    }
+  } catch (err) {
+    void err;
+  }
+}
+
+const missingMessageColumns = new Set();
+
+function persistMessageReadPreference(value) {
+  messageReadColumnPreference = value;
+  if (typeof window !== "undefined") {
+    try {
+      if (value === "unknown") {
+        window.localStorage.removeItem(MESSAGE_READ_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(MESSAGE_READ_STORAGE_KEY, value);
+      }
+    } catch (err) {
+      void err;
+    }
+  }
+}
+
 function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) {
   const baseClasses = `sidebar-nav-item ${
     disabled ? "disabled" : active ? "active" : danger ? "danger" : ""
@@ -38,6 +73,54 @@ function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) 
   );
 }
 
+async function fetchUnreadChatCount(userId, attempt = 0) {
+  if (!userId || messageReadColumnPreference === "none") return 0;
+  if (attempt > MESSAGE_READ_COLUMNS.length) {
+    persistMessageReadPreference("none");
+    return 0;
+  }
+
+  const baseCandidates = MESSAGE_READ_COLUMNS.filter((col) => !missingMessageColumns.has(col));
+  const columnsToTry =
+    messageReadColumnPreference === "unknown" ? baseCandidates : [messageReadColumnPreference];
+
+  for (const column of columnsToTry) {
+    let query = supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .neq("sender_id", userId);
+
+    query = column === "read_at" ? query.is("read_at", null) : query.eq("is_read", false);
+
+    const { error, count } = await query;
+
+    if (!error) {
+      persistMessageReadPreference(column);
+      return count || 0;
+    }
+
+    if (error.code === "42703") {
+      missingMessageColumns.add(column);
+      if (column === messageReadColumnPreference) {
+        persistMessageReadPreference("unknown");
+        return fetchUnreadChatCount(userId, attempt + 1);
+      }
+      // Column missing, try the next candidate without surfacing an error
+      continue;
+    }
+
+    throw error;
+  }
+
+  if (messageReadColumnPreference !== "unknown") {
+    persistMessageReadPreference("unknown");
+    return fetchUnreadChatCount(userId, attempt + 1);
+  }
+
+  persistMessageReadPreference(baseCandidates.length ? "unknown" : "none");
+  return 0;
+}
+
 export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
   const containerRef = useRef(null);
@@ -55,25 +138,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
           .eq("user_id", user.id)
           .eq("is_read", false);
 
-        // Chat count - try read_at first, fallback to is_read
-        let chatCount = 0;
-        const { count: msgCount, error: msgError } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .neq("sender_id", user.id)
-          .is("read_at", null);
-
-        if (!msgError) {
-          chatCount = msgCount || 0;
-        } else {
-          // Fallback to is_read
-          const { count: msgCount2 } = await supabase
-            .from("messages")
-            .select("*", { count: "exact", head: true })
-            .neq("sender_id", user.id)
-            .eq("is_read", false);
-          chatCount = msgCount2 || 0;
-        }
+        const chatCount = await fetchUnreadChatCount(user.id);
 
         setCounts({
           notifications: notifCount || 0,

@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
 import { removeAllDocumentsForDog } from "../lib/dogDocuments";
 import ConfirmDialog from "./ConfirmDialog";
@@ -12,13 +12,19 @@ import { notifyDogsInvalidate } from "../lib/dogEvents";
 // Component now relies on central useDogs hook for data, caching, and invalidation.
 
 export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
-  const { dogs, loading, error, refetch, setDogs, toggleDogVisibility } = useDogs({ userId });
+  const { dogs, loading, error, ready, refetch, setDogs, toggleDogVisibility } = useDogs({
+    userId,
+  });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     dogId: null,
     dogName: "",
   });
   const [togglingVisibility, setTogglingVisibility] = useState({});
+  const location = useLocation();
+  const [initialDecisionComplete, setInitialDecisionComplete] = useState(
+    () => overrideDogs.length > 0
+  );
 
   // If parent passes explicit dogs list, prefer it (e.g., for testing scenarios)
   const displayDogs = useMemo(
@@ -98,6 +104,29 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
     [toggleDogVisibility]
   );
 
+  useEffect(() => {
+    if (location.pathname === "/my-dog") {
+      refetch();
+    }
+  }, [location.pathname, refetch]);
+
+  useEffect(() => {
+    if (overrideDogs.length && !initialDecisionComplete) {
+      setInitialDecisionComplete(true);
+    }
+  }, [overrideDogs.length, initialDecisionComplete]);
+
+  useEffect(() => {
+    if (initialDecisionComplete) return;
+    if (!ready) return;
+    if (loading) return;
+    setInitialDecisionComplete(true);
+  }, [initialDecisionComplete, ready, loading]);
+
+  const hasDogs = displayDogs.length > 0;
+  const shouldShowLoadingState = loading || !initialDecisionComplete;
+  const showEmptyState = !shouldShowLoadingState && initialDecisionComplete && !hasDogs && !error;
+
   return (
     <div className="find-match-container">
       {/* Header Section */}
@@ -110,9 +139,39 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
 
       {/* Main Content */}
       <div className="content-section">
-        {loading ? (
-          <LoadingState message="Loading your dogs..." minHeight={140} />
-        ) : displayDogs.length === 0 ? (
+        {shouldShowLoadingState ? (
+          <LoadingState
+            message={loading ? "Loading your dogs..." : "Preparing your dogs..."}
+            minHeight={140}
+          />
+        ) : error ? (
+          <div className="empty-state-modern">
+            <div className="empty-state-icon">
+              <svg
+                className="w-8 h-8 text-rose-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M4.93 19h14.14c1.2 0 1.96-1.3 1.35-2.35L13.35 4.65c-.6-1.05-2.1-1.05-2.7 0L3.58 16.65C2.97 17.7 3.73 19 4.93 19z"
+                />
+              </svg>
+            </div>
+            <h3 className="empty-state-title">We can't show your dogs</h3>
+            <p className="empty-state-description">
+              {error.message || "Something went wrong while contacting the server."}
+            </p>
+            <div className="mt-4">
+              <button onClick={refetch} className="view-profile-btn">
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : showEmptyState ? (
           <div className="empty-state-modern">
             <div className="empty-state-icon">
               <svg
@@ -183,12 +242,6 @@ export default function MyDogs({ dogs: overrideDogs = [], onAddDog, userId }) {
                 </p>
               </div>
             </div>
-
-            {error && (
-              <div className="mt-6">
-                <ErrorMessage message={error} onRetry={refetch} />
-              </div>
-            )}
           </div>
         ) : (
           <div className="matches-grid">

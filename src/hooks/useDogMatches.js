@@ -103,6 +103,18 @@ export default function useDogMatches(options = {}) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleFocus = () => load(true);
+    const handleOnline = () => load(true);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [load]);
+
   // optional realtime refresh when own matches change (requester or requested)
   useEffect(() => {
     if (!userId) return undefined;

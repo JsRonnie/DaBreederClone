@@ -1,6 +1,7 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabaseClient";
 import { upsertUserProfile } from "../lib/profile";
+import { fetchDogsForUser } from "../lib/dogQueries";
 
 import BannedUserModal from "../components/BannedUserModal";
 
@@ -8,11 +9,35 @@ const AuthContext = createContext();
 
 export { AuthContext };
 
+const DOGS_CACHE = (globalThis.__DB_DOGS_CACHE__ = globalThis.__DB_DOGS_CACHE__ || {});
+
+const cacheKeyForUser = (userId) => (userId ? `u:${userId}` : "anon");
+
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
+  const sessionWaitersRef = useRef([]);
+  const refreshInFlightRef = useRef(null);
+  const bootstrappedRef = useRef(false);
 
-  const toAppUser = async (session) => {
+  const resolveSessionWaiters = useCallback((value) => {
+    if (!sessionWaitersRef.current.length) return;
+    sessionWaitersRef.current.forEach((resolve) => resolve(value));
+    sessionWaitersRef.current = [];
+  }, []);
+
+  const waitForSession = useCallback(() => {
+    if (sessionReady) {
+      return Promise.resolve(session);
+    }
+    return new Promise((resolve) => {
+      sessionWaitersRef.current.push(resolve);
+    });
+  }, [sessionReady, session]);
+
+  const toAppUser = useCallback(async (session) => {
     const user = session?.user;
     if (!user) return null;
     // If anonymous sign-ins are enabled, ignore anonymous sessions for app login state
@@ -65,64 +90,65 @@ export default function AuthProvider({ children }) {
         meta.avatarUrl ||
         "https://api.dicebear.com/9.x/initials/svg?seed=" + encodeURIComponent(user.email || "U"),
     };
-  };
+  }, []);
 
   // Prefetch user's dogs into the global cache to warm other pages (FindMatch, MyDogs)
-  async function prefetchUserDogs(userId) {
+  const prefetchUserDogs = useCallback(async (userId) => {
     if (!userId) return;
+    const cacheKey = cacheKeyForUser(userId);
     try {
-      const GLOBAL = (globalThis.__DB_GLOBAL_DOG_CACHE__ =
-        globalThis.__DB_GLOBAL_DOG_CACHE__ || {});
-      const existing = GLOBAL[userId];
-      // If we have a recent entry (15m), skip
+      const existing = DOGS_CACHE[cacheKey];
       if (existing && Date.now() - (existing.lastFetch || 0) < 15 * 60 * 1000) return;
-      const { data, error } = await supabase
-        .from("dogs")
-        .select("id,name,breed,gender,sex,image_url,hidden,user_id")
-        .eq("user_id", userId)
-        .order("id", { ascending: false });
-      if (error) {
-        // Try a resilient fallback without failing the app
-        try {
-          const fb = await supabase
-            .from("dogs")
-            .select("*")
-            .eq("user_id", userId)
-            .order("id", { ascending: false });
-          if (!fb.error) {
-            GLOBAL[userId] = {
-              dogs: fb.data || [],
-              lastFetch: Date.now(),
-              userId,
-            };
-          }
-        } catch {
-          /* noop */
-        }
-        return;
+      const mapped = await fetchDogsForUser(userId);
+      const normalized = mapped || [];
+      DOGS_CACHE[cacheKey] = {
+        dogs: normalized,
+        lastFetch: Date.now(),
+        error: null,
+      };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dogs:cache-prefetched", { detail: { userId } }));
       }
-      // Map to a lightweight shape similar to MyDogs processed shape
-      const mapped = (data || []).map((d) => ({
-        id: d.id,
-        name: d.name || "Unnamed",
-        breed: d.breed || "Unknown",
-        age_years: d.age_years,
-        sex: d.gender || d.sex || null,
-        image: d.image || d.image_url || null,
-        hidden: !!d.hidden,
-      }));
-      GLOBAL[userId] = { dogs: mapped, lastFetch: Date.now(), userId };
     } catch (err) {
-      // non-fatal
       console.warn("prefetchUserDogs failed:", err?.message || err);
     }
-  }
+  }, []);
+
+  const applySessionState = useCallback(
+    async (nextSession, { event } = {}) => {
+      setSession(nextSession || null);
+
+      const appUser = await toAppUser(nextSession);
+      setUser(appUser);
+
+      const isAdminRoute = window.location.pathname.startsWith("/admin");
+      if (appUser && !isAdminRoute) {
+        const shouldUpsert = !bootstrappedRef.current || event === "SIGNED_IN";
+        if (shouldUpsert && nextSession?.user) {
+          upsertUserProfile(supabase, nextSession.user).catch((err) => {
+            console.warn("Profile upsert skipped:", err?.message || err);
+          });
+        }
+        prefetchUserDogs(appUser.id);
+      }
+
+      if (!bootstrappedRef.current) {
+        bootstrappedRef.current = true;
+      }
+
+      setSessionReady(true);
+      setLoading(false);
+      resolveSessionWaiters(nextSession || null);
+    },
+    [prefetchUserDogs, resolveSessionWaiters, toAppUser]
+  );
 
   const handleLogout = async () => {
     console.log("Logout initiated..."); // Debug log
 
     // Immediately clear user state
     setUser(null);
+    setSession(null);
 
     try {
       // Sign out from Supabase
@@ -163,74 +189,75 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
-    let initialLoadDone = false;
 
-    // Optimized: Only fetch session once on startup
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      initialLoadDone = true;
-      console.log(
-        "AuthContext: Initial session check",
-        data?.session ? "Session found" : "No session"
-      );
-      const appUser = await toAppUser(data?.session);
-      console.log("AuthContext: App user created:", appUser);
-      if (appUser) {
-        setUser(appUser);
-        // Only upsert profile on initial load, not every auth change
-        // Skip upsert if user is on admin route (to prevent overwriting admin role)
-        const isAdminRoute = window.location.pathname.startsWith("/admin");
-        console.log("AuthContext: Is admin route?", isAdminRoute);
-        if (!isAdminRoute) {
-          console.log("AuthContext: Upserting user profile");
-          await upsertUserProfile(supabase, data.session.user);
-        } else {
-          console.log("AuthContext: Skipping profile upsert (admin route)");
-        }
-        // Warm the dog cache for faster pages (don't await)
-        if (!isAdminRoute) {
-          try {
-            prefetchUserDogs(appUser.id);
-          } catch {
-            /* noop */
-          }
-        }
+    const bootstrap = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        await applySessionState(data?.session, { event: "INITIAL" });
+      } catch (err) {
+        console.warn("Initial session fetch failed", err);
+        bootstrappedRef.current = true;
+        setSessionReady(true);
+        setLoading(false);
+        resolveSessionWaiters(null);
       }
-      setLoading(false);
-    });
+    };
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted || !initialLoadDone) return;
+    bootstrap();
 
-      const appUser = await toAppUser(session);
-      if (appUser) {
-        setUser(appUser);
-        // Only upsert on sign in, not on token refresh
-        // Skip upsert if user is on admin route (to prevent overwriting admin role)
-        const isAdminRoute = window.location.pathname.startsWith("/admin");
-        if (event === "SIGNED_IN" && !isAdminRoute) {
-          await upsertUserProfile(supabase, session.user);
-          // Warm the dog cache on sign-in
-          try {
-            prefetchUserDogs(appUser.id);
-          } catch {
-            /* noop */
-          }
-        }
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-      }
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      if (!mounted || !bootstrappedRef.current) return;
+      await applySessionState(nextSession, { event });
     });
 
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [applySessionState, resolveSessionWaiters]);
+
+  const refreshSession = useCallback(() => {
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
+    }
+    const pending = supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        await applySessionState(data?.session, { event: "REFRESH" });
+        return data?.session || null;
+      })
+      .catch((err) => {
+        console.warn("Session refresh failed", err);
+        resolveSessionWaiters(null);
+        return null;
+      })
+      .finally(() => {
+        refreshInFlightRef.current = null;
+      });
+
+    refreshInFlightRef.current = pending;
+    return pending;
+  }, [applySessionState, resolveSessionWaiters]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshSession();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [refreshSession]);
 
   const value = {
     user,
+    session,
     loading,
+    sessionReady,
+    waitForSession,
+    refreshSession,
     logout: handleLogout,
     setUser,
   };

@@ -33,7 +33,6 @@ export const DOG_LIST_COLUMNS = [
   "size",
   "color",
   "image_url",
-  "hidden",
   "user_id",
   "created_at",
   "match_requests_count",

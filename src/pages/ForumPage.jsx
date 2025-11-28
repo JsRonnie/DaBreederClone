@@ -48,6 +48,9 @@ export default function ForumPage() {
   const [postType, setPostType] = useState("text"); // 'text' | 'image'
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(() =>
+    Boolean((GLOBAL_FORUM_CACHE.threads || []).length)
+  );
 
   const canPost = useMemo(() => !!user, [user]);
 
@@ -94,6 +97,7 @@ export default function ForumPage() {
       if (enriched.length === 0 && (GLOBAL_FORUM_CACHE.threads || []).length && isUnauthed) {
         setThreads(GLOBAL_FORUM_CACHE.threads);
         lastLoadedAtRef.current = GLOBAL_FORUM_CACHE.lastLoadedAt || Date.now();
+        setHasLoadedOnce(true);
       } else {
         setThreads(enriched);
         const ts = Date.now();
@@ -102,6 +106,7 @@ export default function ForumPage() {
         GLOBAL_FORUM_CACHE.threads = enriched;
         GLOBAL_FORUM_CACHE.lastLoadedAt = ts;
         GLOBAL_FORUM_CACHE.sort = sort;
+        setHasLoadedOnce(true);
       }
       // Preload my votes for listed threads in bulk
       if (user) {
@@ -125,6 +130,7 @@ export default function ForumPage() {
         (GLOBAL_FORUM_CACHE.threads || []).length
       ) {
         setThreads(GLOBAL_FORUM_CACHE.threads);
+        setHasLoadedOnce(true);
         const now = Date.now();
         if (now - (lastRetryAtRef.current || 0) > 1200) {
           lastRetryAtRef.current = now;
@@ -138,6 +144,7 @@ export default function ForumPage() {
         }
       } else {
         setError(err.message || "Failed to load threads");
+        setHasLoadedOnce(true);
       }
     } finally {
       loadingRef.current = false;
@@ -865,7 +872,7 @@ export default function ForumPage() {
               </li>
             );
           })}
-          {!threads.length && (
+          {!threads.length && !listLoading && loading === false && hasLoadedOnce && !error && (
             <li className="forum-empty-state">
               <div className="text-6xl mb-4">🐾</div>
               <p className="text-xl font-bold text-[#7c2d12] mb-2">No threads yet</p>

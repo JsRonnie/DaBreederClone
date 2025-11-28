@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import useDogProfile from "../hooks/useDogProfile";
 import useDogMatches from "../hooks/useDogMatches";
-import supabase from "../lib/supabaseClient";
 // ...existing code...
 import ReportModal from "../components/ReportModal";
 import { useAuth } from "../hooks/useAuth";
@@ -15,77 +14,54 @@ export default function DogProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { dog, photoUrl, loading, error } = useDogProfile(id);
-  const { historyMatches, loading: matchesLoading } = useDogMatches();
+  const { historyMatches, loading: matchesLoading, error: matchesError } = useDogMatches();
   const { user } = useAuth();
-  const [breedStats, setBreedStats] = useState([]);
-  const [breedStatsLoading, setBreedStatsLoading] = useState(false);
-  const [breedStatsError, setBreedStatsError] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     document.title = dog?.name ? `${dog.name} 🐾 | DaBreeder` : "Dog Profile 🐾 | DaBreeder";
   }, [dog]);
 
-  useEffect(() => {
-    if (!dog?.id) {
-      setBreedStats([]);
-      return;
-    }
-    let cancelled = false;
-    async function loadBreedStats() {
-      try {
-        setBreedStatsLoading(true);
-        setBreedStatsError(null);
-        const { data, error: statsError } = await supabase
-          .from("dog_match_requests")
-          .select(
-            `id, status, requester_dog_id, requested_dog_id,
-            requester_dog:requester_dog_id(id, name, breed),
-            requested_dog:requested_dog_id(id, name, breed)`
-          )
-          .or(`requester_dog_id.eq.${dog.id},requested_dog_id.eq.${dog.id}`)
-          .in("status", ["completed_success", "completed_failed"]);
-        if (statsError) throw statsError;
-        if (cancelled) return;
-        const statsMap = {};
-        (data || []).forEach((row) => {
-          const isRequester = String(row.requester_dog_id) === String(dog.id);
-          const partnerDog = isRequester ? row.requested_dog : row.requester_dog;
-          const partnerBreedRaw = (partnerDog?.breed || "Unknown").trim();
-          const partnerBreed = partnerBreedRaw.length ? partnerBreedRaw : "Unknown";
-          if (!statsMap[partnerBreed]) {
-            statsMap[partnerBreed] = { success: 0, total: 0 };
-          }
-          statsMap[partnerBreed].total += 1;
-          if (row.status === "completed_success") {
-            statsMap[partnerBreed].success += 1;
-          }
-        });
-        const formatted = Object.entries(statsMap)
-          .filter(([, value]) => value.total > 0)
-          .map(([breedName, value]) => ({
-            breed: breedName,
-            success: value.success,
-            total: value.total,
-            percentage: Math.round((value.success / value.total) * 100),
-          }))
-          .sort((a, b) => {
-            if (b.total !== a.total) return b.total - a.total;
-            if (b.percentage !== a.percentage) return b.percentage - a.percentage;
-            return a.breed.localeCompare(b.breed);
-          });
-        setBreedStats(formatted);
-      } catch (err) {
-        if (!cancelled) setBreedStatsError(err);
-      } finally {
-        if (!cancelled) setBreedStatsLoading(false);
+  const dogHistoryMatches = useMemo(
+    () =>
+      historyMatches?.filter(
+        (m) => m.requester_dog_id === dog?.id || m.requested_dog_id === dog?.id
+      ) || [],
+    [historyMatches, dog?.id]
+  );
+
+  const breedStats = useMemo(() => {
+    if (!dog?.id || !dogHistoryMatches.length) return [];
+    const statsMap = {};
+    dogHistoryMatches.forEach((match) => {
+      const status = String(match.status || "");
+      if (!status.startsWith("completed_")) return;
+      const isRequester = String(match.requester_dog_id) === String(dog.id);
+      const partnerDog = isRequester ? match.requested_dog : match.requester_dog;
+      const partnerBreedRaw = (partnerDog?.breed || "Unknown").trim();
+      const partnerBreed = partnerBreedRaw.length ? partnerBreedRaw : "Unknown";
+      if (!statsMap[partnerBreed]) {
+        statsMap[partnerBreed] = { success: 0, total: 0 };
       }
-    }
-    loadBreedStats();
-    return () => {
-      cancelled = true;
-    };
-  }, [dog?.id]);
+      statsMap[partnerBreed].total += 1;
+      if (status === "completed_success") {
+        statsMap[partnerBreed].success += 1;
+      }
+    });
+    return Object.entries(statsMap)
+      .filter(([, value]) => value.total > 0)
+      .map(([breedName, value]) => ({
+        breed: breedName,
+        success: value.success,
+        total: value.total,
+        percentage: Math.round((value.success / value.total) * 100),
+      }))
+      .sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+        return a.breed.localeCompare(b.breed);
+      });
+  }, [dog?.id, dogHistoryMatches]);
 
   // ...existing code...
 
@@ -139,12 +115,6 @@ export default function DogProfilePage() {
       </div>
     );
   }
-
-  // Filter match history for this dog
-  const dogHistoryMatches =
-    historyMatches?.filter(
-      (m) => m.requester_dog_id === dog?.id || m.requested_dog_id === dog?.id
-    ) || [];
 
   return (
     <>
@@ -451,9 +421,9 @@ export default function DogProfilePage() {
               </div>
             </div>
             <div className="dog-profile-card-body">
-              {breedStatsLoading ? (
+              {matchesLoading ? (
                 <div className="text-gray-500">Loading success data...</div>
-              ) : breedStatsError ? (
+              ) : matchesError ? (
                 <div className="text-rose-600 text-sm">Unable to load success rates right now.</div>
               ) : breedStats.length === 0 ? (
                 <div className="text-gray-500">No completed breedings recorded yet.</div>
@@ -484,6 +454,8 @@ export default function DogProfilePage() {
             <div className="dog-profile-card-body">
               {matchesLoading ? (
                 <div className="text-gray-500">Loading dog history...</div>
+              ) : matchesError ? (
+                <div className="text-rose-600 text-sm">Unable to load dog history right now.</div>
               ) : dogHistoryMatches.length === 0 ? (
                 <div className="text-gray-500">No history found for this dog.</div>
               ) : (

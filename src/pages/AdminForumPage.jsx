@@ -772,72 +772,77 @@ export default function AdminForumPage() {
       </Tabs>
 
       {/* Confirm Dialog */}
-      <ConfirmDialog
-        open={confirmDialog.open}
-        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
-        onConfirm={confirmAction}
-        title={
-          confirmDialog.action === "deleteThread"
-            ? "Delete Post"
-            : confirmDialog.action === "deleteComment"
-              ? "Delete Comment"
-              : "Ban User"
-        }
-        message={
-          confirmDialog.action === "deleteThread"
-            ? `Are you sure you want to delete the post "${confirmDialog.itemTitle}"? This will also delete all comments.`
-            : confirmDialog.action === "deleteComment"
-              ? `Are you sure you want to delete this comment?`
-              : `Are you sure you want to ban ${confirmDialog.userName}? This will prevent them from posting.`
-        }
-        confirmText={
-          confirmDialog.action === "deleteThread"
-            ? "Delete Post"
-            : confirmDialog.action === "deleteComment"
-              ? "Delete Comment"
-              : "Ban User"
-        }
-        cancelText="Cancel"
-        variant={confirmDialog.action === "banUser" ? "destructive" : "default"}
-        // Add reason input for delete actions
-        extraContent={
-          (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Type of deletion</label>
-              <select
-                value={confirmDialog.reason}
-                onChange={(e) => setConfirmDialog({ ...confirmDialog, reason: e.target.value })}
-                className="w-full border rounded px-2 py-2 text-sm"
-              >
-                <option value="">Select a type...</option>
-                <option value="Harassment">Harassment</option>
-                <option value="Spam">Spam</option>
-                <option value="Explicit Content">Explicit Content</option>
-                <option value="Hate Speech">Hate Speech</option>
-                <option value="Misinformation">Misinformation</option>
-                <option value="Offensive Language">Offensive Language</option>
-              </select>
-              {confirmDialog.reason.trim() === "" && (
-                <p className="text-xs text-red-500 mt-1">Type is required to delete.</p>
-              )}
-            </div>
-          )
-        }
-        confirmButtonClass={
+      {(() => {
+        const confirmDisabled =
           (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") &&
-          confirmDialog.reason.trim() === ""
-            ? "bg-gray-400 cursor-not-allowed text-white"
-            : confirmDialog.action === "banUser"
-              ? "bg-red-600 hover:bg-red-700 text-white"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-        }
-        onConfirm={
-          (confirmDialog.action === "deleteThread" || confirmDialog.action === "deleteComment") &&
-          confirmDialog.reason.trim() === ""
-            ? undefined
-            : confirmAction
-        }
-      />
+          confirmDialog.reason.trim() === "";
+
+        const confirmButtonClass = confirmDisabled
+          ? "bg-gray-400 cursor-not-allowed text-white"
+          : confirmDialog.action === "banUser"
+            ? "bg-red-600 hover:bg-red-700 text-white"
+            : "bg-blue-600 hover:bg-blue-700 text-white";
+
+        return (
+          <ConfirmDialog
+            open={confirmDialog.open}
+            onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+            title={
+              confirmDialog.action === "deleteThread"
+                ? "Delete Post"
+                : confirmDialog.action === "deleteComment"
+                  ? "Delete Comment"
+                  : "Ban User"
+            }
+            message={
+              confirmDialog.action === "deleteThread"
+                ? `Are you sure you want to delete the post "${confirmDialog.itemTitle}"? This will also delete all comments.`
+                : confirmDialog.action === "deleteComment"
+                  ? `Are you sure you want to delete this comment?`
+                  : `Are you sure you want to ban ${confirmDialog.userName}? This will prevent them from posting.`
+            }
+            confirmText={
+              confirmDialog.action === "deleteThread"
+                ? "Delete Post"
+                : confirmDialog.action === "deleteComment"
+                  ? "Delete Comment"
+                  : "Ban User"
+            }
+            cancelText="Cancel"
+            variant={confirmDialog.action === "banUser" ? "destructive" : "default"}
+            // Add reason input for delete actions
+            extraContent={
+              (confirmDialog.action === "deleteThread" ||
+                confirmDialog.action === "deleteComment") && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Type of deletion</label>
+                  <select
+                    value={confirmDialog.reason}
+                    onChange={(e) => setConfirmDialog({ ...confirmDialog, reason: e.target.value })}
+                    className="w-full border rounded px-2 py-2 text-sm"
+                  >
+                    <option value="">Select a type...</option>
+                    <option value="Harassment">Harassment</option>
+                    <option value="Spam">Spam</option>
+                    <option value="Explicit Content">Explicit Content</option>
+                    <option value="Hate Speech">Hate Speech</option>
+                    <option value="Misinformation">Misinformation</option>
+                    <option value="Offensive Language">Offensive Language</option>
+                  </select>
+                  {confirmDialog.reason.trim() === "" && (
+                    <p className="text-xs text-red-500 mt-1">Type is required to delete.</p>
+                  )}
+                </div>
+              )
+            }
+            confirmButtonClass={confirmButtonClass}
+            onConfirm={() => {
+              if (confirmDisabled) return;
+              confirmAction();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

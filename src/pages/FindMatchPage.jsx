@@ -60,7 +60,7 @@ export default function FindMatchPage() {
           sociability: d.sociability || null,
           trainability: d.trainability || null,
           image_url: d.image || d.image_url || null,
-          hidden: !!d.hidden,
+          hidden: typeof d.hidden === "boolean" ? d.hidden : d.is_visible === false,
           is_visible: d.is_visible ?? true,
           user_id: d.user_id,
         })),
@@ -191,66 +191,44 @@ export default function FindMatchPage() {
     FM_LOG("matches: fetching for dog", { id: dog.id, userId: user?.id });
 
     // Try a robust query sequence that adapts to schema and RLS
-    function buildQuery({ genderField, includeHidden, orderBy, includeUserId, includeVisible }) {
+    function buildQuery({ visibilityFilter, orderBy, includeUserId }) {
       let q = supabase.from("dogs").select("*").limit(200);
       if (orderBy) q = q.order(orderBy, { ascending: false });
-      // Exclude same gender if we have both the column and a value on selected dog
-      const genderValue = genderField ? dog[genderField] || dog.gender || dog.sex || null : null;
-      if (genderField && genderValue != null) {
-        q = q.neq(genderField, genderValue);
-      }
       // Exclude my own dogs when possible (and column exists)
       if (includeUserId && user?.id) q = q.neq("user_id", user.id);
-      // Only show visible/public dogs when possible
-      if (includeHidden) q = q.eq("hidden", false);
-      // Only show dogs that are visible in matches (not hidden by owner)
-      if (includeVisible) q = q.eq("is_visible", true);
+      // Filter out hidden dogs using whichever column exists on this deployment
+      if (visibilityFilter === "is_visible") q = q.eq("is_visible", true);
+      if (visibilityFilter === "hidden") q = q.eq("hidden", false);
       return q;
     }
 
     async function runAdaptiveMatchesQuery() {
       // Start optimistic and then adapt based on specific error messages
       let opts = {
-        genderField: "gender",
-        includeHidden: true,
+        visibilityFilter: "is_visible",
         orderBy: null,
         includeUserId: true,
-        includeVisible: true,
       };
       for (let i = 0; i < 8; i++) {
         const res = await buildQuery(opts);
         const resp = await res;
         if (!resp.error) return resp;
         const em = (resp.error.message || resp.error.details || "").toLowerCase();
-        // Remove is_visible filter if column missing
+        // Switch visibility filtering strategy based on available columns
         if (
-          opts.includeVisible &&
+          opts.visibilityFilter === "is_visible" &&
           /is_visible/.test(em) &&
           /does not exist|42703|column/.test(em)
         ) {
-          opts.includeVisible = false;
-          continue;
-        }
-        // Remove hidden filter if column missing
-        if (opts.includeHidden && /hidden/.test(em) && /does not exist|42703|column/.test(em)) {
-          opts.includeHidden = false;
-          continue;
-        }
-        // Switch gender field from gender -> sex -> none
-        if (
-          opts.genderField === "gender" &&
-          /gender/.test(em) &&
-          /does not exist|42703|column/.test(em)
-        ) {
-          opts.genderField = "sex";
+          opts.visibilityFilter = "hidden";
           continue;
         }
         if (
-          opts.genderField === "sex" &&
-          /sex/.test(em) &&
+          opts.visibilityFilter === "hidden" &&
+          /hidden/.test(em) &&
           /does not exist|42703|column/.test(em)
         ) {
-          opts.genderField = null;
+          opts.visibilityFilter = null;
           continue;
         }
         // Drop user_id filter if column missing
@@ -264,11 +242,9 @@ export default function FindMatchPage() {
       }
       // Fallback: last attempt without any optional filters/order
       return await buildQuery({
-        genderField: null,
-        includeHidden: false,
+        visibilityFilter: null,
         orderBy: null,
         includeUserId: false,
-        includeVisible: true, // Still try to filter by visibility
       });
     }
 
@@ -310,8 +286,15 @@ export default function FindMatchPage() {
     }
 
     const rows = resp.data || [];
+    const selectedGenderValue = (dog.gender || dog.sex || "").toString().toLowerCase();
+    const genderFilteredRows = selectedGenderValue
+      ? rows.filter((match) => {
+          const matchGender = (match.gender || match.sex || "").toString().toLowerCase();
+          return matchGender ? matchGender !== selectedGenderValue : true;
+        })
+      : rows;
     FM_LOG("matches: fetched rows", rows.length);
-    const scoredMatches = rows
+    const scoredMatches = genderFilteredRows
       .map((match) => {
         // Debug: log both dog objects before scoring
         console.log("[MATCH DEBUG] Scoring:", {

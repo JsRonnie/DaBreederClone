@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabaseClient";
 
 function parseDogId(dogId) {
@@ -89,6 +89,7 @@ export default function useDogProfile(dogId) {
   const [hasHydratedCache, setHasHydratedCache] = useState(false);
   const alive = useRef(true);
   const dogKey = parseDogId(dogId);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     alive.current = true;
@@ -115,45 +116,55 @@ export default function useDogProfile(dogId) {
     setHasHydratedCache(true);
   }, [dogKey]);
 
-  useEffect(() => {
+  const fetchDog = useCallback(async () => {
     if (!dogKey) {
       setDog(null);
       setPhotoUrl(null);
+      setError(null);
+      setLoading(false);
       return;
     }
 
-    let cancelled = false;
-    async function run() {
-      try {
-        setLoading(true);
-        setError(null);
+    const requestId = ++requestIdRef.current;
+    try {
+      setLoading(true);
+      setError(null);
 
-        const { data: dogRow, error: dogErr } = await supabase
-          .from("dogs")
-          .select("*")
-          .eq("id", dogKey)
-          .single();
+      const { data: dogRow, error: dogErr } = await supabase
+        .from("dogs")
+        .select("*")
+        .eq("id", dogKey)
+        .single();
 
-        if (dogErr) throw dogErr;
-        if (cancelled || !alive.current) return;
+      if (dogErr) throw dogErr;
+      if (!alive.current || requestIdRef.current !== requestId) return;
 
-        setDog(dogRow);
-        // Prefer image_url if it's a full URL; otherwise just leave null and let UI show placeholder
-        const url = derivePhotoUrl(dogRow);
-        setPhotoUrl(url);
-        writeDogToDetailCache(dogKey, dogRow);
-      } catch (e) {
-        if (!cancelled && alive.current) setError(e);
-      } finally {
-        if (!cancelled && alive.current) setLoading(false);
-      }
+      setDog(dogRow);
+      const url = derivePhotoUrl(dogRow);
+      setPhotoUrl(url);
+      writeDogToDetailCache(dogKey, dogRow);
+    } catch (e) {
+      if (alive.current && requestIdRef.current === requestId) setError(e);
+    } finally {
+      if (alive.current && requestIdRef.current === requestId) setLoading(false);
     }
-
-    run();
-    return () => {
-      cancelled = true;
-    };
   }, [dogKey]);
+
+  useEffect(() => {
+    fetchDog();
+  }, [fetchDog]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleFocus = () => fetchDog();
+    const handleOnline = () => fetchDog();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [fetchDog]);
 
   return { dog, photoUrl, loading, error, hasHydratedCache };
 }
