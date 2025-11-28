@@ -292,9 +292,8 @@ export default function AdminMessagesPage() {
     try {
       setSending(true);
 
-      // In a real application, you would send an email here
-      // For now, we'll just update the status and add a note
-      const { error } = await supabase
+      // 1. Update the message status and reply in contact_messages
+      const { error: updateError } = await supabase
         .from("contact_messages")
         .update({
           status: "resolved",
@@ -303,19 +302,44 @@ export default function AdminMessagesPage() {
         })
         .eq("id", selectedMessage.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // 2. Try to find the user by email to send a notification
+      if (selectedMessage.email) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", selectedMessage.email)
+          .single();
+
+        if (userData?.id) {
+          // 3. Insert notification if user exists
+          const { error: notifError } = await supabase.from("notifications").insert([
+            {
+              user_id: userData.id,
+              type: "message_reply",
+              message: `Admin replied to: ${selectedMessage.subject || "Contact Message"}`,
+              is_read: false,
+            },
+          ]);
+
+          if (notifError) {
+            console.error("Failed to send notification:", notifError);
+          } else {
+            console.log("Notification sent to user:", userData.id);
+          }
+        }
+      }
 
       console.log("Reply sent for message:", selectedMessage.id);
-      alert(
-        `Reply sent to ${selectedMessage.email}!\n\nNote: In production, this would send an actual email.`
-      );
+      toast.success(`Reply sent to ${selectedMessage.email}`);
 
       setReplyText("");
       setSelectedMessage(null);
       await fetchMessages();
     } catch (err) {
       console.error("Error sending reply:", err);
-      alert("Failed to send reply. Please try again.");
+      toast.error("Failed to send reply. Please try again.");
     } finally {
       setSending(false);
     }

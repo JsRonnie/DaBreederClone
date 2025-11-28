@@ -1,6 +1,24 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
-export default function Step4Documents({ data, updateDocuments, removeDocument }) {
+export default function Step4Documents({ data, updateDocuments, removeDocument, isSubmitting }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (isSubmitting) {
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 95) return prev;
+          const remaining = 95 - prev;
+          const increment = Math.max(0.5, remaining * 0.1);
+          return Math.min(95, prev + increment);
+        });
+      }, 200);
+      return () => clearInterval(interval);
+    } else {
+      setProgress(0);
+    }
+  }, [isSubmitting]);
   const vaccinationRef = useRef(null);
   const pedigreeRef = useRef(null);
   const dnaRef = useRef(null);
@@ -277,6 +295,19 @@ export default function Step4Documents({ data, updateDocuments, removeDocument }
 
   return (
     <div className="step step-4">
+      {isSubmitting && (
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="loading-header">
+              <span className="loading-text">Updating profile...</span>
+              <span className="loading-percentage">{Math.round(progress)}%</span>
+            </div>
+            <div className="loading-bar-track">
+              <div className="loading-bar-fill" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
       <h3 className="step-title">Upload Documents</h3>
 
       {!hasAnyDocuments ? (

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import "./Sidebar.css"; // warm dog-lover theme
+import supabase from "../lib/supabaseClient";
 
 function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) {
   const baseClasses = `sidebar-nav-item ${
@@ -40,6 +41,55 @@ function NavItem({ icon, label, onClick, active, danger, disabled, to, badge }) 
 export default function Sidebar({ open, onClose, user, onLogout }) {
   const loggedIn = !!user;
   const containerRef = useRef(null);
+  const [counts, setCounts] = useState({ notifications: 0, chat: 0 });
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchCounts = async () => {
+      try {
+        // Notifications count
+        const { count: notifCount } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false);
+
+        // Chat count - try read_at first, fallback to is_read
+        let chatCount = 0;
+        const { count: msgCount, error: msgError } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .neq("sender_id", user.id)
+          .is("read_at", null);
+
+        if (!msgError) {
+          chatCount = msgCount || 0;
+        } else {
+          // Fallback to is_read
+          const { count: msgCount2 } = await supabase
+            .from("messages")
+            .select("*", { count: "exact", head: true })
+            .neq("sender_id", user.id)
+            .eq("is_read", false);
+          chatCount = msgCount2 || 0;
+        }
+
+        setCounts({
+          notifications: notifCount || 0,
+          chat: chatCount,
+        });
+      } catch (err) {
+        console.error("Error fetching sidebar badges:", err);
+      }
+    };
+
+    fetchCounts();
+
+    // Set up an interval to refresh counts periodically (e.g., every 30 seconds)
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // When the sidebar closes, ensure no element inside remains focused
   useEffect(() => {
@@ -160,6 +210,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               to="/chat"
               disabled={!loggedIn}
               onClick={onClose}
+              badge={counts.chat}
             />
             <NavItem
               label="Forum"
@@ -174,6 +225,7 @@ export default function Sidebar({ open, onClose, user, onLogout }) {
               to="/notifications"
               disabled={!loggedIn}
               onClick={onClose}
+              badge={counts.notifications}
             />
           </nav>
           {/* Chat contacts list removed per user request (now only visible on Chat page) */}

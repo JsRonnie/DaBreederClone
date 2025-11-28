@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function ConfirmDialog({
   isOpen,
@@ -14,76 +14,110 @@ export default function ConfirmDialog({
 }) {
   // Handle escape key to close modal
   const isDialogOpen = typeof open !== "undefined" ? open : isOpen;
+  const [isVisible, setIsVisible] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
+
   useEffect(() => {
-    if (!isDialogOpen) return;
+    if (isDialogOpen) {
+      setShouldRender(true);
+      // Small delay to allow render before animating in
+      requestAnimationFrame(() => setIsVisible(true));
+      document.body.style.overflow = "hidden";
+    } else {
+      setIsVisible(false);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        document.body.style.overflow = "unset";
+      }, 200); // Match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isDialogOpen]);
 
+  useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && isDialogOpen) onClose();
     };
-
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.body.style.overflow = "unset";
-      document.removeEventListener("keydown", handleEscape);
-    };
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [isDialogOpen, onClose]);
 
-  if (!isDialogOpen) return null;
+  if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-90">
-      {/* Backdrop: subtle darken, no heavy blur */}
-      <div className="absolute inset-0 bg-black/10" onClick={onClose} aria-hidden="true" />
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-200 ${
+        isVisible ? "opacity-100" : "opacity-0"
+      }`}
+      aria-labelledby="modal-title"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Centered modal */}
-      <div className="relative z-91 flex min-h-full items-center justify-center p-4">
-        {/* Modal panel - minimalist */}
-        <div className="relative w-full max-w-md rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-          {/* Close button */}
-          <button
-            type="button"
-            aria-label="Close dialog"
-            title="Close"
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-            onClick={onClose}
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      {/* Modal panel */}
+      <div
+        className={`relative w-full max-w-[480px] transform overflow-hidden rounded-[32px] bg-white p-8 text-left align-middle shadow-2xl transition-all duration-200 ease-out ${
+          isVisible ? "scale-100 translate-y-0" : "scale-95 translate-y-4"
+        }`}
+      >
+        {/* Header Box */}
+        <div className="mb-6 flex items-center gap-4 rounded-2xl border border-orange-100 bg-[#FFF9F5] p-4">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+            <svg
+              className="h-6 w-6 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="1.5"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
               />
             </svg>
-          </button>
-
-          {/* Content */}
-          <h3 className="text-base font-semibold text-slate-900 pr-6">{title}</h3>
-          {message ? (
-            <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">{message}</p>
-          ) : null}
-
-          {/* Extra content (e.g., reason input) */}
-          {extraContent}
-          {/* Actions */}
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              onClick={onClose}
-            >
-              {cancelText}
-            </button>
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${confirmButtonClass}`}
-              onClick={onConfirm}
-            >
-              {confirmText}
-            </button>
           </div>
+          <h3 className="text-xl font-bold leading-6 text-slate-900" id="modal-title">
+            {title}
+          </h3>
+        </div>
+
+        {/* Content */}
+        <div className="mb-8 px-1">
+          {message ? (
+            <p className="text-[15px] text-slate-600 whitespace-pre-line leading-relaxed">
+              {message}
+            </p>
+          ) : null}
+          {extraContent}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-4">
+          <button
+            type="button"
+            className="inline-flex w-full justify-center rounded-2xl bg-[#FFF5EB] px-8 py-4 text-sm font-bold text-[#7C2D12] hover:bg-[#FED7AA] sm:w-auto transition-colors"
+            onClick={onClose}
+          >
+            {cancelText}
+          </button>
+          <button
+            type="button"
+            className={`inline-flex w-full justify-center rounded-2xl px-8 py-4 text-sm font-bold shadow-sm sm:w-auto transition-colors uppercase tracking-wide ${
+              confirmButtonClass.includes("bg-red")
+                ? "bg-[#FFF5EB] text-[#7C2D12] hover:bg-[#FED7AA]" // Override red to match the design in image (both buttons look similar)
+                : "bg-[#FFF5EB] text-[#7C2D12] hover:bg-[#FED7AA]"
+            }`}
+            onClick={onConfirm}
+          >
+            {confirmText}
+          </button>
         </div>
       </div>
     </div>

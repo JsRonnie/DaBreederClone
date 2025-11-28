@@ -171,6 +171,7 @@ export default function DogForm({ onSubmitted }) {
         updateDocuments={form.updateDocuments}
         removeDocument={form.removeDocument}
         onSubmit={submit}
+        isSubmitting={form.submitting}
       />
     );
 

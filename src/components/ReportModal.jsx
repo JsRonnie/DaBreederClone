@@ -1,16 +1,9 @@
 import React, { useState } from "react";
 import { useReporting } from "../hooks/useReporting";
 import { useAuth } from "../hooks/useAuth";
-import "./ReportModal.css"; // warm dog-lover theme
 
 /**
  * Reusable Report Modal for reporting dog profiles, chat messages, forum threads, and forum comments
- *
- * @param {boolean} isOpen - Whether modal is open
- * @param {string} reportType - 'dog_profile', 'chat_message', 'forum_thread', or 'forum_comment'
- * @param {Object} targetData - Data about what's being reported
- * @param {Function} onClose - Callback when modal closes
- * @param {Function} onReportSuccess - Callback after successful report
  */
 export default function ReportModal({ isOpen, reportType, targetData, onClose, onReportSuccess }) {
   const { user } = useAuth();
@@ -139,74 +132,98 @@ export default function ReportModal({ isOpen, reportType, targetData, onClose, o
             : "Report";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white p-8 shadow-2xl transition-all">
+        {/* Paw Print Decoration */}
+        <div className="absolute -right-6 -top-6 opacity-5 pointer-events-none">
+          <svg
+            width="180"
+            height="180"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="text-amber-900"
+          >
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-3.22 3.22 7.52 3.22-7.52-3.22-7.52-3.22 7.52zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm10 0c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+          </svg>
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">Report {reportTypeLabel}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+        <div className="mb-6 flex items-center justify-between relative z-10">
+          <h2 className="text-2xl font-extrabold text-amber-900">Report {reportTypeLabel}</h2>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          >
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-6 h-6"
+              className="h-6 w-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth="2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {success ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="text-center py-12 relative z-10">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-6 h-6 text-green-600"
+                className="w-8 h-8 text-green-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
+                strokeWidth="2.5"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-slate-900 font-semibold">Report Submitted</p>
-            <p className="text-sm text-slate-500 mt-2">
-              Thank you for helping keep DaBreeder safe.
-            </p>
+            <h3 className="text-xl font-bold text-slate-900">Report Submitted</h3>
+            <p className="text-slate-500 mt-2">Thank you for helping keep DaBreeder safe.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
             {/* Category */}
             <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">Category *</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-200 text-slate-700"
-              >
-                <option value="">Select a category...</option>
-                {categoryOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-amber-900">
+                Category *
+              </label>
+              <div className="relative">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full appearance-none rounded-xl border-2 border-orange-100 bg-white px-4 py-3 text-slate-700 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors"
+                >
+                  <option value="">Select a category...</option>
+                  {categoryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-orange-400">
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Reason */}
             <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-amber-900">
                 Reason (Optional)
               </label>
               <input
@@ -214,53 +231,55 @@ export default function ReportModal({ isOpen, reportType, targetData, onClose, o
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="E.g., Clear violation of terms..."
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-200 text-slate-700 placeholder:text-slate-400"
+                className="w-full rounded-xl border-2 border-orange-100 bg-white px-4 py-3 text-slate-700 placeholder-slate-400 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-amber-900">
                 Description *
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Please provide details about why you're reporting this..."
-                className="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-200 text-slate-700 placeholder:text-slate-400 resize-none h-32"
+                className="h-32 w-full resize-none rounded-xl border-2 border-orange-100 bg-white px-4 py-3 text-slate-700 placeholder-slate-400 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors"
               />
-              <p className="text-xs text-slate-500 mt-1">{description.length}/500 characters</p>
+              <p className="mt-1 text-right text-xs text-slate-400">
+                {description.length}/500 characters
+              </p>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="rounded-xl bg-red-50 border border-red-100 p-3">
+                <p className="text-sm font-medium text-red-600">{error}</p>
               </div>
             )}
 
             {/* Note */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <strong>Note:</strong> Our moderation team will review your report and take
-                appropriate action. False reports may result in penalties to your account.
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p className="text-xs leading-relaxed text-blue-800">
+                <span className="font-bold">Note:</span> Our moderation team will review your report
+                and take appropriate action. False reports may result in penalties to your account.
               </p>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 justify-end pt-4">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                className="rounded-xl bg-orange-50 px-6 py-3 text-sm font-bold text-amber-900 hover:bg-orange-100 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || !category}
-                className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                className="rounded-xl bg-gradient-to-r from-orange-400 to-amber-500 px-6 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-lg hover:from-orange-500 hover:to-amber-600 disabled:opacity-50 transition-all transform active:scale-95"
               >
                 {loading ? "Submitting..." : "Submit Report"}
               </button>

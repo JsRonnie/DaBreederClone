@@ -79,7 +79,7 @@ export default function AdminDogsPage() {
   const getDocumentCount = (dog) => {
     return Array.isArray(dog.dog_documents) ? dog.dog_documents.length : 0;
   };
-  const [docActionLoading, setDocActionLoading] = useState(false);
+
   // Removed unused notification state
   const [documentViewer, setDocumentViewer] = useState({ open: false, document: null }); // { open, document }
 
@@ -207,39 +207,6 @@ export default function AdminDogsPage() {
       console.error("Failed to fetch documents for dog:", err);
       setDocModal({ open: true, dog, documents: [], loading: false });
     }
-  };
-
-  // Verify or reject a document
-  const handleDocAction = async (docId, action) => {
-    setDocActionLoading(true);
-    let update = {};
-    if (action === "verify") {
-      update = { verified: true, rejected: false };
-    } else if (action === "reject") {
-      update = { verified: false, rejected: true };
-    }
-    try {
-      const { error } = await supabase.from("dog_documents").update(update).eq("id", docId);
-
-      if (error) {
-        // If the DB doesn't have verification columns, give guidance
-        const msg = (error.message || error.details || "").toLowerCase();
-        if (msg.includes("column") || msg.includes("does not exist")) {
-          alert(
-            "Document verification is not enabled in the database. Please use the Documents manager or add verification columns to the dog_documents table."
-          );
-        } else {
-          alert("Failed to update document status.");
-        }
-      } else {
-        // Refresh documents in modal (use nested documents from dog object)
-        await openDocModal(docModal.dog);
-      }
-    } catch (err) {
-      console.error("Error updating document status:", err);
-      alert("An unexpected error occurred while updating document status.");
-    }
-    setDocActionLoading(false);
   };
 
   const filteredDogs = dogs.filter((dog) => {
@@ -704,24 +671,7 @@ export default function AdminDogsPage() {
                         <span className="px-3 py-1.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
                           Rejected
                         </span>
-                      ) : (
-                        <>
-                          <button
-                            className="px-3 py-1.5 rounded-lg bg-green-100 hover:bg-green-200 text-green-700 text-xs font-medium transition disabled:opacity-50"
-                            disabled={docActionLoading}
-                            onClick={() => handleDocAction(doc.id, "verify")}
-                          >
-                            Verify
-                          </button>
-                          <button
-                            className="px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition disabled:opacity-50"
-                            disabled={docActionLoading}
-                            onClick={() => handleDocAction(doc.id, "reject")}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 ))}
