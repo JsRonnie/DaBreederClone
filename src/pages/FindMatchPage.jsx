@@ -512,30 +512,13 @@ export default function FindMatchPage() {
       {/* Results Section */}
       {selectedDog && (
         <div className="content-section">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <h2 className="section-title" style={{ marginBottom: 0 }}>
-              Matches for {selectedDog.name}
-            </h2>
+          <div className="matches-header">
+            <h2 className="section-title">Matches for {selectedDog.name}</h2>
             <div className="filter-group">
               <label style={{ fontWeight: "bold", marginRight: "1rem", color: "#4B5563" }}>
                 Filter:
               </label>
-              <label
-                className={"filter-label" + (breedFilter === "same" ? " active" : "")}
-                style={{
-                  marginRight: "1rem",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                }}
-              >
+              <label className={"filter-label" + (breedFilter === "same" ? " active" : "")}>
                 <input
                   type="radio"
                   name="breedFilter"
@@ -553,10 +536,7 @@ export default function FindMatchPage() {
                   Same Breed
                 </span>
               </label>
-              <label
-                className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}
-                style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
-              >
+              <label className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}>
                 <input
                   type="radio"
                   name="breedFilter"

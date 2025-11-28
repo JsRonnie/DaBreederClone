@@ -7,6 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import ReportModal from "../components/ReportModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { createMatchRequest } from "../lib/matches";
+import LoadingState from "../components/LoadingState";
 import "./ChatPage.css"; // warm dog-lover theme
 
 // Helper: truncate long preview messages for contact list
@@ -65,6 +66,7 @@ export default function ChatPage() {
     uploadFile,
     deleteMessage,
     loadingMessages,
+    loadingContacts,
   } = useChat();
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const messagesContainerRef = useRef(null);
@@ -427,7 +429,11 @@ export default function ChatPage() {
       >
         Messages
       </h2>
-      {contacts.length === 0 && (
+      {loadingContacts ? (
+        <div style={{ marginTop: "2rem" }}>
+          <LoadingState message="Loading your conversations..." minHeight={120} />
+        </div>
+      ) : contacts.length === 0 ? (
         <p
           style={{
             fontSize: "0.9375rem",
@@ -441,7 +447,7 @@ export default function ChatPage() {
           <br />
           Start chatting from a match!
         </p>
-      )}
+      ) : null}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {contacts.map((c) => {
           // Always show the owner of the other dog
@@ -686,6 +692,7 @@ export default function ChatPage() {
         }}
       >
         <div
+          className="chat-thread-header"
           style={{
             display: "flex",
             alignItems: "center",
@@ -775,7 +782,7 @@ export default function ChatPage() {
           </div>
 
           {/* Dog names and owner */}
-          <div style={{ flex: 1, overflow: "hidden" }}>
+          <div className="thread-details" style={{ flex: 1, overflow: "hidden" }}>
             <h3
               style={{
                 margin: 0,
@@ -794,6 +801,7 @@ export default function ChatPage() {
             </h3>
           </div>
           <div
+            className="chat-thread-actions"
             style={{
               display: "flex",
               alignItems: "center",
@@ -919,12 +927,13 @@ export default function ChatPage() {
                 className="message-wrapper"
                 style={{
                   marginBottom: "0.25rem",
-                  maxWidth: "65%",
+                  width: "100%",
                   alignSelf: isOwn ? "flex-end" : "flex-start",
                   display: "flex",
                   alignItems: "flex-start",
                   gap: "0.5rem",
                   flexDirection: isOwn ? "row-reverse" : "row",
+                  justifyContent: isOwn ? "flex-end" : "flex-start",
                 }}
               >
                 <div
@@ -941,9 +950,11 @@ export default function ChatPage() {
                     fontSize: "0.9375rem",
                     lineHeight: "1.5",
                     wordWrap: "break-word",
-                    width: "fit-content",
-                    maxWidth: "70%",
+                    maxWidth: "min(75%, 420px)",
                     minWidth: "50px",
+                    display: "inline-block",
+                    marginLeft: isOwn ? "auto" : 0,
+                    marginRight: isOwn ? 0 : "auto",
                   }}
                 >
                   {m.deleted_at && (
@@ -1484,26 +1495,17 @@ export default function ChatPage() {
     : "";
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "320px 1fr",
-        height: "calc(100vh - 56px)", // 56px navbar height (h-14)
-        background: "#fafafa",
-        overflow: "hidden",
-      }}
-      className="chat-page-container"
-    >
+    <div className="chat-page-container">
       <style>
         {`
           @media (max-width: 768px) {
             .chat-page-container {
               grid-template-columns: 1fr !important;
             }
-            .chat-contact-list {
-              display: ${contactId ? "none" : "block"} !important;
+            .contacts-column {
+              display: ${contactId ? "none" : "flex"} !important;
             }
-            .chat-thread {
+            .thread-column {
               display: ${contactId ? "flex" : "none"} !important;
             }
             .mobile-back-button {
@@ -1517,66 +1519,31 @@ export default function ChatPage() {
           }
         `}
       </style>
-      {renderContactList()}
-      {contactId ? (
-        renderMessages()
-      ) : (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#ffffff",
-            padding: "3rem",
-          }}
-        >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "#f3f4f6",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#9ca3af"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ width: 40, height: 40 }}
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: 600,
-              color: "#111827",
-              marginBottom: "0.5rem",
-            }}
-          >
-            No conversation selected
-          </h3>
-          <p
-            style={{
-              color: "#6b7280",
-              fontSize: "0.9375rem",
-              textAlign: "center",
-              maxWidth: "320px",
-            }}
-          >
-            Choose a conversation from the list to start chatting.
-          </p>
+      <div className="chat-columns">
+        <div className="chat-column contacts-column">{renderContactList()}</div>
+        <div className="chat-column thread-column">
+          {contactId ? (
+            renderMessages()
+          ) : (
+            <div className="chat-placeholder">
+              <div className="chat-placeholder-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#9ca3af"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3>No conversation selected</h3>
+              <p>Choose a conversation from the list to start chatting.</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {selectedMessageForReport && (
         <ReportModal
           isOpen={reportOpen}

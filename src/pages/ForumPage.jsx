@@ -476,10 +476,10 @@ export default function ForumPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="forum-header">
         <h1 className="text-2xl font-semibold">Forum</h1>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-600 flex items-center gap-2">
+        <div className="forum-actions">
+          <label className="text-xs text-slate-600 flex items-center gap-2 forum-sort">
             Sort by
             <select
               value={sort}
@@ -523,7 +523,7 @@ export default function ForumPage() {
                   })
                 );
             }}
-            className={`text-sm px-3 py-1.5 rounded-md ${
+            className={`forum-create-btn text-sm px-3 py-1.5 rounded-md ${
               canPost
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-blue-600 text-white opacity-60"

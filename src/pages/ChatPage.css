@@ -3,9 +3,11 @@
 /* Main Chat Container */
 .chat-page-container {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - 56px);
+  min-height: calc(100vh - 56px);
   background: linear-gradient(to bottom, #fffbf5 0%, #fef9f3 100%);
   position: relative;
+  overflow: hidden;
 }
 
 .chat-page-container::before {
@@ -18,6 +20,92 @@
   transform: rotate(-25deg);
   pointer-events: none;
   z-index: 0;
+}
+
+.chat-columns {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.chat-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.contacts-column {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+.thread-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #ffffff;
+  padding: 3rem 1.5rem;
+}
+
+.chat-placeholder-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.chat-placeholder h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.chat-placeholder p {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  text-align: center;
+  max-width: 320px;
+}
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-thread-header {
+  flex-wrap: nowrap;
+}
+
+.thread-details {
+  min-width: 0;
+}
+
+.chat-thread-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chat-thread-actions button,
+.chat-thread-actions .request-button {
+  min-width: 140px;
 }
 
 /* Contact List */
@@ -445,8 +533,21 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .chat-columns {
+    flex-direction: column;
+  }
+
+  .contacts-column {
+    width: 100%;
+  }
+
+  .thread-column {
+    width: 100%;
+  }
+
   .chat-contact-list {
     border-right: none !important;
+    border-bottom: 3px solid #fef3e8;
     padding: 1rem !important;
   }
 
@@ -460,6 +561,33 @@
 
   .mobile-back-button {
     display: flex !important;
+  }
+
+  .chat-thread-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .thread-details {
+    width: 100%;
+    order: 2;
+  }
+
+  .chat-thread-actions {
+    width: 100%;
+    order: 3;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .chat-thread-actions button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-placeholder {
+    min-height: 40vh;
   }
 }
 

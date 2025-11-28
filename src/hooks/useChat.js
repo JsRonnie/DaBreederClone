@@ -23,6 +23,7 @@ export default function useChat() {
   const [messages, setMessages] = useState([]);
   const [activeContactId, setActiveContactId] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingContacts, setLoadingContacts] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
   const channelRef = useRef(null);
   const mountedRef = useRef(false);
@@ -36,6 +37,7 @@ export default function useChat() {
 
   // Load contacts on mount
   const refreshContacts = useCallback(async () => {
+    setLoadingContacts(true);
     try {
       const contactsRaw = await listContacts();
       if (!mountedRef.current) return;
@@ -86,6 +88,10 @@ export default function useChat() {
       );
     } catch (e) {
       console.error("refreshContacts failed", e);
+    } finally {
+      if (mountedRef.current) {
+        setLoadingContacts(false);
+      }
     }
   }, []);
 
@@ -314,6 +320,7 @@ export default function useChat() {
     messages,
     activeContactId,
     loadingMessages,
+    loadingContacts,
     currentUserId,
     openContact,
     startContactForDog,

@@ -1,13 +1,16 @@
 /* Summary Card - Warm Dog Lover Theme 🐾 */
 
 .summary-card {
-  border-radius: 20px;
-  padding: 1.5rem;
+  border-radius: 24px;
+  padding: 1.25rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.08);
+  gap: 0.45rem;
+  text-align: center;
+  min-height: 150px;
+  box-shadow: 0 6px 16px rgba(251, 146, 60, 0.08);
   border: 3px solid;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
@@ -30,23 +33,26 @@
   box-shadow: 0 12px 32px rgba(251, 146, 60, 0.15);
 }
 
-.summary-card-header {
+.summary-card-icon-wrapper {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  justify-content: center;
+  background: transparent;
 }
 
 .summary-card-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.45rem;
+  height: 1.45rem;
 }
 
 .summary-card-label {
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .summary-card-value {
@@ -125,14 +131,31 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .summary-card {
-    padding: 1.25rem;
+    padding: 1.1rem;
+    min-height: 140px;
   }
 
   .summary-card-value {
-    font-size: 2rem;
+    font-size: 1.9rem;
   }
 
   .summary-card-label {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-card {
+    padding: 1rem 0.85rem;
+    border-radius: 20px;
+    gap: 0.25rem;
+  }
+
+  .summary-card-icon-wrapper {
+    display: none;
+  }
+
+  .summary-card-value {
+    font-size: 1.7rem;
   }
 }

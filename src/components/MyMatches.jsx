@@ -119,7 +119,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
     const cardContent = (
       <div className="dog-info-card">
         {dog.image_url && <img src={dog.image_url} alt={dog.name} className="dog-avatar" />}
-        <div>
+        <div className="dog-info-meta">
           <div className="dog-info-label">{title}</div>
           <div className="dog-info-name">{dog.name}</div>
           <div className="dog-info-details">
@@ -130,8 +130,9 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
       </div>
     );
     if (isPartner && partnerId) {
+      const label = dog.name ? `View ${dog.name}'s profile` : "View partner dog profile";
       return (
-        <Link to={`/dog/${partnerId}`} style={{ textDecoration: "none" }}>
+        <Link to={`/dog/${partnerId}`} className="dog-info-link" aria-label={label}>
           {cardContent}
         </Link>
       );
@@ -164,7 +165,7 @@ function MatchCard({ match, onAccept, onDecline, onCancel, onRecordOutcome, busy
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      <div className="match-card-dogs grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
         <DogInfoCard dog={match.myDog} title="Your dog" extraInfo={successInfo} />
         <DogInfoCard
           dog={match.partnerDog}
@@ -402,12 +403,10 @@ export default function MyMatches({ userId }) {
       </div>
       <div className="content-section">
         <div className="mb-8">
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="summary-grid">
             <SummaryCard label="Pending" value={summary.pending} />
             <SummaryCard label="Declined" value={summary.declines} />
             <SummaryCard label="Awaiting" value={summary.awaitingConfirmation} />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
             <SummaryCard label="Success" value={summary.successes} positive />
             <SummaryCard label="Failed" value={summary.failures} negative />
           </div>
@@ -434,7 +433,7 @@ export default function MyMatches({ userId }) {
                 ))}
               </div>
             </div>
-            <div className="flex gap-2 mb-6 flex-wrap">
+            <div className="flex gap-2 mb-6 flex-wrap justify-center">
               {tabOptions.map((option) => (
                 <button
                   key={option.id}
