@@ -424,5 +424,5 @@ export function calculateMatchDetails(dogA, dogB) {
           weightDeduction,
         100
       );
-  return { score, breakdown, unsafe };
+  return { score, breakdown, unsafe, sizeDeduction, weightDeduction };
 }

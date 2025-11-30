@@ -531,6 +531,115 @@
   font-weight: 700;
 }
 
+.chat-image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 10, 9, 0.86);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  gap: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.lightbox-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #fde68a;
+  font-weight: 700;
+}
+
+.lightbox-filename {
+  max-width: 60%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.95rem;
+}
+
+.lightbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lightbox-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #fed7aa, #fb923c);
+  color: #7c2d12;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.lightbox-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.35);
+}
+
+.lightbox-actions span {
+  color: #fef3c7;
+  font-weight: 800;
+}
+
+.lightbox-actions .lightbox-close {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff7ed;
+}
+
+.lightbox-stage {
+  flex: 1;
+  min-height: 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.lightbox-image-wrapper {
+  max-width: 90%;
+  max-height: 90%;
+  transition: transform 0.08s ease-out;
+  will-change: transform;
+}
+
+.lightbox-image-wrapper img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 18px 80px rgba(0, 0, 0, 0.45);
+  user-select: none;
+}
+
+.lightbox-hint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fefce8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .chat-columns {

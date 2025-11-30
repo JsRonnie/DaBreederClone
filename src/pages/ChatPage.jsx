@@ -84,10 +84,16 @@ export default function ChatPage() {
   const [requestContext, setRequestContext] = useState(null);
   const [requestingMatch, setRequestingMatch] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxOffset, setLightboxOffset] = useState({ x: 0, y: 0 });
+  const lightboxDragRef = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  const pinchStateRef = useRef({ initialDistance: null, initialZoom: 1 });
 
   // Fetch user's dogs using the hook
   const { dogs: userDogs } = useDogs();
   const activeContact = contacts.find((c) => c.id === activeContactId);
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
   // Redirect admins to admin dashboard
   useEffect(() => {
@@ -385,6 +391,132 @@ export default function ChatPage() {
     } finally {
       setRequestingMatch(false);
     }
+  };
+
+  const openImageLightbox = (payload) => {
+    if (!payload?.url) return;
+    setLightboxImage(payload);
+    setLightboxZoom(1);
+    setLightboxOffset({ x: 0, y: 0 });
+  };
+
+  const closeImageLightbox = () => {
+    setLightboxImage(null);
+    setLightboxZoom(1);
+    setLightboxOffset({ x: 0, y: 0 });
+    lightboxDragRef.current = { active: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+    pinchStateRef.current = { initialDistance: null, initialZoom: 1 };
+  };
+
+  const adjustLightboxZoom = (delta) => {
+    setLightboxZoom((prev) => {
+      const next = clamp(prev + delta, 1, 3.5);
+      if (next === 1) {
+        setLightboxOffset({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!lightboxImage) return undefined;
+    function handleKeydown(e) {
+      if (e.key === "Escape") {
+        closeImageLightbox();
+      }
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        adjustLightboxZoom(0.15);
+      }
+      if (e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        adjustLightboxZoom(-0.15);
+      }
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  }, [lightboxImage]);
+
+  const handleLightboxWheel = (event) => {
+    if (!lightboxImage) return;
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.15 : 0.15;
+    adjustLightboxZoom(delta);
+  };
+
+  const handlePointerDown = (clientX, clientY) => {
+    if (lightboxZoom <= 1) return;
+    lightboxDragRef.current = {
+      active: true,
+      startX: clientX,
+      startY: clientY,
+      originX: lightboxOffset.x,
+      originY: lightboxOffset.y,
+    };
+  };
+
+  const handlePointerMove = (clientX, clientY) => {
+    if (!lightboxDragRef.current.active) return;
+    const dx = clientX - lightboxDragRef.current.startX;
+    const dy = clientY - lightboxDragRef.current.startY;
+    setLightboxOffset({
+      x: lightboxDragRef.current.originX + dx,
+      y: lightboxDragRef.current.originY + dy,
+    });
+  };
+
+  const stopPointerDrag = () => {
+    lightboxDragRef.current = {
+      ...lightboxDragRef.current,
+      active: false,
+    };
+  };
+
+  const getTouchDistance = (touchA, touchB) => {
+    const dx = touchA.clientX - touchB.clientX;
+    const dy = touchA.clientY - touchB.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleLightboxTouchStart = (event) => {
+    if (!lightboxImage) return;
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      handlePointerDown(touch.clientX, touch.clientY);
+    } else if (event.touches.length === 2) {
+      event.preventDefault();
+      pinchStateRef.current = {
+        initialDistance: getTouchDistance(event.touches[0], event.touches[1]),
+        initialZoom: lightboxZoom,
+      };
+    }
+  };
+
+  const handleLightboxTouchMove = (event) => {
+    if (!lightboxImage) return;
+    if (event.touches.length === 1 && lightboxDragRef.current.active) {
+      const touch = event.touches[0];
+      handlePointerMove(touch.clientX, touch.clientY);
+    } else if (event.touches.length === 2) {
+      event.preventDefault();
+      const distance = getTouchDistance(event.touches[0], event.touches[1]);
+      if (!pinchStateRef.current.initialDistance) return;
+      const scaleFactor = distance / pinchStateRef.current.initialDistance;
+      const nextZoom = clamp(pinchStateRef.current.initialZoom * scaleFactor, 1, 3.5);
+      setLightboxZoom(nextZoom);
+      if (nextZoom === 1) {
+        setLightboxOffset({ x: 0, y: 0 });
+      }
+    }
+  };
+
+  const handleLightboxTouchEnd = () => {
+    stopPointerDrag();
+    pinchStateRef.current = { ...pinchStateRef.current, initialDistance: null };
   };
 
   const renderContactList = () => (
@@ -984,7 +1116,15 @@ export default function ChatPage() {
                                     borderRadius: 12,
                                     marginTop: "0.25rem",
                                     display: "block",
+                                    cursor: "zoom-in",
                                   }}
+                                  onClick={() =>
+                                    openImageLightbox({
+                                      url,
+                                      alt: filename,
+                                      uploadedAt: m.created_at,
+                                    })
+                                  }
                                 />
                               ) : (
                                 <a
@@ -1575,6 +1715,70 @@ export default function ChatPage() {
         cancelText={requestingMatch ? "Close" : "Cancel"}
         confirmButtonClass="bg-blue-600 hover:bg-blue-700 text-white"
       />
+      {lightboxImage && (
+        <div className="chat-image-lightbox" onClick={closeImageLightbox}>
+          <div className="lightbox-toolbar" onClick={(e) => e.stopPropagation()}>
+            <span className="lightbox-filename" title={lightboxImage.alt || "Attachment"}>
+              {lightboxImage.alt || "Attachment"}
+            </span>
+            <div className="lightbox-actions">
+              <button type="button" onClick={() => adjustLightboxZoom(-0.2)} aria-label="Zoom out">
+                –
+              </button>
+              <span>{Math.round(lightboxZoom * 100)}%</span>
+              <button type="button" onClick={() => adjustLightboxZoom(0.2)} aria-label="Zoom in">
+                +
+              </button>
+              <button type="button" onClick={() => adjustLightboxZoom(1 - lightboxZoom)}>
+                Reset
+              </button>
+              <button type="button" onClick={closeImageLightbox} className="lightbox-close">
+                Close
+              </button>
+            </div>
+          </div>
+          <div
+            className="lightbox-stage"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={handleLightboxWheel}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handlePointerDown(e.clientX, e.clientY);
+            }}
+            onMouseMove={(e) => {
+              if (!lightboxDragRef.current.active) return;
+              e.preventDefault();
+              handlePointerMove(e.clientX, e.clientY);
+            }}
+            onMouseUp={(e) => {
+              e.preventDefault();
+              stopPointerDrag();
+            }}
+            onMouseLeave={stopPointerDrag}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchMove={handleLightboxTouchMove}
+            onTouchEnd={handleLightboxTouchEnd}
+            onTouchCancel={handleLightboxTouchEnd}
+          >
+            <div
+              className="lightbox-image-wrapper"
+              style={{
+                transform: `translate(${lightboxOffset.x}px, ${lightboxOffset.y}px) scale(${lightboxZoom})`,
+                cursor: lightboxZoom > 1 ? "grabbing" : "zoom-in",
+              }}
+            >
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.alt || "Attachment"}
+                draggable={false}
+              />
+            </div>
+            <p className="lightbox-hint">
+              Scroll or pinch to zoom • Drag to pan • Tap outside to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

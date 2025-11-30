@@ -72,6 +72,7 @@ export default function Modal({ open, onClose, children, widthClass = "max-w-3xl
             isAnimating ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-4"
           }`}
           role="dialog"
+          onClick={onClose}
         >
           {children}
         </div>

@@ -11,6 +11,7 @@ import useDogs from "../hooks/useDogs";
 import LoadingState from "../components/LoadingState";
 import { ensureContact } from "../lib/chat";
 import { fetchAwaitingDogIds } from "../lib/matches";
+import ScoringInfoModal from "../components/ScoringInfoModal";
 import "./FindMatchPage.css"; // warm dog-lover theme
 
 // Shared invalidation timestamp is managed inside useDogs; keep usage here only for matches caching.
@@ -77,6 +78,7 @@ export default function FindMatchPage() {
   // Simplified loading UI (no long-load hints)
   const [error, setError] = useState(null);
   const [contactingDogId, setContactingDogId] = useState(null);
+  const [showScoringInfo, setShowScoringInfo] = useState(false);
   const matchesRequestIdRef = useRef(0);
   const filterUnavailableMatches = useCallback(async (matches) => {
     if (!Array.isArray(matches) || matches.length === 0) return matches || [];
@@ -295,31 +297,10 @@ export default function FindMatchPage() {
       : rows;
     FM_LOG("matches: fetched rows", rows.length);
     const scoredMatches = genderFilteredRows
-      .map((match) => {
-        // Debug: log both dog objects before scoring
-        console.log("[MATCH DEBUG] Scoring:", {
-          selectedDog: {
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed,
-            gender: dog.gender || dog.sex,
-            size: dog.size,
-            weight_kg: dog.weight_kg,
-          },
-          candidateDog: {
-            id: match.id,
-            name: match.name,
-            breed: match.breed,
-            gender: match.gender || match.sex,
-            size: match.size,
-            weight_kg: match.weight_kg,
-          },
-        });
-        return {
-          ...match,
-          score: calculateMatchScore(dog, match),
-        };
-      })
+      .map((match) => ({
+        ...match,
+        score: calculateMatchScore(dog, match),
+      }))
       .filter((match) => match.score > 0) // Only show compatible matches
       .sort((a, b) => b.score - a.score); // Sort by score descending
 
@@ -449,207 +430,222 @@ export default function FindMatchPage() {
   };
 
   return (
-    <div className="find-match-container">
-      {/* Header Section */}
-      <div className="header-section">
-        <h1 className="page-title">Find Matches</h1>
-        <p className="page-description">Find compatible breeding partners for your dogs</p>
-      </div>
+    <>
+      <div className="find-match-container">
+        {/* Header Section */}
+        <div className="header-section">
+          <h1 className="page-title">Find Matches</h1>
+          <p className="page-description">Find compatible breeding partners for your dogs</p>
+        </div>
 
-      {/* Dog Selection Section */}
-      <div className="content-section">
-        <h2 className="section-title">Select Your Dog</h2>
-        {dogsLoading && userDogs.length === 0 ? (
-          <LoadingState message="Loading your dogs..." minHeight={140} />
-        ) : userDogs.length === 0 ? (
-          <div className="empty-state">
-            <p>Add a dog to your profile first to find matches</p>
-            <Link to="/add-dog" className="primary-btn">
-              Add Dog
-            </Link>
+        {/* Dog Selection Section */}
+        <div className="content-section">
+          <div className="section-title-row">
+            <h2 className="section-title">Select Your Dog</h2>
+            <button
+              type="button"
+              className="section-info-btn"
+              onClick={() => setShowScoringInfo(true)}
+              aria-label="Learn how the compatibility score works"
+              title="Click to learn more about the breeding progress"
+            >
+              How Matching Works
+            </button>
           </div>
-        ) : (
-          <div className="dogs-grid">
-            {userDogs.map((dog) => (
-              <div
-                key={dog.id}
-                className={`dog-card ${selectedDog?.id === dog.id ? "selected" : ""}`}
-                onClick={() => handleSelectDog(dog)}
-              >
-                <img
-                  src={dog.image_url || "/shibaPor.jpg"}
-                  alt={dog.name}
-                  className="dog-image"
-                  loading="lazy"
-                />
-                <div className="dog-info">
-                  <h3>{dog.name}</h3>
-                  <p>{dog.breed}</p>
-                  <div
-                    className={
-                      "gender-pill " +
-                      (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "male"
-                        ? "male"
-                        : ((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "female"
-                          ? "female"
-                          : "unknown")
-                    }
-                    style={{ marginTop: 6 }}
-                  >
-                    {(() => {
-                      const g = (dog.gender || dog.sex || "").toString();
-                      const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "\u2014";
-                      return <span className="gender-label">{label.toLowerCase()}</span>;
-                    })()}
+          {dogsLoading && userDogs.length === 0 ? (
+            <LoadingState message="Loading your dogs..." minHeight={140} />
+          ) : userDogs.length === 0 ? (
+            <div className="empty-state">
+              <p>Add a dog to your profile first to find matches</p>
+              <Link to="/add-dog" className="primary-btn">
+                Add Dog
+              </Link>
+            </div>
+          ) : (
+            <div className="dogs-grid">
+              {userDogs.map((dog) => (
+                <div
+                  key={dog.id}
+                  className={`dog-card ${selectedDog?.id === dog.id ? "selected" : ""}`}
+                  onClick={() => handleSelectDog(dog)}
+                >
+                  <img
+                    src={dog.image_url || "/shibaPor.jpg"}
+                    alt={dog.name}
+                    className="dog-image"
+                    loading="lazy"
+                  />
+                  <div className="dog-info">
+                    <h3>{dog.name}</h3>
+                    <p>{dog.breed}</p>
+                    <div
+                      className={
+                        "gender-pill " +
+                        (((dog.gender || dog.sex || "") + "").toString().toLowerCase() === "male"
+                          ? "male"
+                          : ((dog.gender || dog.sex || "") + "").toString().toLowerCase() ===
+                              "female"
+                            ? "female"
+                            : "unknown")
+                      }
+                      style={{ marginTop: 6 }}
+                    >
+                      {(() => {
+                        const g = (dog.gender || dog.sex || "").toString();
+                        const label = g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : "\u2014";
+                        return <span className="gender-label">{label.toLowerCase()}</span>;
+                      })()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Results Section */}
-      {selectedDog && (
-        <div className="content-section">
-          <div className="matches-header">
-            <h2 className="section-title">Matches for {selectedDog.name}</h2>
-            <div className="filter-group">
-              <label style={{ fontWeight: "bold", marginRight: "1rem", color: "#4B5563" }}>
-                Filter:
-              </label>
-              <label className={"filter-label" + (breedFilter === "same" ? " active" : "")}>
-                <input
-                  type="radio"
-                  name="breedFilter"
-                  value="same"
-                  checked={breedFilter === "same"}
-                  onChange={handleBreedFilterChange}
-                  style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
-                />
-                <span
-                  style={{
-                    color: breedFilter === "same" ? "#6366F1" : "#4B5563",
-                    fontWeight: "500",
-                  }}
-                >
-                  Same Breed
-                </span>
-              </label>
-              <label className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}>
-                <input
-                  type="radio"
-                  name="breedFilter"
-                  value="mixed"
-                  checked={breedFilter === "mixed"}
-                  onChange={handleBreedFilterChange}
-                  style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
-                />
-                <span
-                  style={{
-                    color: breedFilter === "mixed" ? "#6366F1" : "#4B5563",
-                    fontWeight: "500",
-                  }}
-                >
-                  Mixed Breed
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {matchesLoading && <LoadingState message="Finding matches..." minHeight={120} />}
-
-          {error && (
-            <div className="error-state">
-              <p>{error}</p>
+              ))}
             </div>
           )}
+        </div>
 
-          {!matchesLoading && potentialMatches.length === 0 && !error && (
-            <div className="empty-state">
-              <p>No compatible matches found at this time.</p>
-            </div>
-          )}
-
-          {!matchesLoading && potentialMatches.length > 0 && (
-            <>
-              <div className="matches-grid">
-                {potentialMatches.map((match, index) => (
-                  <div key={match.id} className="match-card">
-                    <div className="match-rank">#{index + 1}</div>
-                    <div className="match-score">{match.score}% Match</div>
-
-                    <div className="card-image-wrapper">
-                      <img
-                        src={match.image_url || "/shibaPor.jpg"}
-                        alt={match.name}
-                        className="match-image"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    <div className="card-content">
-                      <h3 className="match-name">{match.name}</h3>
-                      <div className="match-details">
-                        <div className="detail-item">
-                          <span className="detail-label">Breed</span>
-                          <span className="detail-value capitalize">{match.breed}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Age</span>
-                          <span className="detail-value">{match.age_years} years old</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Gender</span>
-                          <span className="detail-value capitalize">{match.gender}</span>
-                        </div>
-                      </div>
-
-                      <div className="card-actions">
-                        <Link
-                          to={`/dog/${match.id}`}
-                          state={{
-                            fromFindMatch: true,
-                            selectedDog: selectedDog,
-                            potentialMatches: potentialMatches,
-                          }}
-                          className="view-profile-btn"
-                        >
-                          View Profile
-                        </Link>
-                        <button
-                          className="contact-btn"
-                          onClick={() => handleContact(match)}
-                          disabled={contactingDogId === match.id}
-                        >
-                          {contactingDogId === match.id ? "Opening chat..." : "Contact Owner"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* View More button */}
-              {displayCount < getFilteredMatches(allMatches, selectedDog, breedFilter).length && (
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
-                  <button
-                    className="primary-btn"
-                    onClick={handleViewMore}
+        {/* Results Section */}
+        {selectedDog && (
+          <div className="content-section">
+            <div className="matches-header">
+              <h2 className="section-title">Matches for {selectedDog.name}</h2>
+              <div className="filter-group">
+                <label style={{ fontWeight: "bold", marginRight: "1rem", color: "#4B5563" }}>
+                  Filter:
+                </label>
+                <label className={"filter-label" + (breedFilter === "same" ? " active" : "")}>
+                  <input
+                    type="radio"
+                    name="breedFilter"
+                    value="same"
+                    checked={breedFilter === "same"}
+                    onChange={handleBreedFilterChange}
+                    style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
+                  />
+                  <span
                     style={{
-                      padding: "0.75rem 2rem",
-                      fontSize: "1rem",
+                      color: breedFilter === "same" ? "#6366F1" : "#4B5563",
                       fontWeight: "500",
                     }}
                   >
-                    View More
-                  </button>
+                    Same Breed
+                  </span>
+                </label>
+                <label className={"filter-label" + (breedFilter === "mixed" ? " active" : "")}>
+                  <input
+                    type="radio"
+                    name="breedFilter"
+                    value="mixed"
+                    checked={breedFilter === "mixed"}
+                    onChange={handleBreedFilterChange}
+                    style={{ accentColor: "#6366F1", marginRight: "0.5rem" }}
+                  />
+                  <span
+                    style={{
+                      color: breedFilter === "mixed" ? "#6366F1" : "#4B5563",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Mixed Breed
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {matchesLoading && <LoadingState message="Finding matches..." minHeight={120} />}
+
+            {error && (
+              <div className="error-state">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {!matchesLoading && potentialMatches.length === 0 && !error && (
+              <div className="empty-state">
+                <p>No compatible matches found at this time.</p>
+              </div>
+            )}
+
+            {!matchesLoading && potentialMatches.length > 0 && (
+              <>
+                <div className="matches-grid">
+                  {potentialMatches.map((match, index) => (
+                    <div key={match.id} className="match-card">
+                      <div className="match-rank">#{index + 1}</div>
+                      <div className="match-score">{match.score}% Match</div>
+
+                      <div className="card-image-wrapper">
+                        <img
+                          src={match.image_url || "/shibaPor.jpg"}
+                          alt={match.name}
+                          className="match-image"
+                          loading="lazy"
+                        />
+                      </div>
+
+                      <div className="card-content">
+                        <h3 className="match-name">{match.name}</h3>
+                        <div className="match-details">
+                          <div className="detail-item">
+                            <span className="detail-label">Breed</span>
+                            <span className="detail-value capitalize">{match.breed}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-label">Age</span>
+                            <span className="detail-value">{match.age_years} years old</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-label">Gender</span>
+                            <span className="detail-value capitalize">{match.gender}</span>
+                          </div>
+                        </div>
+
+                        <div className="card-actions">
+                          <Link
+                            to={`/dog/${match.id}`}
+                            state={{
+                              fromFindMatch: true,
+                              selectedDog: selectedDog,
+                              potentialMatches: potentialMatches,
+                            }}
+                            className="view-profile-btn"
+                          >
+                            View Profile
+                          </Link>
+                          <button
+                            className="contact-btn"
+                            onClick={() => handleContact(match)}
+                            disabled={contactingDogId === match.id}
+                          >
+                            {contactingDogId === match.id ? "Opening chat..." : "Contact Owner"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
+
+                {/* View More button */}
+                {displayCount < getFilteredMatches(allMatches, selectedDog, breedFilter).length && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
+                    <button
+                      className="primary-btn"
+                      onClick={handleViewMore}
+                      style={{
+                        padding: "0.75rem 2rem",
+                        fontSize: "1rem",
+                        fontWeight: "500",
+                      }}
+                    >
+                      View More
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <ScoringInfoModal open={showScoringInfo} onClose={() => setShowScoringInfo(false)} />
+    </>
   );
 }
