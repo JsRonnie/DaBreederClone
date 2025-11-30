@@ -4,7 +4,7 @@ import "./ScoringInfoModal.css";
 
 export default function ScoringInfoModal({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} widthClass="max-w-3xl">
+    <Modal open={open} onClose={onClose} widthClass="max-w-3xl" closeOnContentClick>
       <div className="scoring-modal" role="document">
         <header className="scoring-modal__header">
           <div>

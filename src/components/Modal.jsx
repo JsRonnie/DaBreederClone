@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export default function Modal({ open, onClose, children, widthClass = "max-w-3xl" }) {
+export default function Modal({
+  open,
+  onClose,
+  children,
+  widthClass = "max-w-3xl",
+  closeOnContentClick = false,
+}) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef(null);
@@ -72,7 +78,7 @@ export default function Modal({ open, onClose, children, widthClass = "max-w-3xl
             isAnimating ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-4"
           }`}
           role="dialog"
-          onClick={onClose}
+          onClick={closeOnContentClick ? onClose : undefined}
         >
           {children}
         </div>
