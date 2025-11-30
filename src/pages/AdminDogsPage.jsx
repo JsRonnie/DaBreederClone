@@ -23,10 +23,10 @@ import {
   FileCheck,
   FileX,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import supabase from "../lib/supabaseClient";
-import ConfirmDialog from "../components/ConfirmDialog";
 import AdminLoadingScreen from "../components/AdminLoadingScreen";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -49,6 +49,16 @@ import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 // import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table"; // Removed: file does not exist
 // import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip"; // Removed: file does not exist
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -61,12 +71,9 @@ export default function AdminDogsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDocuments, setFilterDocuments] = useState("all"); // all, verified, pending, none
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    action: null,
-    dogId: null,
-    dogName: "",
-  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedDog, setSelectedDog] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [stats, setStats] = useState({ total: 0, withDocs: 0 });
   const [docModal, setDocModal] = useState({
     open: false,
@@ -108,11 +115,9 @@ export default function AdminDogsPage() {
   };
 
   // Stub handleActionClick to prevent reference error
-  const handleActionClick = (action, dogId, dogName) => {
-    // TODO: Implement actual action logic
-    if (action === "delete") {
-      setConfirmDialog({ open: true, action, dogId, dogName });
-    }
+  const handleActionClick = (dog) => {
+    setSelectedDog(dog);
+    setShowConfirmModal(true);
   };
 
   // Pagination state
@@ -173,22 +178,23 @@ export default function AdminDogsPage() {
   // Removed orphaned closing braces from previous patch
 
   const confirmAction = async () => {
-    const { action, dogId } = confirmDialog;
+    if (!selectedDog) return;
 
     try {
-      if (action === "delete") {
-        const { error } = await supabase.from("dogs").delete().eq("id", dogId);
-        if (error) throw error;
-        console.log("Dog deleted:", dogId);
-        // Notification removed
-      }
+      setIsProcessing(true);
+      const { error } = await supabase.from("dogs").delete().eq("id", selectedDog.id);
+      if (error) throw error;
+      console.log("Dog deleted:", selectedDog.id);
       // Refresh the list
       await fetchDogs();
-      setConfirmDialog({ open: false, action: null, dogId: null, dogName: "" });
+      setShowConfirmModal(false);
+      setSelectedDog(null);
       // Notification removed
     } catch (err) {
-      console.error(`Error performing ${action}:`, err);
+      console.error(`Error deleting dog:`, err);
       // Notification removed
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -495,7 +501,7 @@ export default function AdminDogsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleActionClick("delete", dog.id, dog.name)}
+                              onClick={() => handleActionClick(dog)}
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
@@ -542,47 +548,46 @@ export default function AdminDogsPage() {
       </Card>
 
       {/* Confirmation Dialog */}
-      <ConfirmDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, open: false })}
-        title={`Delete ${confirmDialog.dogName}?`}
-        description="This action cannot be undone. This will permanently delete the dog's profile and all associated data."
-        onConfirm={confirmAction}
-        confirmText="Delete"
-        variant="destructive"
-      />
-
-      {/* Confirmation Modal */}
-      {confirmDialog.open && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-8 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900 mb-3">Delete Dog Profile</h3>
-            <p className="text-slate-600 mb-2">
-              Are you sure you want to delete "{confirmDialog.dogName}"?
-            </p>
-            <p className="text-sm text-slate-500 mb-6">
-              This action cannot be undone and will permanently remove all information, photos, and
-              documents.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setConfirmDialog({ open: false, action: null, dogId: null, dogName: "" });
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAction}
-                className="px-4 py-2 text-sm font-bold text-white rounded-lg transition-colors bg-red-600 hover:bg-red-700"
-              >
-                Delete
-              </button>
+      <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertDialogTitle>Delete Dog Profile</AlertDialogTitle>
             </div>
-          </div>
-        </div>
-      )}
+            <AlertDialogDescription className="pt-4">
+              <p className="mb-2">
+                Are you sure you want to delete{" "}
+                <span className="font-medium">{selectedDog?.name}</span>'s profile?
+              </p>
+              <p className="text-sm text-muted-foreground">
+                This action cannot be undone and will permanently remove all information, photos,
+                and documents.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmAction();
+              }}
+              disabled={isProcessing}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isProcessing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Dog"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Document Verification Modal */}
       {docModal.open && (
